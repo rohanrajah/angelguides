@@ -43,7 +43,7 @@ export async function getAngelaResponse(
     });
 
     // Parse the response
-    const content = response.choices[0]?.message?.content || '{"message": "I apologize, but I'm having trouble connecting to my spiritual guidance at the moment. Please try again."}';
+    const content = response.choices[0]?.message?.content || '{"message": "I apologize, but I\'m having trouble connecting to my spiritual guidance at the moment. Please try again."}';
     return JSON.parse(content) as AngelaResponse;
   } catch (error) {
     console.error("Error getting Angela response:", error);
