@@ -70,7 +70,7 @@ const AdvisorCard: React.FC<AdvisorCardProps> = ({ advisor, specialties = [] }) 
             </p>
           </div>
           <span className="bg-neutral-lightest text-primary text-sm px-2 py-1 rounded-md">
-            ${advisor.hourlyRate || 0}/session
+            ${advisor.minuteRate?.toFixed(2) || '0.00'}/min
           </span>
         </div>
         <p className="text-neutral-dark text-sm mb-3 line-clamp-2">{advisor.bio || 'A skilled spiritual advisor ready to guide you on your journey.'}</p>
