@@ -94,7 +94,7 @@ export class MemStorage implements IStorage {
         username: "sarahjohnson",
         password: "password123",
         name: "Sarah Johnson",
-        email: "sarah@angelguides.ai",
+        email: "sarah@etherealadvisors.com",
         isAdvisor: true,
         avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
         bio: "Specializing in tarot readings that provide clarity and guidance for life's most challenging decisions.",
