@@ -18,6 +18,8 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
     { label: 'Messages', path: '/messages', icon: 'fa-comments' },
     { label: 'Profile', path: '/profile', icon: 'fa-user' },
   ];
+  
+  // Add Top-up option to the user dropdown menu
 
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
@@ -84,6 +86,12 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
             <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 hidden group-hover:block border border-neutral-light z-50">
               <Link href="/profile">
                 <a className="block px-4 py-2 text-sm text-neutral-dark hover:bg-neutral-lightest hover:text-primary">Your Profile</a>
+              </Link>
+              <Link href="/topup">
+                <a className="block px-4 py-2 text-sm text-neutral-dark hover:bg-neutral-lightest hover:text-primary">
+                  <i className="fas fa-coins mr-2 text-purple-500"></i>
+                  Add Funds
+                </a>
               </Link>
               <a href="#" className="block px-4 py-2 text-sm text-neutral-dark hover:bg-neutral-lightest hover:text-primary">Settings</a>
               <hr className="my-1 border-neutral-light" />

@@ -13,6 +13,7 @@ import AdvisorProfile from "@/pages/advisor-profile";
 import Bookings from "@/pages/bookings";
 import Messages from "@/pages/messages";
 import Profile from "@/pages/profile";
+import TopupPage from "@/pages/topup";
 import NotFound from "@/pages/not-found";
 import { useEffect, useState } from "react";
 import { User } from "@shared/schema";
@@ -34,6 +35,7 @@ function Router() {
       <Route path="/bookings" component={Bookings} />
       <Route path="/messages" component={Messages} />
       <Route path="/profile" component={Profile} />
+      <Route path="/topup" component={TopupPage} />
       <Route component={NotFound} />
     </Switch>
   );
