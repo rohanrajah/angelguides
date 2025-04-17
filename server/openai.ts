@@ -145,16 +145,16 @@ export async function generateAdvisorRecommendations(
 
     // Prepare conversation for OpenAI
     const messages = [
-      systemMessage,
+      systemMessage as any,
       ...conversationHistory.map(msg => ({
         role: msg.role as "user" | "assistant",
         content: msg.content
-      }))
+      })) as any[]
     ];
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
-      messages,
+      messages: messages as any[],
       response_format: { type: "json_object" },
       temperature: 0.7,
       max_tokens: 500
@@ -213,18 +213,18 @@ export async function getAngelaResponse(
 
     // Prepare conversation for OpenAI
     const messages = [
-      systemMessage,
+      systemMessage as any,
       ...conversationHistory.map(msg => ({
         role: msg.role as "user" | "assistant",
         content: msg.content
-      })),
-      { role: "user", content: userMessage }
+      })) as any[],
+      { role: "user" as any, content: userMessage }
     ];
 
     // Get response from OpenAI
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
-      messages,
+      messages: messages as any[],
       response_format: { type: "json_object" },
       temperature: 0.7,
       max_tokens: 500

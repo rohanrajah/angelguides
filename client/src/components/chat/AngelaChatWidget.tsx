@@ -166,7 +166,7 @@ const AngelaChatWidget: React.FC<AngelaChatWidgetProps> = ({ userId }) => {
     
     setConversation({
       ...conversation,
-      messages: [...conversation.messages, newMessage]
+      messages: [...(conversation.messages as ChatMessage[]), newMessage]
     });
     
     setMessage('');
@@ -257,7 +257,7 @@ const AngelaChatWidget: React.FC<AngelaChatWidgetProps> = ({ userId }) => {
       
       <div className="h-80 overflow-y-auto p-4 bg-neutral-lightest" id="chat-messages">
         <div className="space-y-4">
-          {conversation.messages.map((msg, index) => (
+          {(conversation.messages as ChatMessage[]).map((msg, index) => (
             <motion.div 
               key={index}
               initial={{ opacity: 0, y: 10 }}

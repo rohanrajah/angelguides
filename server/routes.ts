@@ -152,7 +152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const conversation = await storage.getOrCreateConversation(userId);
       
       // Format conversation history for OpenAI
-      const conversationHistory = conversation.messages.map(msg => ({
+      const conversationHistory = (conversation.messages as any[]).map(msg => ({
         role: msg.role,
         content: msg.content
       }));
@@ -162,7 +162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Add user message and Angela's response to conversation
       const updatedMessages = [
-        ...conversation.messages,
+        ...(conversation.messages as any[]),
         { role: 'user', content: message, timestamp: new Date() },
         { role: 'assistant', content: angelaResponse.message, timestamp: new Date() }
       ];
