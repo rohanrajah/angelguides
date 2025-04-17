@@ -17,6 +17,8 @@ export const users = pgTable("users", {
   reviewCount: integer("review_count"),
   availability: text("availability"),
   online: boolean("online").default(false),
+  accountBalance: integer("account_balance").default(0), // Account balance in cents
+  stripeCustomerId: text("stripe_customer_id"),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({

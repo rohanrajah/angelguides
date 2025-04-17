@@ -17,6 +17,11 @@ export interface IStorage {
   getAdvisorsBySpecialty(specialtyId: number): Promise<User[]>;
   updateUserStatus(id: number, online: boolean): Promise<User | undefined>;
   
+  // Account balance methods
+  addUserBalance(userId: number, amount: number): Promise<User | undefined>; // amount in cents
+  deductUserBalance(userId: number, amount: number): Promise<User | undefined>; // amount in cents
+  updateStripeCustomerId(userId: number, stripeCustomerId: string): Promise<User | undefined>;
+  
   // Specialty methods
   getAllSpecialties(): Promise<Specialty[]>;
   getSpecialty(id: number): Promise<Specialty | undefined>;
@@ -211,7 +216,9 @@ export class MemStorage implements IStorage {
       id,
       rating: user.isAdvisor ? 4 + Math.random() : 0,
       reviewCount: user.isAdvisor ? Math.floor(Math.random() * 100) + 50 : 0,
-      online: Math.random() > 0.5
+      online: Math.random() > 0.5,
+      accountBalance: 0,
+      stripeCustomerId: null
     };
     this.users.set(id, newUser);
     return newUser;
@@ -244,6 +251,48 @@ export class MemStorage implements IStorage {
     if (user) {
       const updatedUser = { ...user, online };
       this.users.set(id, updatedUser);
+      return updatedUser;
+    }
+    return undefined;
+  }
+
+  // Account balance methods
+  async addUserBalance(userId: number, amount: number): Promise<User | undefined> {
+    const user = this.users.get(userId);
+    if (user) {
+      const currentBalance = user.accountBalance || 0;
+      const updatedUser = { 
+        ...user, 
+        accountBalance: currentBalance + amount 
+      };
+      this.users.set(userId, updatedUser);
+      return updatedUser;
+    }
+    return undefined;
+  }
+
+  async deductUserBalance(userId: number, amount: number): Promise<User | undefined> {
+    const user = this.users.get(userId);
+    if (user) {
+      const currentBalance = user.accountBalance || 0;
+      if (currentBalance < amount) {
+        throw new Error('Insufficient balance');
+      }
+      const updatedUser = { 
+        ...user, 
+        accountBalance: currentBalance - amount 
+      };
+      this.users.set(userId, updatedUser);
+      return updatedUser;
+    }
+    return undefined;
+  }
+
+  async updateStripeCustomerId(userId: number, stripeCustomerId: string): Promise<User | undefined> {
+    const user = this.users.get(userId);
+    if (user) {
+      const updatedUser = { ...user, stripeCustomerId };
+      this.users.set(userId, updatedUser);
       return updatedUser;
     }
     return undefined;

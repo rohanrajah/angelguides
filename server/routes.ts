@@ -4,8 +4,16 @@ import { storage } from "./storage";
 import { getAngelaResponse } from "./openai";
 import { z } from "zod";
 import { insertUserSchema, insertSessionSchema, insertMessageSchema } from "@shared/schema";
+import Stripe from "stripe";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Check if Stripe API key is available
+  let stripe: Stripe | undefined;
+  if (process.env.STRIPE_SECRET_KEY) {
+    stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2023-10-16',
+    });
+  }
   // Get all advisors
   app.get("/api/advisors", async (req: Request, res: Response) => {
     try {
@@ -231,6 +239,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching current user:", error);
       res.status(500).json({ message: "Failed to fetch current user" });
+    }
+  });
+
+  // Get user balance
+  app.get("/api/users/:userId/balance", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json({ 
+        balance: user.accountBalance || 0,
+        formattedBalance: `$${((user.accountBalance || 0) / 100).toFixed(2)}`
+      });
+    } catch (error) {
+      console.error("Error fetching user balance:", error);
+      res.status(500).json({ message: "Failed to fetch balance" });
+    }
+  });
+
+  // Create a payment intent for account top-up
+  app.post("/api/topup", async (req: Request, res: Response) => {
+    try {
+      const { userId, amountUsd } = req.body;
+      
+      if (!userId || !amountUsd) {
+        return res.status(400).json({ message: "User ID and amount are required" });
+      }
+
+      // Validate minimum top-up amount of $10
+      if (amountUsd < 10) {
+        return res.status(400).json({ message: "Minimum top-up amount is $10" });
+      }
+      
+      // Convert USD to cents
+      const amountCents = Math.round(amountUsd * 100);
+      
+      // Check if Stripe is initialized
+      if (!stripe) {
+        return res.status(503).json({ 
+          message: "Payment service is unavailable. Please contact support." 
+        });
+      }
+      
+      // Get user info
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Create or retrieve customer
+      let customerId = user.stripeCustomerId;
+      if (!customerId) {
+        // Create a new customer
+        const customer = await stripe.customers.create({
+          email: user.email,
+          name: user.name,
+          metadata: {
+            userId: user.id.toString()
+          }
+        });
+        
+        customerId = customer.id;
+        await storage.updateStripeCustomerId(userId, customerId);
+      }
+      
+      // Create a payment intent
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amountCents,
+        currency: 'usd',
+        customer: customerId,
+        metadata: {
+          userId: userId.toString(),
+          type: 'topup'
+        }
+      });
+      
+      res.json({
+        clientSecret: paymentIntent.client_secret,
+        amount: amountCents,
+        amountUsd
+      });
+    } catch (error) {
+      console.error("Error creating payment intent:", error);
+      res.status(500).json({ message: "Failed to process payment request" });
+    }
+  });
+
+  // Webhook to handle successful payments
+  app.post('/api/stripe-webhook', async (req: Request, res: Response) => {
+    const payload = req.body;
+    
+    // In production, you would verify this is coming from Stripe
+    try {
+      // Handle the event
+      if (payload.type === 'payment_intent.succeeded') {
+        const paymentIntent = payload.data.object;
+        const metadata = paymentIntent.metadata;
+        
+        if (metadata && metadata.type === 'topup' && metadata.userId) {
+          const userId = parseInt(metadata.userId);
+          const amount = paymentIntent.amount; // amount in cents
+          
+          // Add to user's balance
+          await storage.addUserBalance(userId, amount);
+          
+          console.log(`Successfully topped up user ${userId} with ${amount} cents`);
+        }
+      }
+      
+      res.json({ received: true });
+    } catch (error) {
+      console.error("Error processing webhook:", error);
+      res.status(500).json({ message: "Failed to process webhook" });
     }
   });
 

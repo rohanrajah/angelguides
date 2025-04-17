@@ -310,7 +310,7 @@ const AdvisorProfile: React.FC = () => {
               </div>
               <div className="flex justify-between font-medium text-lg mt-4 pt-4 border-t border-neutral-light">
                 <span>Total:</span>
-                <span className="text-primary">${(advisor.minuteRate * 60).toFixed(2)}</span>
+                <span className="text-primary">${((advisor.minuteRate || 0) * 60).toFixed(2)}</span>
               </div>
             </div>
             
