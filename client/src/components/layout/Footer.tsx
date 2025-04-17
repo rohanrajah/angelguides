@@ -9,7 +9,7 @@ const Footer: React.FC = () => {
           <div>
             <div className="flex items-center mb-4">
               <i className="fas fa-spa text-primary text-2xl mr-2"></i>
-              <h3 className="font-heading text-xl font-semibold">Ethereal Advisors</h3>
+              <h3 className="font-heading text-xl font-semibold">Angel Guides</h3>
             </div>
             <p className="text-neutral-light text-sm mb-4">
               Connecting you with spiritual guidance and wisdom for your personal and professional journey.
@@ -65,7 +65,7 @@ const Footer: React.FC = () => {
         </div>
         
         <div className="mt-8 pt-6 border-t border-neutral-dark flex flex-col md:flex-row justify-between items-center">
-          <p className="text-neutral text-sm">&copy; {new Date().getFullYear()} Ethereal Advisors. All rights reserved.</p>
+          <p className="text-neutral text-sm">&copy; {new Date().getFullYear()} Angel Guides. All rights reserved.</p>
           <div className="mt-4 md:mt-0 flex items-center space-x-4">
             <a href="#" className="text-neutral text-sm hover:text-primary transition duration-200">Privacy Policy</a>
             <span className="text-neutral">•</span>

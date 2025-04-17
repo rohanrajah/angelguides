@@ -36,7 +36,7 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
               <div className="text-primary mr-2">
                 <i className="fas fa-spa text-2xl"></i>
               </div>
-              <h1 className="font-heading text-2xl font-semibold text-primary">Ethereal Advisors</h1>
+              <h1 className="font-heading text-2xl font-semibold text-primary">Angel Guides</h1>
             </a>
           </Link>
         </div>
