@@ -6,8 +6,6 @@ import {
   messages, type Message, type InsertMessage,
   conversations, type Conversation, type InsertConversation, type ChatMessage
 } from "@shared/schema";
-import { db } from "./db";
-import { eq, and, or, desc } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -44,262 +42,41 @@ export interface IStorage {
   updateConversation(id: number, messages: ChatMessage[]): Promise<Conversation>;
 }
 
-export class DatabaseStorage implements IStorage {
-  // User methods
-  async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user || undefined;
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user || undefined;
-  }
-
-  async createUser(user: InsertUser): Promise<User> {
-    // Add default values for advisor ratings if applicable
-    const userData = { 
-      ...user,
-      rating: user.isAdvisor ? 4 + Math.random() : 0,
-      reviewCount: user.isAdvisor ? Math.floor(Math.random() * 100) + 50 : 0,
-      online: Math.random() > 0.5
-    };
-    
-    const [newUser] = await db.insert(users).values(userData).returning();
-    return newUser;
-  }
-
-  async getAdvisors(): Promise<User[]> {
-    return db.select().from(users).where(eq(users.isAdvisor, true));
-  }
-
-  async getAdvisorById(id: number): Promise<User | undefined> {
-    const [advisor] = await db.select().from(users).where(
-      and(eq(users.id, id), eq(users.isAdvisor, true))
-    );
-    return advisor || undefined;
-  }
-
-  async getAdvisorsBySpecialty(specialtyId: number): Promise<User[]> {
-    // Get advisor IDs with this specialty
-    const advisorSpecialtiesResult = await db.select({
-      advisorId: advisorSpecialties.advisorId
-    }).from(advisorSpecialties)
-      .where(eq(advisorSpecialties.specialtyId, specialtyId));
-    
-    const advisorIds = advisorSpecialtiesResult.map(row => row.advisorId);
-    
-    if (advisorIds.length === 0) {
-      return [];
-    }
-    
-    // Return advisors with these IDs
-    return db.select().from(users)
-      .where(
-        and(
-          eq(users.isAdvisor, true),
-          // Check if user ID is in the list of advisor IDs
-          advisorIds.length === 1 
-            ? eq(users.id, advisorIds[0])
-            : users.id.in(advisorIds)
-        )
-      );
-  }
-
-  async updateUserStatus(id: number, online: boolean): Promise<User | undefined> {
-    const [updatedUser] = await db.update(users)
-      .set({ online })
-      .where(eq(users.id, id))
-      .returning();
-    
-    return updatedUser || undefined;
-  }
-
-  // Specialty methods
-  async getAllSpecialties(): Promise<Specialty[]> {
-    return db.select().from(specialties);
-  }
-
-  async getSpecialty(id: number): Promise<Specialty | undefined> {
-    const [specialty] = await db.select().from(specialties).where(eq(specialties.id, id));
-    return specialty || undefined;
-  }
-
-  async createSpecialty(specialty: InsertSpecialty): Promise<Specialty> {
-    const [newSpecialty] = await db.insert(specialties).values(specialty).returning();
-    return newSpecialty;
-  }
-
-  // Advisor Specialty methods
-  async assignSpecialtyToAdvisor(advisorSpecialty: InsertAdvisorSpecialty): Promise<AdvisorSpecialty> {
-    const [newAdvisorSpecialty] = await db.insert(advisorSpecialties)
-      .values(advisorSpecialty)
-      .returning();
-    
-    return newAdvisorSpecialty;
-  }
-
-  async getAdvisorSpecialties(advisorId: number): Promise<Specialty[]> {
-    // Get specialty IDs for this advisor
-    const rows = await db.select({
-      specialtyId: advisorSpecialties.specialtyId
-    })
-    .from(advisorSpecialties)
-    .where(eq(advisorSpecialties.advisorId, advisorId));
-    
-    const specialtyIds = rows.map(row => row.specialtyId);
-    
-    if (specialtyIds.length === 0) {
-      return [];
-    }
-    
-    // Return specialties with these IDs
-    return db.select()
-      .from(specialties)
-      .where(
-        specialtyIds.length === 1
-          ? eq(specialties.id, specialtyIds[0])
-          : specialties.id.in(specialtyIds)
-      );
-  }
-
-  // Session methods
-  async createSession(session: InsertSession): Promise<Session> {
-    const [newSession] = await db.insert(sessions)
-      .values({ ...session, status: "scheduled" })
-      .returning();
-    
-    return newSession;
-  }
-
-  async getSessionsByUser(userId: number): Promise<Session[]> {
-    return db.select()
-      .from(sessions)
-      .where(eq(sessions.userId, userId))
-      .orderBy(sessions.startTime);
-  }
-
-  async getSessionsByAdvisor(advisorId: number): Promise<Session[]> {
-    return db.select()
-      .from(sessions)
-      .where(eq(sessions.advisorId, advisorId))
-      .orderBy(sessions.startTime);
-  }
-
-  async getUpcomingSessionsByUser(userId: number): Promise<Session[]> {
-    const now = new Date();
-    
-    return db.select()
-      .from(sessions)
-      .where(
-        and(
-          eq(sessions.userId, userId),
-          eq(sessions.status, "scheduled"),
-          sessions.startTime.gte(now)
-        )
-      )
-      .orderBy(sessions.startTime);
-  }
-
-  // Message methods
-  async sendMessage(message: InsertMessage): Promise<Message> {
-    const [newMessage] = await db.insert(messages)
-      .values({
-        ...message,
-        timestamp: new Date(),
-        read: false
-      })
-      .returning();
-    
-    return newMessage;
-  }
-
-  async getConversation(userId1: number, userId2: number): Promise<Message[]> {
-    return db.select()
-      .from(messages)
-      .where(
-        or(
-          and(
-            eq(messages.senderId, userId1),
-            eq(messages.receiverId, userId2)
-          ),
-          and(
-            eq(messages.senderId, userId2),
-            eq(messages.receiverId, userId1)
-          )
-        )
-      )
-      .orderBy(messages.timestamp);
-  }
-
-  async getUnreadMessageCount(userId: number): Promise<number> {
-    const result = await db.select({
-      count: sql<number>`count(*)`
-    })
-    .from(messages)
-    .where(
-      and(
-        eq(messages.receiverId, userId),
-        eq(messages.read, false)
-      )
-    );
-    
-    return result[0]?.count || 0;
-  }
-
-  // AI Concierge methods
-  async getOrCreateConversation(userId: number): Promise<Conversation> {
-    // Find existing conversation
-    const [existing] = await db.select()
-      .from(conversations)
-      .where(eq(conversations.userId, userId));
-    
-    if (existing) {
-      return existing;
-    }
-    
-    // Create new conversation
-    const welcomeMessage: ChatMessage = {
-      role: 'assistant',
-      content: 'Welcome to Angelguides.ai! I\'m Angela, your spiritual guide assistant. How can I help you today?',
-      timestamp: new Date()
-    };
-    
-    const [newConversation] = await db.insert(conversations)
-      .values({
-        userId,
-        messages: [welcomeMessage],
-        lastUpdated: new Date()
-      })
-      .returning();
-    
-    return newConversation;
-  }
-
-  async updateConversation(id: number, messages: ChatMessage[]): Promise<Conversation> {
-    const [updatedConversation] = await db.update(conversations)
-      .set({
-        messages,
-        lastUpdated: new Date()
-      })
-      .where(eq(conversations.id, id))
-      .returning();
-    
-    if (!updatedConversation) {
-      throw new Error(`Conversation with ID ${id} not found`);
-    }
-    
-    return updatedConversation;
-  }
+export class MemStorage implements IStorage {
+  private users: Map<number, User>;
+  private specialties: Map<number, Specialty>;
+  private advisorSpecialties: Map<number, AdvisorSpecialty>;
+  private sessions: Map<number, Session>;
+  private messages: Map<number, Message>;
+  private conversations: Map<number, Conversation>;
   
-  // Helper method to initialize data
-  async initializeData() {
-    // Check if specialties exist already
-    const existingSpecialties = await this.getAllSpecialties();
-    if (existingSpecialties.length > 0) {
-      return; // Data already initialized
-    }
+  private userIdCounter: number;
+  private specialtyIdCounter: number;
+  private advisorSpecialtyIdCounter: number;
+  private sessionIdCounter: number;
+  private messageIdCounter: number;
+  private conversationIdCounter: number;
+
+  constructor() {
+    this.users = new Map();
+    this.specialties = new Map();
+    this.advisorSpecialties = new Map();
+    this.sessions = new Map();
+    this.messages = new Map();
+    this.conversations = new Map();
     
+    this.userIdCounter = 1;
+    this.specialtyIdCounter = 1;
+    this.advisorSpecialtyIdCounter = 1;
+    this.sessionIdCounter = 1;
+    this.messageIdCounter = 1;
+    this.conversationIdCounter = 1;
+    
+    // Initialize with sample data
+    this.initializeData();
+  }
+
+  private initializeData() {
     // Create specialties
     const specialtyData: InsertSpecialty[] = [
       { name: "Tarot", icon: "cards" },
@@ -309,8 +86,7 @@ export class DatabaseStorage implements IStorage {
       { name: "Psychic Reading", icon: "crystal-ball" }
     ];
     
-    const specialtyPromises = specialtyData.map(specialty => this.createSpecialty(specialty));
-    const specialties = await Promise.all(specialtyPromises);
+    specialtyData.forEach(specialty => this.createSpecialty(specialty));
     
     // Create some sample advisors
     const advisorData: InsertUser[] = [
@@ -360,11 +136,10 @@ export class DatabaseStorage implements IStorage {
       }
     ];
     
-    const advisorPromises = advisorData.map(advisor => this.createUser(advisor));
-    const advisors = await Promise.all(advisorPromises);
+    const advisors = advisorData.map(advisor => this.createUser(advisor));
     
     // Create regular user
-    const user = await this.createUser({
+    this.createUser({
       username: "johndoe",
       password: "password123",
       name: "John Doe",
@@ -377,14 +152,14 @@ export class DatabaseStorage implements IStorage {
     });
     
     // Assign specialties to advisors
-    await this.assignSpecialtyToAdvisor({ advisorId: advisors[0].id, specialtyId: specialties[0].id }); // Sarah - Tarot
-    await this.assignSpecialtyToAdvisor({ advisorId: advisors[0].id, specialtyId: specialties[3].id }); // Sarah - Energy Healing
+    this.assignSpecialtyToAdvisor({ advisorId: 1, specialtyId: 1 }); // Sarah - Tarot
+    this.assignSpecialtyToAdvisor({ advisorId: 1, specialtyId: 4 }); // Sarah - Energy Healing
     
-    await this.assignSpecialtyToAdvisor({ advisorId: advisors[1].id, specialtyId: specialties[2].id }); // Michael - Meditation
+    this.assignSpecialtyToAdvisor({ advisorId: 2, specialtyId: 3 }); // Michael - Meditation
     
-    await this.assignSpecialtyToAdvisor({ advisorId: advisors[2].id, specialtyId: specialties[1].id }); // Elena - Astrology
+    this.assignSpecialtyToAdvisor({ advisorId: 3, specialtyId: 2 }); // Elena - Astrology
     
-    await this.assignSpecialtyToAdvisor({ advisorId: advisors[3].id, specialtyId: specialties[4].id }); // David - Psychic Reading
+    this.assignSpecialtyToAdvisor({ advisorId: 4, specialtyId: 5 }); // David - Psychic Reading
     
     // Create some sample sessions
     const tomorrow = new Date();
@@ -401,23 +176,217 @@ export class DatabaseStorage implements IStorage {
     const fridayEnd = new Date(friday);
     fridayEnd.setHours(11, 30, 0, 0);
     
-    await this.createSession({
-      userId: user.id,
-      advisorId: advisors[0].id,
+    this.createSession({
+      userId: 5,
+      advisorId: 1,
       startTime,
       endTime,
       notes: "Tarot Reading Session"
     });
     
-    await this.createSession({
-      userId: user.id,
-      advisorId: advisors[2].id,
+    this.createSession({
+      userId: 5,
+      advisorId: 3,
       startTime: fridayStart,
       endTime: fridayEnd,
       notes: "Astrology Reading Session"
     });
   }
+
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.username === username
+    );
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    const id = this.userIdCounter++;
+    const newUser: User = { 
+      ...user, 
+      id,
+      rating: user.isAdvisor ? 4 + Math.random() : 0,
+      reviewCount: user.isAdvisor ? Math.floor(Math.random() * 100) + 50 : 0,
+      online: Math.random() > 0.5
+    };
+    this.users.set(id, newUser);
+    return newUser;
+  }
+
+  async getAdvisors(): Promise<User[]> {
+    return Array.from(this.users.values()).filter(user => user.isAdvisor);
+  }
+
+  async getAdvisorById(id: number): Promise<User | undefined> {
+    const user = await this.getUser(id);
+    return user?.isAdvisor ? user : undefined;
+  }
+
+  async getAdvisorsBySpecialty(specialtyId: number): Promise<User[]> {
+    const advisorIds = new Set<number>();
+    
+    // Get all advisor IDs with this specialty
+    Array.from(this.advisorSpecialties.values())
+      .filter(as => as.specialtyId === specialtyId)
+      .forEach(as => advisorIds.add(as.advisorId));
+    
+    // Return advisors with these IDs
+    return Array.from(this.users.values())
+      .filter(user => user.isAdvisor && advisorIds.has(user.id));
+  }
+
+  async updateUserStatus(id: number, online: boolean): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (user) {
+      const updatedUser = { ...user, online };
+      this.users.set(id, updatedUser);
+      return updatedUser;
+    }
+    return undefined;
+  }
+
+  // Specialty methods
+  async getAllSpecialties(): Promise<Specialty[]> {
+    return Array.from(this.specialties.values());
+  }
+
+  async getSpecialty(id: number): Promise<Specialty | undefined> {
+    return this.specialties.get(id);
+  }
+
+  async createSpecialty(specialty: InsertSpecialty): Promise<Specialty> {
+    const id = this.specialtyIdCounter++;
+    const newSpecialty: Specialty = { ...specialty, id };
+    this.specialties.set(id, newSpecialty);
+    return newSpecialty;
+  }
+
+  // Advisor Specialty methods
+  async assignSpecialtyToAdvisor(advisorSpecialty: InsertAdvisorSpecialty): Promise<AdvisorSpecialty> {
+    const id = this.advisorSpecialtyIdCounter++;
+    const newAdvisorSpecialty: AdvisorSpecialty = { ...advisorSpecialty, id };
+    this.advisorSpecialties.set(id, newAdvisorSpecialty);
+    return newAdvisorSpecialty;
+  }
+
+  async getAdvisorSpecialties(advisorId: number): Promise<Specialty[]> {
+    // Get specialty IDs for this advisor
+    const specialtyIds = Array.from(this.advisorSpecialties.values())
+      .filter(as => as.advisorId === advisorId)
+      .map(as => as.specialtyId);
+    
+    // Return specialties with these IDs
+    return Array.from(this.specialties.values())
+      .filter(specialty => specialtyIds.includes(specialty.id));
+  }
+
+  // Session methods
+  async createSession(session: InsertSession): Promise<Session> {
+    const id = this.sessionIdCounter++;
+    const newSession: Session = { ...session, id, status: "scheduled" };
+    this.sessions.set(id, newSession);
+    return newSession;
+  }
+
+  async getSessionsByUser(userId: number): Promise<Session[]> {
+    return Array.from(this.sessions.values())
+      .filter(session => session.userId === userId)
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  }
+
+  async getSessionsByAdvisor(advisorId: number): Promise<Session[]> {
+    return Array.from(this.sessions.values())
+      .filter(session => session.advisorId === advisorId)
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  }
+
+  async getUpcomingSessionsByUser(userId: number): Promise<Session[]> {
+    const now = new Date();
+    return Array.from(this.sessions.values())
+      .filter(session => 
+        session.userId === userId && 
+        new Date(session.startTime) > now &&
+        session.status === "scheduled"
+      )
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  }
+
+  // Message methods
+  async sendMessage(message: InsertMessage): Promise<Message> {
+    const id = this.messageIdCounter++;
+    const newMessage: Message = { 
+      ...message, 
+      id, 
+      timestamp: new Date(),
+      read: false
+    };
+    this.messages.set(id, newMessage);
+    return newMessage;
+  }
+
+  async getConversation(userId1: number, userId2: number): Promise<Message[]> {
+    return Array.from(this.messages.values())
+      .filter(message => 
+        (message.senderId === userId1 && message.receiverId === userId2) ||
+        (message.senderId === userId2 && message.receiverId === userId1)
+      )
+      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  }
+
+  async getUnreadMessageCount(userId: number): Promise<number> {
+    return Array.from(this.messages.values())
+      .filter(message => message.receiverId === userId && !message.read)
+      .length;
+  }
+
+  // AI Concierge methods
+  async getOrCreateConversation(userId: number): Promise<Conversation> {
+    // Find existing conversation
+    const existing = Array.from(this.conversations.values())
+      .find(convo => convo.userId === userId);
+    
+    if (existing) {
+      return existing;
+    }
+    
+    // Create new conversation
+    const id = this.conversationIdCounter++;
+    const welcomeMessage: ChatMessage = {
+      role: 'assistant',
+      content: 'Welcome to Ethereal Advisors! I\'m Angela, your spiritual guide assistant. How can I help you today?',
+      timestamp: new Date()
+    };
+    
+    const newConversation: Conversation = {
+      id,
+      userId,
+      messages: [welcomeMessage],
+      lastUpdated: new Date()
+    };
+    
+    this.conversations.set(id, newConversation);
+    return newConversation;
+  }
+
+  async updateConversation(id: number, messages: ChatMessage[]): Promise<Conversation> {
+    const conversation = this.conversations.get(id);
+    if (!conversation) {
+      throw new Error(`Conversation with ID ${id} not found`);
+    }
+    
+    const updatedConversation: Conversation = {
+      ...conversation,
+      messages,
+      lastUpdated: new Date()
+    };
+    
+    this.conversations.set(id, updatedConversation);
+    return updatedConversation;
+  }
 }
 
-// Create database storage instance
-export const storage = new DatabaseStorage();
+export const storage = new MemStorage();
