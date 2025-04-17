@@ -94,44 +94,44 @@ export class MemStorage implements IStorage {
         username: "sarahjohnson",
         password: "password123",
         name: "Sarah Johnson",
-        email: "sarah@etherealadvisors.com",
+        email: "sarah@angelguides.ai",
         isAdvisor: true,
         avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
         bio: "Specializing in tarot readings that provide clarity and guidance for life's most challenging decisions.",
-        hourlyRate: 45,
+        minuteRate: 1.50,
         availability: "Mon-Fri, 9am-5pm"
       },
       {
         username: "michaelchen",
         password: "password123",
         name: "Michael Chen",
-        email: "michael@etherealadvisors.com",
+        email: "michael@angelguides.ai",
         isAdvisor: true,
         avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
         bio: "Helps clients achieve inner peace and personal growth through guided meditation and spiritual practices.",
-        hourlyRate: 60,
+        minuteRate: 2.00,
         availability: "Weekends, 10am-6pm"
       },
       {
         username: "elenapatel",
         password: "password123",
         name: "Elena Patel",
-        email: "elena@etherealadvisors.com",
+        email: "elena@angelguides.ai",
         isAdvisor: true,
         avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
         bio: "Provides insight into your life path and personal journey through astrology and numerology readings.",
-        hourlyRate: 55,
+        minuteRate: 1.75,
         availability: "Tue-Sat, 11am-7pm"
       },
       {
         username: "davidwilson",
         password: "password123",
         name: "David Wilson",
-        email: "david@etherealadvisors.com",
+        email: "david@angelguides.ai",
         isAdvisor: true,
         avatar: "https://images.unsplash.com/photo-1552374196-c4e7ffc6e126?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
         bio: "Connects with energies and spirits to provide guidance and clarity about your past, present, and future.",
-        hourlyRate: 65,
+        minuteRate: 2.50,
         availability: "Mon-Thu, 12pm-8pm"
       }
     ];
@@ -147,7 +147,7 @@ export class MemStorage implements IStorage {
       isAdvisor: false,
       avatar: "",
       bio: "",
-      hourlyRate: 0,
+      minuteRate: 0,
       availability: ""
     });
     
@@ -357,7 +357,7 @@ export class MemStorage implements IStorage {
     const id = this.conversationIdCounter++;
     const welcomeMessage: ChatMessage = {
       role: 'assistant',
-      content: 'Welcome to Ethereal Advisors! I\'m Angela, your spiritual guide assistant. How can I help you today?',
+      content: 'Welcome to Angel Guides! I\'m Angela AI, your spiritual guide assistant. How can I help you today?',
       timestamp: new Date()
     };
     
