@@ -12,7 +12,7 @@ export const users = pgTable("users", {
   isAdvisor: boolean("is_advisor").default(false),
   avatar: text("avatar"),
   bio: text("bio"),
-  hourlyRate: integer("hourly_rate"),
+  minuteRate: integer("minute_rate"),
   rating: integer("rating"),
   reviewCount: integer("review_count"),
   availability: text("availability"),
@@ -27,7 +27,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   isAdvisor: true,
   avatar: true,
   bio: true,
-  hourlyRate: true,
+  minuteRate: true,
   availability: true,
 });
 
