@@ -176,7 +176,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ 
         message: angelaResponse.message, 
         suggestions: angelaResponse.suggestions,
-        conversation: updatedConversation
+        conversation: updatedConversation,
+        isMatchingQuestion: angelaResponse.isMatchingQuestion || false,
+        questionNumber: angelaResponse.questionNumber,
+        totalQuestions: angelaResponse.totalQuestions,
+        recommendedAdvisors: angelaResponse.recommendedAdvisors || []
       });
     } catch (error) {
       console.error("Error processing Angela message:", error);
