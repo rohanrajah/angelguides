@@ -2,6 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 3D Logo Animation */
+.logo-3d-container {
+  background-color: #121B2B;
+  transform-style: preserve-3d;
+  transition: transform 0.4s ease;
+}
+
+.logo-3d-container:hover {
+  transform: perspective(800px) rotateY(15deg) rotateX(5deg);
+  box-shadow: 
+    0 10px 20px rgba(0, 0, 0, 0.2),
+    0 0 10px rgba(111, 76, 255, 0.3);
+}
+
+.logo-3d-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 50%, rgba(0,0,0,0.15) 100%);
+  border-radius: 50%;
+  z-index: 2;
+  pointer-events: none;
+}
+
 /* Angela Guided Tour Styles */
 .angela-tour-highlight {
   position: relative;

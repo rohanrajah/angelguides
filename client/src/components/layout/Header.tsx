@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { User } from '@shared/schema';
 import { motion } from 'framer-motion';
-import circleLogoImage from '../../assets/img/circular-logo.svg';
+import logo3D from '../../assets/img/logo-3d.png';
 
 interface HeaderProps {
   user: User | null;
@@ -36,7 +36,18 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
         <div className="flex items-center">
           <Link href="/home">
             <div className="flex flex-col items-center cursor-pointer">
-              <img src={circleLogoImage} alt="AngelGuides.AI Logo" className="h-12 w-12" />
+              <div className="logo-3d-container h-12 w-12 relative rounded-full overflow-hidden shadow-lg transform transition-transform hover:scale-105">
+                <img 
+                  src={logo3D} 
+                  alt="AngelGuides.AI Logo" 
+                  className="h-12 w-12 rounded-full object-cover"
+                  style={{
+                    transform: 'perspective(800px) rotateY(10deg)',
+                    boxShadow: 'inset 0 0 10px rgba(255,255,255,0.5)',
+                  }}
+                />
+                <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-purple-500/20 to-transparent"></div>
+              </div>
               <h1 className="font-sans text-sm font-extrabold bg-gradient-to-r from-purple-700 to-indigo-500 bg-clip-text text-transparent tracking-tight mt-1">
                 AngelGuides.AI
               </h1>
