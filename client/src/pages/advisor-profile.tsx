@@ -517,31 +517,8 @@ interface RatingSummarySectionProps {
 }
 
 const RatingSummarySection: React.FC<RatingSummarySectionProps> = ({ advisorId }) => {
-  const { data: reviews = [], isLoading } = useQuery<Review[]>({
-    queryKey: ['/api/advisors', advisorId, 'reviews'],
-    enabled: !!advisorId,
-  });
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center p-4">
-        <div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full"></div>
-      </div>
-    );
-  }
-
-  // Calculate average rating
-  const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
-  const averageRating = reviews.length > 0 ? totalRating / reviews.length : 0;
-
-  return (
-    <RatingSummary
-      advisorId={advisorId}
-      reviews={reviews}
-      averageRating={averageRating}
-      totalReviews={reviews.length}
-    />
-  );
+  // The RatingSummary component now fetches its own data
+  return <RatingSummary advisorId={advisorId} />;
 };
 
 // Component to check if the user has had a session with the advisor and show the review form
@@ -551,8 +528,6 @@ interface SessionReviewCheckProps {
 }
 
 const SessionReviewCheck: React.FC<SessionReviewCheckProps> = ({ userId, advisorId }) => {
-  const [showReviewForm, setShowReviewForm] = useState(false);
-  
   // Get user sessions with this advisor
   const { data: sessions = [], isLoading } = useQuery<Session[]>({
     queryKey: [`/api/users/${userId}/sessions`],
@@ -593,26 +568,30 @@ const SessionReviewCheck: React.FC<SessionReviewCheckProps> = ({ userId, advisor
 
   return (
     <div className="mt-6 border-t border-gray-200 pt-6">
-      {showReviewForm ? (
-        <ReviewForm
+      <div className="text-center">
+        <p className="text-gray-600 mb-3">
+          You've had a session with this advisor. Would you like to share your experience?
+        </p>
+        <ReviewDialog
           userId={userId}
           advisorId={advisorId}
           sessionId={latestSession.id}
-          onSuccess={() => setShowReviewForm(false)}
+          trigger={
+            <Button className="bg-purple-600 hover:bg-purple-700">
+              Leave a Review
+            </Button>
+          }
+          onReviewSuccess={() => {
+            // This will cause the advisor-profile page to refetch data
+            queryClient.invalidateQueries({
+              queryKey: [`/api/advisors/${advisorId}`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: ['/api/advisors', advisorId, 'reviews']
+            });
+          }}
         />
-      ) : (
-        <div className="text-center">
-          <p className="text-gray-600 mb-3">
-            You've had a session with this advisor. Would you like to leave a review?
-          </p>
-          <Button 
-            onClick={() => setShowReviewForm(true)}
-            className="bg-purple-600 hover:bg-purple-700"
-          >
-            Leave a Review
-          </Button>
-        </div>
-      )}
+      </div>
     </div>
   );
 };

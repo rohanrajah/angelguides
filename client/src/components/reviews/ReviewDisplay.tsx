@@ -210,7 +210,7 @@ export function ReviewList({
     queryKey = ['/api/reviews/session', sessionId];
   }
   
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery<ReviewData[]>({
     queryKey,
     enabled: !!(advisorId || userId || sessionId),
   });
@@ -271,7 +271,7 @@ export function ReviewList({
   
   return (
     <div className="space-y-4">
-      {displayedReviews.map((review) => (
+      {displayedReviews.map((review: ReviewData) => (
         <ReviewItem 
           key={review.id} 
           review={review} 

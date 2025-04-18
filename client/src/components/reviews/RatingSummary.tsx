@@ -14,13 +14,13 @@ interface RatingSummaryProps {
 
 export function RatingSummary({ advisorId }: RatingSummaryProps) {
   // Fetch reviews for this advisor
-  const { data: reviews, isLoading } = useQuery({
+  const { data: reviews, isLoading } = useQuery<any[]>({
     queryKey: ['/api/advisors', advisorId, 'reviews'],
     enabled: !!advisorId,
   });
   
   // Fetch advisor data to get overall rating
-  const { data: advisor, isLoading: advisorLoading } = useQuery({
+  const { data: advisor, isLoading: advisorLoading } = useQuery<any>({
     queryKey: ['/api/advisors', advisorId],
     enabled: !!advisorId,
   });
@@ -50,7 +50,7 @@ export function RatingSummary({ advisorId }: RatingSummaryProps) {
   }
   
   // Calculate rating distribution
-  const ratingCounts = {
+  const ratingCounts: Record<number, number> = {
     1: 0,
     2: 0,
     3: 0,
@@ -60,7 +60,7 @@ export function RatingSummary({ advisorId }: RatingSummaryProps) {
   
   reviews.forEach((review: any) => {
     if (review.rating >= 1 && review.rating <= 5) {
-      ratingCounts[review.rating]++;
+      ratingCounts[review.rating] = (ratingCounts[review.rating] || 0) + 1;
     }
   });
   

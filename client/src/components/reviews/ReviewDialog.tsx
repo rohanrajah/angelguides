@@ -18,7 +18,7 @@ export function ReviewDialog({ userId, advisorId, sessionId, trigger, onReviewSu
   const [hasSubmitted, setHasSubmitted] = useState(false);
   
   // Check if a review for this session already exists
-  const { data: existingReview, isLoading, refetch } = useQuery({
+  const { data: existingReview, isLoading, refetch } = useQuery<any[]>({
     queryKey: ['/api/reviews/session', sessionId],
     enabled: isOpen,
   });
