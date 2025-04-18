@@ -1,5 +1,5 @@
 // WebSocket connection manager
-let socket: WebSocket | null = null;
+export let socket: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 const messageQueue: any[] = [];
 const messageHandlers: Map<string, Function[]> = new Map();

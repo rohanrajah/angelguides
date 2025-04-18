@@ -4,6 +4,7 @@ import { User, Specialty, SpecialtyCategory } from '@shared/schema';
 import { AdvisorCard } from '@/components/advisor/AdvisorCard';
 import AdvisorFilters from '@/components/advisor/AdvisorFilters';
 import AdvisorCategoryBrowser from '@/components/advisor/AdvisorCategoryBrowser';
+import { AvailabilityHeatMap } from '@/components/advisor/AvailabilityHeatMap';
 import { motion } from 'framer-motion';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 

@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { apiRequest } from '@/lib/queryClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Clock, Users, Calendar } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useWebSocket } from '@/components/WebSocketProvider';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useWebSocketData } from '@/hooks/useWebSocketData';
 
 // Types
 interface HeatMapData {
@@ -17,6 +17,13 @@ interface HeatMapData {
 
 interface AvailabilityHeatMapProps {
   className?: string;
+}
+
+// Message type for advisor status updates from WebSocket
+interface AdvisorStatusUpdate {
+  advisorId: number;
+  isOnline: boolean;
+  onlineAdvisorsCount: number;
 }
 
 const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -33,7 +40,32 @@ export function AvailabilityHeatMap({ className }: AvailabilityHeatMapProps) {
   const [currentAdvisorCount, setCurrentAdvisorCount] = useState(0);
   const [currentMostActiveDay, setCurrentMostActiveDay] = useState('');
   const [currentMostActiveTime, setCurrentMostActiveTime] = useState('');
-  const { socket } = useWebSocket();
+  
+  // Use WebSocket data for real-time advisor status updates
+  const { data: statusUpdate } = useWebSocketData<AdvisorStatusUpdate>({
+    messageType: 'advisor_status_change',
+    transformData: (payload) => payload
+  });
+
+  // Update advisor count when WebSocket data changes
+  useEffect(() => {
+    if (statusUpdate && typeof statusUpdate.onlineAdvisorsCount === 'number') {
+      setCurrentAdvisorCount(statusUpdate.onlineAdvisorsCount);
+      
+      // Also update the heat map data for the current time slot
+      const currentDay = days[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1]; // Adjust Sunday
+      const currentHour = new Date().getHours();
+      
+      setHeatMapData(prevData => 
+        prevData.map(item => {
+          if (item.day === currentDay && item.hour === currentHour) {
+            return { ...item, advisorCount: statusUpdate.onlineAdvisorsCount };
+          }
+          return item;
+        })
+      );
+    }
+  }, [statusUpdate]);
 
   // Fetch initial heat map data
   useEffect(() => {
@@ -49,116 +81,59 @@ export function AvailabilityHeatMap({ className }: AvailabilityHeatMapProps) {
         }
       } catch (error) {
         console.error('Error fetching heat map data:', error);
+        // If API fails, generate sample data
+        generateSampleData();
       } finally {
         setLoading(false);
       }
     };
 
-    // For demo purposes, generate sample heat map data if API is not available
-    const generateSampleData = () => {
-      const sampleData: HeatMapData[] = [];
-      
-      days.forEach(day => {
-        for (let hour = 0; hour < 24; hour++) {
-          // Generate more realistic patterns - higher activity in evenings and weekends
-          let baseAdvisorCount = 2; // Base count
-          
-          // Evenings (5pm-10pm) have more advisors
-          if (hour >= 17 && hour <= 22) {
-            baseAdvisorCount += 5;
-          }
-          
-          // Morning/afternoon (9am-5pm) have moderate advisors
-          else if (hour >= 9 && hour <= 17) {
-            baseAdvisorCount += 3;
-          }
-          
-          // Weekend boost
-          if (day === 'Saturday' || day === 'Sunday') {
-            baseAdvisorCount += 2;
-          }
-          
-          // Add some randomness
-          const randomFactor = Math.floor(Math.random() * 3); 
-          const advisorCount = Math.max(0, baseAdvisorCount + randomFactor);
-          
-          // Calculate average wait time (inversely related to advisor count)
-          const averageWaitTime = advisorCount > 0 ? Math.round(30 / advisorCount) : 0;
-          
-          sampleData.push({
-            day,
-            hour,
-            advisorCount,
-            averageWaitTime
-          });
-        }
-      });
-      
-      setHeatMapData(sampleData);
-      calculateInsights(sampleData);
-      setLoading(false);
-    };
-
-    // Fetch data or generate sample data based on API availability
-    fetchHeatMapData().catch(() => {
-      console.log('Falling back to sample data');
-      generateSampleData();
-    });
+    fetchHeatMapData();
   }, []);
 
-  // Listen for real-time advisor status updates
-  useEffect(() => {
-    if (socket) {
-      const handleStatusUpdate = (data: any) => {
-        if (data.type === 'advisorStatusUpdate') {
-          // Update current advisor count
-          setCurrentAdvisorCount(data.onlineAdvisorsCount || 0);
-          
-          // Update heat map for current hour if available
-          const currentDay = days[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1]; // Adjust Sunday
-          const currentHour = new Date().getHours();
-          
-          setHeatMapData(prevData => 
-            prevData.map(item => {
-              if (item.day === currentDay && item.hour === currentHour) {
-                return { ...item, advisorCount: data.onlineAdvisorsCount || item.advisorCount };
-              }
-              return item;
-            })
-          );
+  // Generate sample data for development/demo
+  const generateSampleData = () => {
+    const sampleData: HeatMapData[] = [];
+    
+    days.forEach(day => {
+      for (let hour = 0; hour < 24; hour++) {
+        // Generate more realistic patterns - higher activity in evenings and weekends
+        let baseAdvisorCount = 2; // Base count
+        
+        // Evenings (5pm-10pm) have more advisors
+        if (hour >= 17 && hour <= 22) {
+          baseAdvisorCount += 5;
         }
-      };
-
-      // Mock a real-time update for demo purposes
-      const mockRealTimeUpdates = () => {
-        const mockUpdate = {
-          type: 'advisorStatusUpdate',
-          onlineAdvisorsCount: Math.floor(Math.random() * 10) + 1 // 1-10 advisors online
-        };
-        handleStatusUpdate(mockUpdate);
-      };
-
-      socket.addEventListener('message', (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          handleStatusUpdate(data);
-        } catch (error) {
-          console.error('Error processing websocket message:', error);
+        
+        // Morning/afternoon (9am-5pm) have moderate advisors
+        else if (hour >= 9 && hour <= 17) {
+          baseAdvisorCount += 3;
         }
-      });
-
-      // For demo, update randomly every 30 seconds
-      const intervalId = setInterval(mockRealTimeUpdates, 30000);
-      
-      // Initial mock update
-      setTimeout(mockRealTimeUpdates, 1000);
-
-      return () => {
-        clearInterval(intervalId);
-        socket.removeEventListener('message', handleStatusUpdate);
-      };
-    }
-  }, [socket]);
+        
+        // Weekend boost
+        if (day === 'Saturday' || day === 'Sunday') {
+          baseAdvisorCount += 2;
+        }
+        
+        // Add some randomness
+        const randomFactor = Math.floor(Math.random() * 3); 
+        const advisorCount = Math.max(0, baseAdvisorCount + randomFactor);
+        
+        // Calculate average wait time (inversely related to advisor count)
+        const averageWaitTime = advisorCount > 0 ? Math.round(30 / advisorCount) : 0;
+        
+        sampleData.push({
+          day,
+          hour,
+          advisorCount,
+          averageWaitTime
+        });
+      }
+    });
+    
+    setHeatMapData(sampleData);
+    calculateInsights(sampleData);
+  };
 
   const calculateInsights = (data: HeatMapData[]) => {
     // Find most active day
@@ -166,9 +141,11 @@ export function AvailabilityHeatMap({ className }: AvailabilityHeatMapProps) {
       day,
       total: data.filter(d => d.day === day).reduce((sum, item) => sum + item.advisorCount, 0)
     }));
+    
     const mostActiveDay = dayTotals.reduce((max, day) => 
       day.total > max.total ? day : max, { day: '', total: 0 }
     ).day;
+    
     setCurrentMostActiveDay(mostActiveDay);
 
     // Find most active time
@@ -176,9 +153,11 @@ export function AvailabilityHeatMap({ className }: AvailabilityHeatMapProps) {
       hour,
       total: data.filter(d => d.hour === hour).reduce((sum, item) => sum + item.advisorCount, 0)
     }));
+    
     const mostActiveHour = hourTotals.reduce((max, hour) => 
       hour.total > max.total ? hour : max, { hour: 0, total: 0 }
     ).hour;
+    
     setCurrentMostActiveTime(hourLabels[mostActiveHour]);
 
     // Calculate current online advisors (use actual day and hour)
@@ -285,6 +264,7 @@ export function AvailabilityHeatMap({ className }: AvailabilityHeatMapProps) {
             <div className="overflow-x-auto pb-4">
               <div className="min-w-max">
                 {currentView === 'week' ? (
+                  // Week view heat map
                   <>
                     {/* Day labels for week view */}
                     <div className="flex">
