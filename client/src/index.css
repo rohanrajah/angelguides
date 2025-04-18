@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom utilities */
+.text-xxs {
+  font-size: 0.65rem;
+  line-height: 0.85rem;
+}
+
 /* 3D Logo Animation */
 .logo-3d-container {
   background-color: #121B2B;

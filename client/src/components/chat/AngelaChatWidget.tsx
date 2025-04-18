@@ -28,6 +28,71 @@ const ProgressIndicator = ({ current, total }: { current: number; total: number 
   );
 };
 
+// Component to display emotional support indicator
+const EmotionalSupportIndicator = ({ 
+  emotionalTone, 
+  detectedEmotion, 
+  empathyLevel 
+}: { 
+  emotionalTone: string;
+  detectedEmotion: string | null;
+  empathyLevel: number;
+}) => {
+  // Map emotional tones to colors
+  const toneColors: Record<string, string> = {
+    supportive: 'bg-green-100 text-green-800 border-green-200',
+    empathetic: 'bg-purple-100 text-purple-800 border-purple-200',
+    compassionate: 'bg-pink-100 text-pink-800 border-pink-200',
+    encouraging: 'bg-blue-100 text-blue-800 border-blue-200',
+    reassuring: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+    validating: 'bg-teal-100 text-teal-800 border-teal-200',
+    calming: 'bg-sky-100 text-sky-800 border-sky-200'
+  };
+  
+  // Map emotions to icons
+  const emotionIcons: Record<string, string> = {
+    sadness: 'fa-cloud-rain',
+    anxiety: 'fa-wind',
+    hope: 'fa-sun',
+    confusion: 'fa-question',
+    grief: 'fa-cloud',
+    fear: 'fa-bolt',
+    anger: 'fa-fire',
+    uncertainty: 'fa-compass'
+  };
+  
+  const toneColor = toneColors[emotionalTone] || 'bg-gray-100 text-gray-800 border-gray-200';
+  const emotionIcon = detectedEmotion ? emotionIcons[detectedEmotion] || 'fa-heart' : 'fa-heart';
+  
+  return (
+    <div className="w-full py-2 px-3 flex items-center justify-between text-xs border-b border-neutral-100">
+      <div className="flex items-center">
+        <div className={`rounded-full px-2 py-0.5 ${toneColor} border`}>
+          <span className="capitalize">{emotionalTone}</span>
+        </div>
+      </div>
+      
+      <div className="flex items-center gap-2">
+        {detectedEmotion && (
+          <div className="flex items-center gap-1 text-neutral">
+            <i className={`fas ${emotionIcon} text-neutral-dark`}></i>
+            <span className="capitalize">{detectedEmotion}</span>
+          </div>
+        )}
+        
+        <div className="flex">
+          {Array.from({ length: 5 }).map((_, idx) => (
+            <i 
+              key={idx}
+              className={`fas fa-heart text-xs ${idx < empathyLevel ? 'text-pink-500' : 'text-neutral-light'}`}
+            ></i>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const AdvisorRecommendation = ({ 
   advisorIds, 
   message, 
@@ -90,7 +155,7 @@ const AdvisorRecommendation = ({
               
               <div className="mt-2 flex justify-between items-center">
                 <div className="text-xs text-primary font-semibold">
-                  ${advisor.minuteRate}/min
+                  ${advisor.chatRate}/min
                 </div>
                 
                 <Link href={`/advisors/${advisor.id}`}>
@@ -254,7 +319,23 @@ const AngelaChatWidget: React.FC<AngelaChatWidgetProps> = ({ userId, isFloating 
             </div>
             <div>
               <h3 className="font-heading font-semibold">Angela AI</h3>
-              <p className="text-xs text-white/80">Your spiritual guide assistant</p>
+              <div className="flex items-center">
+                <p className="text-xs text-white/80 mr-2">Your spiritual guide & emotional support assistant</p>
+                <div 
+                  className="flex items-center bg-white/10 rounded-full p-1 cursor-pointer"
+                  onClick={() => setEmotionalSupportEnabled(!emotionalSupportEnabled)}
+                >
+                  <motion.div 
+                    layout
+                    className={`h-4 w-4 rounded-full ${emotionalSupportEnabled ? 'bg-pink-500' : 'bg-white/30'}`}
+                    animate={{ x: emotionalSupportEnabled ? 16 : 0 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  />
+                  <span className="text-xxs ml-1 mr-1 text-white/90">
+                    {emotionalSupportEnabled ? '💓' : '🔮'}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
           <motion.button 
@@ -270,6 +351,14 @@ const AngelaChatWidget: React.FC<AngelaChatWidgetProps> = ({ userId, isFloating 
       
       {isMatchingFlow && (
         <ProgressIndicator current={questionNumber} total={totalQuestions} />
+      )}
+      
+      {!isMatchingFlow && detectedEmotion && (
+        <EmotionalSupportIndicator 
+          emotionalTone={emotionalTone} 
+          detectedEmotion={detectedEmotion} 
+          empathyLevel={empathyLevel} 
+        />
       )}
       
       <div className="h-80 overflow-y-auto p-4 bg-neutral-lightest" id="chat-messages">
@@ -293,9 +382,47 @@ const AngelaChatWidget: React.FC<AngelaChatWidgetProps> = ({ userId, isFloating 
                   ? 'bg-primary text-white rounded-lg rounded-tr-none' 
                   : 'bg-white rounded-lg rounded-tl-none shadow-sm'
               } p-3 max-w-[80%]`}>
+                {/* Message content */}
                 <p className={`text-sm ${msg.role === 'user' ? 'text-white' : 'text-neutral-dark'}`}>
                   {msg.content}
                 </p>
+                
+                {/* Animated empathy indicator for last assistant message when there's detected emotion */}
+                {msg.role === 'assistant' && 
+                 index === (conversation.messages as ChatMessage[]).length - 1 &&
+                 detectedEmotion && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="mt-2 pt-2 border-t border-neutral-100"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="flex flex-1">
+                        {Array.from({ length: 5 }).map((_, idx) => (
+                          <motion.i 
+                            key={idx}
+                            initial={{ scale: idx < empathyLevel ? 1.5 : 1 }}
+                            animate={{ scale: 1 }}
+                            transition={{ duration: 0.5, delay: idx * 0.1 }}
+                            className={`fas fa-heart text-xs ${idx < empathyLevel ? 'text-pink-500' : 'text-neutral-light'}`}
+                          />
+                        ))}
+                      </div>
+                      
+                      <div className="text-xxs text-neutral flex items-center gap-1">
+                        <i className={`fas fa-circle text-[6px] ${
+                          empathyLevel >= 4 ? 'text-pink-500' : 
+                          emotionalTone === 'compassionate' ? 'text-pink-400' :
+                          emotionalTone === 'empathetic' ? 'text-purple-400' :
+                          'text-blue-400'
+                        }`}></i>
+                        <span className="capitalize">{emotionalTone}</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+                
+                {/* Timestamp */}
                 <p className={`text-xs ${msg.role === 'user' ? 'text-white/70' : 'text-neutral'} mt-1`}>
                   {format(new Date(msg.timestamp), 'h:mm a')}
                 </p>
@@ -352,7 +479,9 @@ const AngelaChatWidget: React.FC<AngelaChatWidgetProps> = ({ userId, isFloating 
         <form className="flex items-center" onSubmit={handleSubmit}>
           <input 
             type="text" 
-            placeholder={isMatchingFlow ? "Type your response..." : "Ask Angela anything..."}
+            placeholder={isMatchingFlow 
+              ? "Type your response..." 
+              : "Ask Angela anything or share how you're feeling..."}
             className="flex-grow px-3 py-2 rounded-l-md border border-neutral-light focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition duration-200"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
