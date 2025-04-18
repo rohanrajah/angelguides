@@ -12,9 +12,6 @@ interface FloatingAngelaBubbleProps {
 const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
-  const [location] = useLocation();
-  // Full size on home and landing page, smaller on other pages
-  const isHomePage = location === "/" || location === "/home";
   
   // Position values for dragging
   const x = useMotionValue(0);
@@ -36,9 +33,9 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
     };
   }, []);
 
-  // Size based on page - full size on home/landing, 1/3 size on other pages
-  const bubbleSize = isHomePage ? 'w-64 h-64' : 'w-20 h-20';
-  const iconSize = isHomePage ? 'h-24 w-24' : 'h-8 w-8';
+  // Keeping consistent 1/2 size on all pages
+  const bubbleSize = 'w-32 h-32'; // 1/2 size for all pages
+  const iconSize = 'h-12 w-12'; // 1/2 size icon for all pages
   
   function startDrag(event: React.PointerEvent<HTMLDivElement>) {
     dragControls.start(event, { snapToCursor: false });
@@ -46,7 +43,7 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
 
   return (
     <motion.div 
-      className={`fixed z-50 ${isHomePage ? 'top-1/4 left-1/2 -translate-x-1/2' : 'bottom-8 right-8'}`}
+      className="fixed z-50 top-8 right-8"
       style={{ x, y }}
       drag
       dragControls={dragControls}
@@ -59,7 +56,7 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
             initial={{ opacity: 0, scale: 0.8, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 20 }}
-            className={`absolute ${isHomePage ? 'top-full mt-8 left-1/2 -translate-x-1/2' : 'bottom-20 right-0'} w-80 md:w-96 shadow-2xl`}
+            className="absolute bottom-full mb-4 right-0 w-80 md:w-96 shadow-2xl"
           >
             <AngelaChatWidget userId={userId} isFloating={true} />
           </motion.div>
@@ -126,13 +123,13 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
                 alt="Angela AI Logo" 
                 className={`${iconSize} mb-1 rounded-full`} 
               />
-              <span className={`font-semibold ${isHomePage ? 'text-xl' : 'text-xs'}`}>Angela AI</span>
+              <span className="font-semibold text-sm">Angela AI</span>
             </motion.div>
           </div>
 
-          {/* Notification dot */}
+          {/* Notification dot - consistent size */}
           {!isOpen && (
-            <div className={`absolute -top-1 -right-1 ${isHomePage ? 'w-8 h-8' : 'w-4 h-4'} rounded-full bg-red-500 border-2 border-white z-20`}></div>
+            <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 border-2 border-white z-20"></div>
           )}
         </motion.button>
       </div>

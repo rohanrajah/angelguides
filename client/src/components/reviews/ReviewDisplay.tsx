@@ -261,10 +261,10 @@ export function ReviewList({
     );
   }
   
-  if (reviews.length === 0) {
+  if (!reviews || reviews.length === 0) {
     return (
       <div className="p-6 text-center border rounded-md">
-        <p className="text-muted-foreground">No reviews yet.</p>
+        <p className="text-muted-foreground">No reviews yet. Be the first to share your experience with this advisor!</p>
       </div>
     );
   }
