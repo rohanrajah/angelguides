@@ -202,6 +202,22 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
             }}
           />
           
+          {/* Sinusoidal Speech Waves - Responsive for homepage size */}
+          <div className={`siri-sinusoidal-container ${isHomePage ? 'w-3/5 h-1/4' : 'w-4/5 h-1/5'}`} style={{ top: isHomePage ? '55%' : '45%' }}>
+            <div className="siri-sinusoidal-wave"></div>
+            <div className="siri-sinusoidal-wave"></div>
+            <div className="siri-sinusoidal-wave"></div>
+            <div className="siri-sinusoidal-wave"></div>
+            <div className="siri-sinusoidal-wave"></div>
+            <div className="siri-sinusoidal-wave"></div>
+            <div className="siri-sinusoidal-wave"></div>
+            <div className="siri-sinusoidal-wave"></div>
+            <div className="siri-sinusoidal-wave"></div>
+            <div className="siri-sinusoidal-wave"></div>
+            <div className="siri-sinusoidal-wave"></div>
+            <div className="siri-sinusoidal-wave"></div>
+          </div>
+          
           {/* Content */}
           <div className="relative z-10">
             <motion.div
