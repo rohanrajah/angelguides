@@ -195,6 +195,11 @@ const AngelaChatWidget: React.FC<AngelaChatWidgetProps> = ({ userId, isFloating 
   const [emotionalTone, setEmotionalTone] = useState<string>('supportive');
   const [detectedEmotion, setDetectedEmotion] = useState<string | null>(null);
   const [empathyLevel, setEmpathyLevel] = useState<number>(3);
+  const [emotionalSupportEnabled, setEmotionalSupportEnabled] = useState<boolean>(() => {
+    // Check if there's a saved preference in localStorage
+    const savedPreference = localStorage.getItem('emotionalSupportEnabled');
+    return savedPreference !== null ? JSON.parse(savedPreference) : true;
+  });
   
   useEffect(() => {
     const fetchConversation = async () => {
@@ -214,6 +219,11 @@ const AngelaChatWidget: React.FC<AngelaChatWidgetProps> = ({ userId, isFloating 
     // Scroll to bottom when messages change
     scrollToBottom();
   }, [conversation?.messages]);
+  
+  // Save emotional support preference to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('emotionalSupportEnabled', JSON.stringify(emotionalSupportEnabled));
+  }, [emotionalSupportEnabled]);
   
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -244,7 +254,10 @@ const AngelaChatWidget: React.FC<AngelaChatWidgetProps> = ({ userId, isFloating 
     setIsLoading(true);
     
     try {
-      const response = await apiRequest('POST', `/api/angela/${userId}/message`, { message });
+      const response = await apiRequest('POST', `/api/angela/${userId}/message`, { 
+        message,
+        emotionalSupportEnabled
+      });
       const data = await response.json();
       
       setConversation(data.conversation);
@@ -353,7 +366,7 @@ const AngelaChatWidget: React.FC<AngelaChatWidgetProps> = ({ userId, isFloating 
         <ProgressIndicator current={questionNumber} total={totalQuestions} />
       )}
       
-      {!isMatchingFlow && detectedEmotion && (
+      {!isMatchingFlow && detectedEmotion && emotionalSupportEnabled && (
         <EmotionalSupportIndicator 
           emotionalTone={emotionalTone} 
           detectedEmotion={detectedEmotion} 
@@ -390,7 +403,7 @@ const AngelaChatWidget: React.FC<AngelaChatWidgetProps> = ({ userId, isFloating 
                 {/* Animated empathy indicator for last assistant message when there's detected emotion */}
                 {msg.role === 'assistant' && 
                  index === (conversation.messages as ChatMessage[]).length - 1 &&
-                 detectedEmotion && (
+                 detectedEmotion && emotionalSupportEnabled && (
                   <motion.div 
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
@@ -481,7 +494,9 @@ const AngelaChatWidget: React.FC<AngelaChatWidgetProps> = ({ userId, isFloating 
             type="text" 
             placeholder={isMatchingFlow 
               ? "Type your response..." 
-              : "Ask Angela anything or share how you're feeling..."}
+              : emotionalSupportEnabled 
+                ? "Ask Angela anything or share how you're feeling..." 
+                : "Ask Angela about spiritual guidance..."}
             className="flex-grow px-3 py-2 rounded-l-md border border-neutral-light focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition duration-200"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
