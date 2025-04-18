@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import AdvisorCard from '@/components/advisor/AdvisorCard';
 import AdvisorFilters from '@/components/advisor/AdvisorFilters';
 import SessionCard from '@/components/session/SessionCard';
-import AngelaChatWidget from '@/components/chat/AngelaChatWidget';
+//import AngelaChatWidget from '@/components/chat/AngelaChatWidget';
 
 const Home: React.FC = () => {
   const [activeSpecialty, setActiveSpecialty] = useState<number | null>(null);
@@ -204,11 +204,6 @@ const Home: React.FC = () => {
 
         {/* Sidebar (1/3 width on large screens) */}
         <div className="lg:col-span-1">
-          {/* AI Concierge Chat Widget */}
-          {currentUser && (
-            <AngelaChatWidget userId={currentUser.id} />
-          )}
-          
           {/* Enterprise Features */}
           <div className="bg-white rounded-xl shadow-soft mb-6">
             <div className="p-4 border-b border-neutral-light">
