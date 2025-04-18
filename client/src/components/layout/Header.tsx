@@ -35,14 +35,12 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <div className="flex items-center">
           <Link href="/home">
-            <a className="flex flex-col items-center">
-              <div className="flex flex-col items-center">
-                <img src={circleLogoImage} alt="AngelGuides.AI Logo" className="h-12 w-12" />
-                <h1 className="font-sans text-sm font-extrabold bg-gradient-to-r from-purple-700 to-indigo-500 bg-clip-text text-transparent tracking-tight mt-1">
-                  AngelGuides.AI
-                </h1>
-              </div>
-            </a>
+            <div className="flex flex-col items-center cursor-pointer">
+              <img src={circleLogoImage} alt="AngelGuides.AI Logo" className="h-12 w-12" />
+              <h1 className="font-sans text-sm font-extrabold bg-gradient-to-r from-purple-700 to-indigo-500 bg-clip-text text-transparent tracking-tight mt-1">
+                AngelGuides.AI
+              </h1>
+            </div>
           </Link>
         </div>
         
@@ -50,7 +48,7 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
         <nav className="hidden md:flex items-center space-x-8 header-nav">
           {navItems.map((item) => (
             <Link href={item.path} key={item.path}>
-              <a className={`navbar-item text-neutral-dark hover:text-primary transition duration-200 relative ${
+              <div className={`navbar-item text-neutral-dark hover:text-primary transition duration-200 relative cursor-pointer ${
                 isActive(item.path) ? 'text-primary' : ''
               }`}>
                 {item.label}
@@ -60,7 +58,7 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
                     layoutId="navbar-indicator"
                   />
                 )}
-              </a>
+              </div>
             </Link>
           ))}
         </nav>
@@ -88,17 +86,17 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
             
             <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 hidden group-hover:block border border-neutral-light z-50">
               <Link href="/profile">
-                <a className="block px-4 py-2 text-sm text-neutral-dark hover:bg-neutral-lightest hover:text-primary">Your Profile</a>
+                <div className="block px-4 py-2 text-sm text-neutral-dark hover:bg-neutral-lightest hover:text-primary cursor-pointer">Your Profile</div>
               </Link>
               <Link href="/topup">
-                <a className="block px-4 py-2 text-sm text-neutral-dark hover:bg-neutral-lightest hover:text-primary">
+                <div className="block px-4 py-2 text-sm text-neutral-dark hover:bg-neutral-lightest hover:text-primary cursor-pointer">
                   <i className="fas fa-coins mr-2 text-purple-500"></i>
                   Add Funds
-                </a>
+                </div>
               </Link>
-              <a href="#" className="block px-4 py-2 text-sm text-neutral-dark hover:bg-neutral-lightest hover:text-primary">Settings</a>
+              <div onClick={() => {}} className="block px-4 py-2 text-sm text-neutral-dark hover:bg-neutral-lightest hover:text-primary cursor-pointer">Settings</div>
               <hr className="my-1 border-neutral-light" />
-              <a href="#" className="block px-4 py-2 text-sm text-neutral-dark hover:bg-neutral-lightest hover:text-primary">Sign out</a>
+              <div onClick={() => {}} className="block px-4 py-2 text-sm text-neutral-dark hover:bg-neutral-lightest hover:text-primary cursor-pointer">Sign out</div>
             </div>
           </div>
           
@@ -123,8 +121,8 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
             <nav className="flex flex-col space-y-3">
               {navItems.map((item) => (
                 <Link href={item.path} key={item.path}>
-                  <a 
-                    className={`flex items-center px-2 py-2 rounded-md ${
+                  <div 
+                    className={`flex items-center px-2 py-2 rounded-md cursor-pointer ${
                       isActive(item.path) 
                         ? 'bg-primary/10 text-primary' 
                         : 'text-neutral-dark hover:bg-neutral-lightest hover:text-primary'
@@ -133,7 +131,7 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
                   >
                     <i className={`fas ${item.icon} w-6`}></i>
                     <span>{item.label}</span>
-                  </a>
+                  </div>
                 </Link>
               ))}
             </nav>

@@ -96,7 +96,7 @@ const AdvisorMatchingQuestionnaire: React.FC<Props> = ({ userId, onComplete }) =
         setTimeout(() => {
           setIsCompleting(true);
           setTimeout(() => {
-            onComplete(data.recommendedAdvisors);
+            onComplete(data.recommendedAdvisors || []);
           }, 2000);
         }, 6000);
       } else {
@@ -189,7 +189,7 @@ const AdvisorMatchingQuestionnaire: React.FC<Props> = ({ userId, onComplete }) =
             >
               <h4 className="text-lg text-purple-300 font-medium mb-2">Suggested Topics:</h4>
               <ul className="list-disc pl-5 mb-6 space-y-1">
-                {recommendation.suggestions.map((suggestion, index) => (
+                {recommendation.suggestions && recommendation.suggestions.map((suggestion, index) => (
                   <li key={index} className="text-white/80">{suggestion}</li>
                 ))}
               </ul>
