@@ -993,15 +993,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     clearInterval(pingInterval);
   });
   
+  // Heat map API endpoint
+  app.get("/api/advisor-availability/heatmap", async (req: Request, res: Response) => {
+    try {
+      // Get all advisors to calculate online counts
+      const advisors = await storage.getAdvisors();
+      
+      // Days of the week
+      const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      
+      // Generate heat map data
+      const heatMapData = [];
+      
+      // For each day and hour, calculate advisor availability
+      for (const day of days) {
+        for (let hour = 0; hour < 24; hour++) {
+          // In a real implementation, this would query historical data
+          // For now, we'll generate a pattern based on typical availability
+          
+          // Base count - more advisors during evenings and weekends
+          let baseCount = 2;
+          
+          // Evening hours (5pm-10pm) typically have more advisors
+          if (hour >= 17 && hour <= 22) {
+            baseCount += 4;
+          }
+          // Morning/afternoon (9am-5pm) have moderate availability
+          else if (hour >= 9 && hour <= 17) {
+            baseCount += 2;
+          }
+          
+          // Weekend boost
+          if (day === 'Saturday' || day === 'Sunday') {
+            baseCount += 2;
+          }
+          
+          // For the current day and hour, use actual online advisors count
+          const now = new Date();
+          const currentDay = days[now.getDay() === 0 ? 6 : now.getDay() - 1]; // Convert Sunday (0) to index 6
+          const currentHour = now.getHours();
+          
+          let advisorCount = baseCount;
+          
+          // Use real count for current time
+          if (day === currentDay && hour === currentHour) {
+            advisorCount = advisors.filter(advisor => advisor.online).length;
+          }
+          
+          // Calculate average wait time (inversely related to advisor count)
+          // Assumes each advisor can handle about one client every 30 minutes
+          const averageWaitTime = advisorCount > 0 ? Math.round(30 / advisorCount) : 0;
+          
+          heatMapData.push({
+            day,
+            hour,
+            advisorCount,
+            averageWaitTime
+          });
+        }
+      }
+      
+      res.json(heatMapData);
+    } catch (error) {
+      console.error('Error generating heat map data:', error);
+      res.status(500).json({ error: 'Failed to generate heat map data' });
+    }
+  });
+
   // Helper function to broadcast advisor status changes
   function broadcastAdvisorStatus(advisorId: number, isOnline: boolean) {
-    userConnections.forEach((conn) => {
-      if (conn.socket.readyState === WebSocket.OPEN) {
-        conn.socket.send(JSON.stringify({
-          type: 'advisor_status_change',
-          payload: { advisorId, isOnline }
-        }));
-      }
+    // Count online advisors
+    storage.getAdvisors().then(advisors => {
+      const onlineAdvisorsCount = advisors.filter(advisor => advisor.online).length;
+      
+      userConnections.forEach((conn) => {
+        if (conn.socket.readyState === WebSocket.OPEN) {
+          conn.socket.send(JSON.stringify({
+            type: 'advisor_status_change',
+            payload: { 
+              advisorId, 
+              isOnline,
+              onlineAdvisorsCount 
+            }
+          }));
+        }
+      });
+    }).catch(error => {
+      console.error('Error counting online advisors:', error);
+      // Send update without count if there's an error
+      userConnections.forEach((conn) => {
+        if (conn.socket.readyState === WebSocket.OPEN) {
+          conn.socket.send(JSON.stringify({
+            type: 'advisor_status_change',
+            payload: { advisorId, isOnline }
+          }));
+        }
+      });
     });
   }
   
