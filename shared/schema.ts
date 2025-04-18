@@ -12,7 +12,9 @@ export const users = pgTable("users", {
   isAdvisor: boolean("is_advisor").default(false),
   avatar: text("avatar"),
   bio: text("bio"),
-  minuteRate: integer("minute_rate"),
+  chatRate: integer("chat_rate"), // Per minute rate for chat services in cents
+  audioRate: integer("audio_rate"), // Per minute rate for audio calls in cents
+  videoRate: integer("video_rate"), // Per minute rate for video calls in cents
   rating: integer("rating"),
   reviewCount: integer("review_count"),
   availability: text("availability"),
@@ -29,7 +31,9 @@ export const insertUserSchema = createInsertSchema(users).pick({
   isAdvisor: true,
   avatar: true,
   bio: true,
-  minuteRate: true,
+  chatRate: true,
+  audioRate: true,
+  videoRate: true,
   availability: true,
 });
 
@@ -64,8 +68,10 @@ export const sessions = pgTable("sessions", {
   advisorId: integer("advisor_id").notNull(),
   startTime: timestamp("start_time").notNull(),
   endTime: timestamp("end_time").notNull(),
+  sessionType: text("session_type").notNull(), // chat, audio, video
   status: text("status").notNull().default("scheduled"), // scheduled, completed, canceled
   notes: text("notes"),
+  ratePerMinute: integer("rate_per_minute").notNull(), // The rate that was applied for this session
 });
 
 export const insertSessionSchema = createInsertSchema(sessions).pick({
@@ -73,6 +79,8 @@ export const insertSessionSchema = createInsertSchema(sessions).pick({
   advisorId: true,
   startTime: true,
   endTime: true,
+  sessionType: true,
+  ratePerMinute: true,
   notes: true,
 });
 
@@ -128,4 +136,11 @@ export type ChatMessage = {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+}
+
+// Session type enum
+export enum SessionType {
+  CHAT = 'chat',
+  AUDIO = 'audio',
+  VIDEO = 'video'
 }

@@ -4,7 +4,8 @@ import {
   advisorSpecialties, type AdvisorSpecialty, type InsertAdvisorSpecialty,
   sessions, type Session, type InsertSession,
   messages, type Message, type InsertMessage,
-  conversations, type Conversation, type InsertConversation, type ChatMessage
+  conversations, type Conversation, type InsertConversation, type ChatMessage,
+  SessionType
 } from "@shared/schema";
 
 export interface IStorage {
@@ -103,7 +104,9 @@ export class MemStorage implements IStorage {
         isAdvisor: true,
         avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
         bio: "Specializing in tarot readings that provide clarity and guidance for life's most challenging decisions.",
-        minuteRate: 1.50,
+        chatRate: 150,
+        audioRate: 200,
+        videoRate: 250,
         availability: "Mon-Fri, 9am-5pm"
       },
       {
