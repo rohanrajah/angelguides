@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { User } from '@shared/schema';
 import { motion } from 'framer-motion';
+import logoImage from '../../assets/logo.png';
 
 interface HeaderProps {
   user: User | null;
@@ -34,11 +35,13 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <div className="flex items-center">
           <Link href="/home">
-            <a className="flex items-center">
-              <div className="text-primary mr-2">
-                <i className="fas fa-spa text-2xl"></i>
+            <a className="flex flex-col items-center">
+              <div className="flex items-center">
+                <img src={logoImage} alt="AngelGuides.AI Logo" className="h-10 mr-2" />
+                <h1 className="font-sans text-2xl font-extrabold bg-gradient-to-r from-purple-700 to-indigo-500 bg-clip-text text-transparent tracking-tight">
+                  AngelGuides.AI
+                </h1>
               </div>
-              <h1 className="font-heading text-2xl font-semibold text-primary">Angel Guides</h1>
             </a>
           </Link>
         </div>

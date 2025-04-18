@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'wouter';
+import logoImage from '../../assets/logo.png';
 
 const Footer: React.FC = () => {
   return (
@@ -8,8 +9,10 @@ const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
             <div className="flex items-center mb-4">
-              <i className="fas fa-spa text-primary text-2xl mr-2"></i>
-              <h3 className="font-heading text-xl font-semibold">Angel Guides</h3>
+              <img src={logoImage} alt="AngelGuides.AI Logo" className="h-8 mr-2" />
+              <h3 className="font-sans text-xl font-extrabold bg-gradient-to-r from-purple-700 to-indigo-500 bg-clip-text text-transparent tracking-tight">
+                AngelGuides.AI
+              </h3>
             </div>
             <p className="text-neutral-light text-sm mb-4">
               Connecting you with spiritual guidance and wisdom for your personal and professional journey.
