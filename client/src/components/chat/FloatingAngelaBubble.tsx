@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useDragControls } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
-import { useLocation } from 'wouter';
 import AngelaChatWidget from './AngelaChatWidget';
 import angelaIconUrl from '../../assets/angela-icon.png';
 
