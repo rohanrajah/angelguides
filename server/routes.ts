@@ -236,7 +236,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isMatchingQuestion: angelaResponse.isMatchingQuestion || false,
         questionNumber: angelaResponse.questionNumber,
         totalQuestions: angelaResponse.totalQuestions,
-        recommendedAdvisors: angelaResponse.recommendedAdvisors || []
+        recommendedAdvisors: angelaResponse.recommendedAdvisors || [],
+        // Emotional support metadata
+        emotionalTone: angelaResponse.emotionalTone || 'supportive',
+        detectedEmotion: angelaResponse.detectedEmotion || null,
+        empathyLevel: angelaResponse.empathyLevel || 3
       });
     } catch (error) {
       console.error("Error processing Angela message:", error);

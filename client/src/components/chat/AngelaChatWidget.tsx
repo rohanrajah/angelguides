@@ -126,6 +126,11 @@ const AngelaChatWidget: React.FC<AngelaChatWidgetProps> = ({ userId, isFloating 
   const [showRecommendations, setShowRecommendations] = useState(false);
   const [recommendationMessage, setRecommendationMessage] = useState('');
   
+  // Emotional support states
+  const [emotionalTone, setEmotionalTone] = useState<string>('supportive');
+  const [detectedEmotion, setDetectedEmotion] = useState<string | null>(null);
+  const [empathyLevel, setEmpathyLevel] = useState<number>(3);
+  
   useEffect(() => {
     const fetchConversation = async () => {
       try {
@@ -195,6 +200,17 @@ const AngelaChatWidget: React.FC<AngelaChatWidgetProps> = ({ userId, isFloating 
         setRecommendationMessage(data.message);
         setShowRecommendations(true);
         setIsMatchingFlow(false);
+      }
+      
+      // Handle emotional support data
+      if (data.emotionalTone) {
+        setEmotionalTone(data.emotionalTone);
+      }
+      if (data.detectedEmotion) {
+        setDetectedEmotion(data.detectedEmotion);
+      }
+      if (data.empathyLevel) {
+        setEmpathyLevel(data.empathyLevel);
       }
       
     } catch (error) {
