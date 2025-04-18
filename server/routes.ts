@@ -198,7 +198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/angela/:userId/message", async (req: Request, res: Response) => {
     try {
       const userId = parseInt(req.params.userId);
-      const { message } = req.body;
+      const { message, emotionalSupportEnabled = true } = req.body;
       
       if (!message || typeof message !== 'string') {
         return res.status(400).json({ message: "Message is required" });
@@ -213,8 +213,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         content: msg.content
       }));
       
-      // Get response from Angela
-      const angelaResponse = await getAngelaResponse(message, conversationHistory);
+      // Get response from Angela, passing the emotional support mode flag
+      const angelaResponse = await getAngelaResponse(message, conversationHistory, emotionalSupportEnabled);
       
       // Add user message and Angela's response to conversation
       const updatedMessages = [
