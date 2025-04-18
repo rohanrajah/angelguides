@@ -202,20 +202,16 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
             }}
           />
           
-          {/* Sinusoidal Speech Waves - Responsive for homepage size */}
-          <div className={`siri-sinusoidal-container ${isHomePage ? 'w-3/5 h-1/4' : 'w-4/5 h-1/5'}`} style={{ top: isHomePage ? '55%' : '45%' }}>
-            <div className="siri-sinusoidal-wave"></div>
-            <div className="siri-sinusoidal-wave"></div>
-            <div className="siri-sinusoidal-wave"></div>
-            <div className="siri-sinusoidal-wave"></div>
-            <div className="siri-sinusoidal-wave"></div>
-            <div className="siri-sinusoidal-wave"></div>
-            <div className="siri-sinusoidal-wave"></div>
-            <div className="siri-sinusoidal-wave"></div>
-            <div className="siri-sinusoidal-wave"></div>
-            <div className="siri-sinusoidal-wave"></div>
-            <div className="siri-sinusoidal-wave"></div>
-            <div className="siri-sinusoidal-wave"></div>
+          {/* Smooth Siri Waves - Matching Apple's design */}
+          <div className={`siri-waveform-container ${isHomePage ? 'w-full h-3/5' : 'w-full h-1/2'}`} 
+               style={{ 
+                 top: isHomePage ? '50%' : '45%',
+                 backdropFilter: 'contrast(1.2) brightness(1.1)'
+               }}>
+            <div className="siri-smooth-wave-pink"></div>
+            <div className="siri-smooth-wave-blue"></div>
+            <div className="siri-smooth-wave-teal"></div>
+            <div className="siri-smooth-wave-white"></div>
           </div>
           
           {/* Content */}
