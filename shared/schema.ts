@@ -42,6 +42,7 @@ export const specialties = pgTable("specialties", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
   icon: text("icon").notNull(),
+  category: text("category").default("general"), // Categories like "Divination", "Healing", "Spiritual Guidance", etc.
 });
 
 export const insertSpecialtySchema = createInsertSchema(specialties).pick({
