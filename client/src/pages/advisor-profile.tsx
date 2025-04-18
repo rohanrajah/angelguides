@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useRoute, Link } from 'wouter';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { User, Specialty, Session, SessionType, Review } from '@shared/schema';
 import { format, addDays } from 'date-fns';
 import { motion } from 'framer-motion';
@@ -8,6 +8,8 @@ import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from "@/hooks/use-toast";
 import { MessageCircle, PhoneCall, Video, StarIcon } from 'lucide-react';
 import { ReviewDisplay, ReviewForm, RatingSummary } from '@/components/reviews';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
 
 const AdvisorProfile: React.FC = () => {
   const [match, params] = useRoute<{ id: string }>('/advisors/:id');
@@ -498,6 +500,112 @@ const AdvisorProfile: React.FC = () => {
           </div>
         </div>
       </motion.div>
+    </div>
+  );
+};
+
+// Component to fetch reviews and display the rating summary
+interface RatingsSummarySectionProps {
+  advisorId: number;
+}
+
+const RatingsSummarySection: React.FC<RatingsSummarySectionProps> = ({ advisorId }) => {
+  const { data: reviews = [], isLoading } = useQuery<Review[]>({
+    queryKey: ['/api/advisors', advisorId, 'reviews'],
+    enabled: !!advisorId,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center p-4">
+        <div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
+
+  // Calculate average rating
+  const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+  const averageRating = reviews.length > 0 ? totalRating / reviews.length : 0;
+
+  return (
+    <RatingSummary
+      advisorId={advisorId}
+      reviews={reviews}
+      averageRating={averageRating}
+      totalReviews={reviews.length}
+    />
+  );
+};
+
+// Component to check if the user has had a session with the advisor and show the review form
+interface SessionReviewCheckProps {
+  userId: number;
+  advisorId: number;
+}
+
+const SessionReviewCheck: React.FC<SessionReviewCheckProps> = ({ userId, advisorId }) => {
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  
+  // Get user sessions with this advisor
+  const { data: sessions = [], isLoading } = useQuery<Session[]>({
+    queryKey: [`/api/users/${userId}/sessions`],
+    enabled: !!userId,
+  });
+
+  // Filter completed sessions with this advisor
+  const completedSessions = sessions.filter(
+    session => session.advisorId === advisorId && session.status === 'completed'
+  );
+
+  if (isLoading) {
+    return null;
+  }
+
+  if (completedSessions.length === 0) {
+    return null;
+  }
+
+  // Use the latest session for the review
+  const latestSession = completedSessions.sort(
+    (a, b) => new Date(b.endTime).getTime() - new Date(a.endTime).getTime()
+  )[0];
+
+  // Check if user has already reviewed this session
+  const { data: existingReview, isLoading: checkingReview } = useQuery({
+    queryKey: [`/api/reviews/session/${latestSession.id}`],
+    enabled: !!latestSession,
+  });
+
+  if (checkingReview) {
+    return null;
+  }
+
+  if (existingReview) {
+    return null; // User has already left a review
+  }
+
+  return (
+    <div className="mt-6 border-t border-gray-200 pt-6">
+      {showReviewForm ? (
+        <ReviewForm
+          userId={userId}
+          advisorId={advisorId}
+          sessionId={latestSession.id}
+          onSuccess={() => setShowReviewForm(false)}
+        />
+      ) : (
+        <div className="text-center">
+          <p className="text-gray-600 mb-3">
+            You've had a session with this advisor. Would you like to leave a review?
+          </p>
+          <Button 
+            onClick={() => setShowReviewForm(true)}
+            className="bg-purple-600 hover:bg-purple-700"
+          >
+            Leave a Review
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

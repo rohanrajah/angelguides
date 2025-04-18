@@ -473,6 +473,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get a review by session ID
+  app.get("/api/reviews/session/:sessionId", async (req: Request, res: Response) => {
+    try {
+      const sessionId = parseInt(req.params.sessionId);
+      const review = await storage.getReviewBySession(sessionId);
+      
+      if (!review) {
+        return res.status(404).json({ message: "No review found for this session" });
+      }
+      
+      res.json(review);
+    } catch (error) {
+      console.error("Error fetching review by session:", error);
+      res.status(500).json({ message: "Failed to fetch review for session" });
+    }
+  });
+  
   // Get a review by ID
   app.get("/api/reviews/:id", async (req: Request, res: Response) => {
     try {
