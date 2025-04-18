@@ -1,5 +1,6 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
+import { WebSocketServer, WebSocket } from 'ws';
 import { storage } from "./storage";
 import { getAngelaResponse, startAdvisorMatchingFlow } from "./openai";
 import { z } from "zod";
@@ -774,5 +775,236 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  
+  // Initialize WebSocket server
+  const wss = new WebSocketServer({ 
+    server: httpServer, 
+    path: '/ws',
+  });
+  
+  // Store active connections and user data
+  interface UserConnection {
+    userId: number;
+    userType: string;
+    socket: WebSocket;
+    isAlive: boolean;
+  }
+
+  const userConnections = new Map<number, UserConnection>();
+  const advisorSessions = new Map<number, Set<number>>(); // advisorId -> Set of session IDs
+  
+  // Set up connection handling
+  wss.on('connection', (socket: WebSocket) => {
+    let userId: number | null = null;
+    
+    // Handle messages
+    socket.on('message', async (message: string) => {
+      try {
+        const data = JSON.parse(message.toString());
+        console.log('Received message:', data.type);
+        
+        switch (data.type) {
+          case 'authenticate':
+            // Store user connection
+            userId = data.payload.userId;
+            const userType = data.payload.userType;
+            
+            if (userId) {
+              userConnections.set(userId, {
+                userId,
+                userType,
+                socket,
+                isAlive: true
+              });
+              
+              // Notify client of successful authentication
+              socket.send(JSON.stringify({
+                type: 'auth_success',
+                payload: { userId }
+              }));
+              
+              // Broadcast user's online status if they are an advisor
+              if (userType === 'advisor') {
+                broadcastAdvisorStatus(userId, true);
+                
+                // Update advisor status in database
+                await storage.updateUserStatus(userId, true);
+              }
+            }
+            break;
+            
+          case 'start_session':
+            if (!userId) break;
+            
+            const { sessionId, participantId } = data.payload;
+            const userConn = userConnections.get(userId);
+            const participantConn = userConnections.get(participantId);
+            
+            if (userConn && participantConn) {
+              // Add session to tracking
+              if (!advisorSessions.has(userId)) {
+                advisorSessions.set(userId, new Set());
+              }
+              advisorSessions.get(userId)?.add(sessionId);
+              
+              // Notify both parties
+              socket.send(JSON.stringify({
+                type: 'session_started',
+                payload: { sessionId, participantId }
+              }));
+              
+              participantConn.socket.send(JSON.stringify({
+                type: 'session_started',
+                payload: { sessionId, participantId: userId }
+              }));
+            }
+            break;
+            
+          case 'end_session':
+            if (!userId) break;
+            
+            const { sessionId: endSessionId, participantId: endParticipantId } = data.payload;
+            const endParticipantConn = userConnections.get(endParticipantId);
+            
+            // Remove session from tracking
+            advisorSessions.get(userId)?.delete(endSessionId);
+            
+            // Notify the other party if they're connected
+            if (endParticipantConn) {
+              endParticipantConn.socket.send(JSON.stringify({
+                type: 'session_ended',
+                payload: { sessionId: endSessionId }
+              }));
+            }
+            break;
+            
+          case 'chat_message':
+            if (!userId) break;
+            
+            const { recipientId, content, sessionId: chatSessionId } = data.payload;
+            const recipientConn = userConnections.get(recipientId);
+            
+            if (recipientConn) {
+              recipientConn.socket.send(JSON.stringify({
+                type: 'chat_message',
+                payload: {
+                  senderId: userId,
+                  content,
+                  sessionId: chatSessionId,
+                  timestamp: new Date().toISOString()
+                }
+              }));
+            }
+            
+            // Store message in database
+            await storage.sendMessage({
+              senderId: userId,
+              recipientId,
+              content,
+              timestamp: new Date()
+            });
+            break;
+            
+          case 'signal_offer':
+          case 'signal_answer':
+          case 'signal_ice_candidate':
+            if (!userId) break;
+            
+            const { target, signal, sessionId: signalSessionId } = data.payload;
+            const targetConn = userConnections.get(target);
+            
+            if (targetConn) {
+              targetConn.socket.send(JSON.stringify({
+                type: data.type,
+                payload: {
+                  from: userId,
+                  signal,
+                  sessionId: signalSessionId
+                }
+              }));
+            }
+            break;
+            
+          case 'pong':
+            if (userId && userConnections.has(userId)) {
+              const conn = userConnections.get(userId)!;
+              conn.isAlive = true;
+            }
+            break;
+        }
+      } catch (error) {
+        console.error('Error processing WebSocket message:', error);
+      }
+    });
+    
+    // Handle disconnection
+    socket.on('close', async () => {
+      if (userId && userConnections.has(userId)) {
+        const connection = userConnections.get(userId)!;
+        
+        // Clean up connection
+        userConnections.delete(userId);
+        
+        // If advisor, clean up sessions and notify status change
+        if (connection.userType === 'advisor') {
+          broadcastAdvisorStatus(userId, false);
+          advisorSessions.delete(userId);
+          
+          // Update advisor status in database
+          await storage.updateUserStatus(userId, false);
+        }
+      }
+    });
+    
+    // Set up ping for connection health check
+    socket.send(JSON.stringify({ type: 'ping' }));
+  });
+  
+  // Set up regular ping to keep connections alive and detect disconnections
+  const pingInterval = setInterval(() => {
+    wss.clients.forEach((socket) => {
+      if (socket.readyState !== WebSocket.OPEN) return;
+      
+      socket.send(JSON.stringify({ type: 'ping' }));
+    });
+    
+    // Check for dead connections
+    userConnections.forEach(async (conn, userId) => {
+      if (!conn.isAlive) {
+        console.log(`Connection to user ${userId} lost, cleaning up`);
+        conn.socket.terminate();
+        userConnections.delete(userId);
+        
+        // If advisor, clean up sessions and notify status change
+        if (conn.userType === 'advisor') {
+          broadcastAdvisorStatus(userId, false);
+          advisorSessions.delete(userId);
+          
+          // Update advisor status in database
+          await storage.updateUserStatus(userId, false);
+        }
+      } else {
+        conn.isAlive = false; // Reset for next ping
+      }
+    });
+  }, 30000);
+  
+  // Clean up on server close
+  wss.on('close', () => {
+    clearInterval(pingInterval);
+  });
+  
+  // Helper function to broadcast advisor status changes
+  function broadcastAdvisorStatus(advisorId: number, isOnline: boolean) {
+    userConnections.forEach((conn) => {
+      if (conn.socket.readyState === WebSocket.OPEN) {
+        conn.socket.send(JSON.stringify({
+          type: 'advisor_status_change',
+          payload: { advisorId, isOnline }
+        }));
+      }
+    });
+  }
+  
   return httpServer;
 }
