@@ -31,66 +31,90 @@ const AdvisorCard: React.FC<AdvisorCardProps> = ({ advisor, specialties = [] }) 
     return stars;
   };
   
+  // Determine advisor status badge
+  const getAdvisorBadge = () => {
+    if (advisor.reviewCount && advisor.reviewCount > 200) {
+      return {
+        text: "Top Rated",
+        bgColor: "bg-purple-600"
+      };
+    } else if (advisor.reviewCount && advisor.reviewCount > 100) {
+      return {
+        text: "Very Popular",
+        bgColor: "bg-indigo-600"
+      };
+    } else if (advisor.reviewCount && advisor.reviewCount > 50) {
+      return {
+        text: "Rising Talent",
+        bgColor: "bg-blue-600"
+      };
+    } else {
+      return {
+        text: "Newly Joined",
+        bgColor: "bg-teal-600"
+      };
+    }
+  };
+  
+  const badge = getAdvisorBadge();
+  const mainSpecialty = specialties.length > 0 ? specialties[0].name : 'Spiritual Reading';
+  
   return (
     <motion.div 
-      className="advisor-card bg-white rounded-xl shadow-soft overflow-hidden transition duration-300"
+      className="advisor-card bg-white border border-gray-200 rounded-lg overflow-hidden transition duration-300"
       whileHover={{ y: -5, boxShadow: '0 10px 25px rgba(123, 104, 238, 0.15)' }}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
       <div className="relative">
-        <img 
-          src={advisor.avatar || "https://via.placeholder.com/600x300"} 
-          alt={`${advisor.name}, Spiritual Advisor`} 
-          className="w-full h-48 object-cover"
-        />
-        <div className={`absolute top-3 right-3 ${advisor.online ? 'bg-success' : 'bg-neutral'} text-white text-xs font-semibold px-2 py-1 rounded-full`}>
-          <i className={`${advisor.online ? 'fas' : 'far'} fa-circle text-xs mr-1`}></i>
-          {advisor.online ? 'Online' : 'Away'}
-        </div>
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 text-white">
-          <div className="flex items-center mb-1">
-            <span className="text-accent">
-              {renderStars(advisor.rating || 0)}
-            </span>
-            <span className="ml-2 text-sm">{advisor.rating?.toFixed(1) || '0.0'} ({advisor.reviewCount || 0} reviews)</span>
+        <div className="relative h-64 w-full">
+          <img 
+            src={advisor.avatar || "https://via.placeholder.com/300x300"} 
+            alt={`${advisor.name}, Spiritual Advisor`} 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/50"></div>
+          <div className="absolute bottom-2 left-2 right-2 text-white font-bold text-lg">
+            {advisor.name}
+            <div className={`text-sm text-white/90 ${advisor.online ? 'text-green-400' : ''}`}>
+              {advisor.online ? 'online' : 'offline'}
+            </div>
           </div>
+        </div>
+        
+        <div className={`absolute top-2 left-0 ${badge.bgColor} text-white text-xs font-bold py-1 px-2`}>
+          <span>{badge.text}</span>
+        </div>
+        
+        <div className="absolute top-10 left-0 bg-yellow-500 text-white text-xs font-bold py-1 px-2 flex items-center">
+          <span className="mr-1">{advisor.rating?.toFixed(1) || '5.0'}</span>
+          <div className="h-4 w-4 bg-purple-500 rounded-full"></div>
+        </div>
+        
+        <div className="absolute top-18 left-0 bg-white/90 text-gray-800 text-xs py-1 px-2">
+          <span>({advisor.reviewCount || 0} Reviews)</span>
         </div>
       </div>
-      <div className="p-4">
-        <div className="flex justify-between items-start mb-2">
-          <div>
-            <h3 className="font-heading text-lg font-semibold text-neutral-darkest">{advisor.name}</h3>
-            <p className="text-primary text-sm font-medium">
-              {specialties.length > 0 
-                ? `${specialties[0]?.name} ${specialties.length > 1 ? '& More' : ''}`
-                : 'Spiritual Advisor'
-              }
-            </p>
+      
+      <div className="p-3">
+        <div className="flex flex-col mb-3">
+          <h3 className="font-bold text-lg text-center mb-1">{advisor.name}</h3>
+          <div className="text-center text-sm">
+            <div className="text-gray-600 mb-1">Main Specialty</div>
+            <div className="font-medium">{mainSpecialty}</div>
           </div>
-          <span className="bg-neutral-lightest text-primary text-sm px-2 py-1 rounded-md">
-            ${advisor.minuteRate?.toFixed(2) || '0.00'}/min
-          </span>
         </div>
-        <p className="text-neutral-dark text-sm mb-3 line-clamp-2">{advisor.bio || 'A skilled spiritual advisor ready to guide you on your journey.'}</p>
-        <div className="flex flex-wrap gap-2 mb-3">
-          {specialties.map(specialty => (
-            <span key={specialty.id} className="text-xs bg-neutral-lightest text-neutral-dark px-2 py-0.5 rounded-full">
-              {specialty.name}
-            </span>
-          ))}
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-xs text-neutral">
-            <i className="far fa-calendar-alt mr-1"></i>
-            {advisor.availability || 'Available today'}
-          </span>
-          <Link href={`/advisors/${advisor.id}`}>
-            <a className="bg-primary hover:bg-primary-dark text-white text-sm rounded-md px-3 py-1.5 transition duration-200">
-              Book Session
-            </a>
-          </Link>
+        
+        <div className="mt-4">
+          <div className="text-center text-sm font-medium mb-2">Connect with me now:</div>
+          <div className="grid grid-cols-1 gap-2">
+            <Link href={`/advisors/${advisor.id}`}>
+              <a className="block w-full bg-purple-600 hover:bg-purple-700 text-white text-center py-2 rounded transition duration-200">
+                ${advisor.minuteRate?.toFixed(2) || '1.99'}/min
+              </a>
+            </Link>
+          </div>
         </div>
       </div>
     </motion.div>

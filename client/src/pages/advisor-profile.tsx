@@ -152,7 +152,7 @@ const AdvisorProfile: React.FC = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <motion.div 
-        className="flex flex-col md:flex-row gap-8"
+        className="flex flex-col gap-8"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
