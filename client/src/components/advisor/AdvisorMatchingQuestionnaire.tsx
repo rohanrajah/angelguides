@@ -220,6 +220,12 @@ const AdvisorMatchingQuestionnaire: React.FC<Props> = ({ userId, onComplete }) =
                 placeholder="Type your response here..."
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey && userInput.trim() && !messageMutation.isPending && typingComplete) {
+                    e.preventDefault();
+                    handleSubmitResponse();
+                  }
+                }}
                 rows={3}
                 disabled={messageMutation.isPending || !typingComplete}
               />
