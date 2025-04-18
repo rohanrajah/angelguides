@@ -1,0 +1,21 @@
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <!-- Circular background -->
+  <circle cx="60" cy="60" r="58" fill="#1F2937" stroke="#ffffff" stroke-width="2" />
+  
+  <!-- Original logo, centered and slightly scaled -->
+  <g transform="translate(23, 35) scale(0.8)">
+    <!-- Eye/Orb in the center -->
+    <circle cx="38" cy="25" r="10" fill="#ffffff" />
+    <circle cx="35" cy="22" r="3" fill="#1F2937" />
+    
+    <!-- Wings/Feathers -->
+    <path d="M0,30 C8,15 24,10 38,10 C52,10 68,15 76,30" stroke="#ffffff" stroke-width="5" fill="none" />
+    <path d="M8,38 C18,25 28,20 38,20 C48,20 58,25 68,38" stroke="#ffffff" stroke-width="4" fill="none" />
+    <path d="M15,45 C22,35 30,30 38,30 C46,30 54,35 61,45" stroke="#ffffff" stroke-width="3" fill="none" />
+    
+    <!-- Base -->
+    <ellipse cx="38" cy="40" rx="10" ry="3" fill="#ffffff" />
+  </g>
+
+  <!-- Text below the logo in smaller font - hidden in the SVG, will be added in the component -->
+</svg>

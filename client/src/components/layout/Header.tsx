@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { User } from '@shared/schema';
 import { motion } from 'framer-motion';
-import circleLogoImage from '../../assets/img/circle-logo.svg';
+import circleLogoImage from '../../assets/img/circular-logo.svg';
 
 interface HeaderProps {
   user: User | null;

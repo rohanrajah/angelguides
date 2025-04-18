@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'wouter';
-import circleLogoImage from '../../assets/img/circle-logo.svg';
+import circleLogoImage from '../../assets/img/circular-logo.svg';
 
 const Footer: React.FC = () => {
   return (
