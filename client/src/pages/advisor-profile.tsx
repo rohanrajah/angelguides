@@ -7,7 +7,10 @@ import { motion } from 'framer-motion';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from "@/hooks/use-toast";
 import { MessageCircle, PhoneCall, Video, StarIcon } from 'lucide-react';
-import { ReviewDisplay, ReviewForm, RatingSummary } from '@/components/reviews';
+import { ReviewList } from '@/components/reviews/ReviewDisplay';
+import { ReviewForm } from '@/components/reviews/ReviewForm';
+import { RatingSummary } from '@/components/reviews/RatingSummary';
+import { ReviewDialog } from '@/components/reviews/ReviewDialog';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 
@@ -483,7 +486,11 @@ const AdvisorProfile: React.FC = () => {
                     
                     {/* Review listing */}
                     <div className="pt-6 border-t border-gray-200 mt-6">
-                      <ReviewDisplay advisorId={advisor.id} />
+                      <ReviewList 
+                        advisorId={advisor.id} 
+                        limit={5} 
+                        showViewMore={true} 
+                      />
                     </div>
                     
                     {/* Add review section if user has had a session with this advisor */}
