@@ -21,6 +21,7 @@ export interface IStorage {
   getAdminUsers(): Promise<User[]>;
   getAdvisorsBySpecialty(specialtyId: number): Promise<User[]>;
   updateUserStatus(id: number, online: boolean): Promise<User | undefined>;
+  updateUser(id: number, data: Partial<User>): Promise<User | undefined>;
   
   // Account balance methods
   addUserBalance(userId: number, amount: number): Promise<User | undefined>; // amount in cents
@@ -348,6 +349,27 @@ export class MemStorage implements IStorage {
     const user = this.users.get(id);
     if (user) {
       const updatedUser = { ...user, online };
+      this.users.set(id, updatedUser);
+      return updatedUser;
+    }
+    return undefined;
+  }
+  
+  async updateUser(id: number, data: Partial<User>): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (user) {
+      // Handle userType and isAdvisor relationship for backward compatibility
+      let updatedData = { ...data };
+      
+      if (data.userType !== undefined) {
+        // If userType is changing, ensure isAdvisor flag is consistent
+        updatedData.isAdvisor = data.userType === UserType.ADVISOR;
+      } else if (data.isAdvisor !== undefined) {
+        // If isAdvisor is changing but userType isn't specified, update userType to match
+        updatedData.userType = data.isAdvisor ? UserType.ADVISOR : UserType.USER;
+      }
+      
+      const updatedUser = { ...user, ...updatedData };
       this.users.set(id, updatedUser);
       return updatedUser;
     }

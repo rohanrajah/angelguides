@@ -3,13 +3,15 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from 'ws';
 import { storage } from "./storage";
 import { getAngelaResponse, startAdvisorMatchingFlow } from "./openai";
+import { registerProfileRoutes } from "./routes-profile";
 import { z } from "zod";
 import { 
   insertUserSchema, 
   insertSessionSchema, 
   insertMessageSchema, 
   insertReviewSchema,
-  TransactionType 
+  TransactionType,
+  UserType
 } from "@shared/schema";
 import Stripe from "stripe";
 
@@ -21,6 +23,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       apiVersion: '2025-03-31.basil',
     });
   }
+  
+  // Register profile-related routes
+  registerProfileRoutes(app);
+  
   // Get all advisors
   app.get("/api/advisors", async (req: Request, res: Response) => {
     try {

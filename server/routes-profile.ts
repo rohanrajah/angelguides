@@ -3,6 +3,16 @@ import { Express } from "express";
 import { storage } from "./storage";
 import { UserType } from "../shared/schema";
 
+// Extend the Express Request type to include session
+declare module 'express-serve-static-core' {
+  interface Request {
+    session: {
+      userId?: number;
+      [key: string]: any;
+    };
+  }
+}
+
 // In-memory storage for uploaded files (would use S3 or similar in production)
 const uploadedFiles = new Map<string, Buffer>();
 
