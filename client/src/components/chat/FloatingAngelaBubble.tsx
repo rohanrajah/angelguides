@@ -34,10 +34,10 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
     };
   }, []);
 
-  // Size based on page - making the homepage bubble much larger
-  const bubbleSize = isHomePage ? 'w-96 h-96' : 'w-20 h-20';
-  const iconSize = isHomePage ? 'text-6xl' : 'text-2xl';
-  const wingSize = isHomePage ? 'w-[30rem] h-[30rem]' : 'w-32 h-32';
+  // Size based on page - reducing homepage size to 3X
+  const bubbleSize = isHomePage ? 'w-64 h-64' : 'w-20 h-20';
+  const iconSize = isHomePage ? 'text-5xl' : 'text-2xl';
+  const wingSize = isHomePage ? 'w-[20rem] h-[20rem]' : 'w-32 h-32';
   
   function startDrag(event: React.PointerEvent<HTMLDivElement>) {
     dragControls.start(event, { snapToCursor: false });
@@ -84,9 +84,10 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
           <svg viewBox="0 0 100 100" className="w-full h-full">
             <defs>
               <linearGradient id="angelGradientLeft" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#C4B5FD" />
-                <stop offset="50%" stopColor="#A78BFA" />
-                <stop offset="100%" stopColor="#8B5CF6" />
+                <stop offset="0%" stopColor="#F0F4FF" />
+                <stop offset="40%" stopColor="#E1E8FF" />
+                <stop offset="70%" stopColor="#D5DEFF" />
+                <stop offset="100%" stopColor="#C4B5FD" />
               </linearGradient>
               <filter id="glowLeft" x="-20%" y="-20%" width="140%" height="140%">
                 <feGaussianBlur stdDeviation="3" result="blur" />
@@ -94,7 +95,7 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
               </filter>
             </defs>
             <path
-              d="M100,10 Q80,30 70,90 Q60,70 40,60 Q20,50 0,55 Q10,30 30,15 Q60,0 100,10 Z"
+              d="M100,20 Q80,10 60,30 Q70,50 60,80 Q40,60 25,90 Q15,70 0,60 Q10,40 20,20 Q45,0 100,20 Z"
               fill="url(#angelGradientLeft)"
               opacity="0.9"
               filter="url(#glowLeft)"
@@ -120,9 +121,10 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
           <svg viewBox="0 0 100 100" className="w-full h-full">
             <defs>
               <linearGradient id="angelGradientRight" x1="100%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#C4B5FD" />
-                <stop offset="50%" stopColor="#A78BFA" />
-                <stop offset="100%" stopColor="#8B5CF6" />
+                <stop offset="0%" stopColor="#F0F4FF" />
+                <stop offset="40%" stopColor="#E1E8FF" />
+                <stop offset="70%" stopColor="#D5DEFF" />
+                <stop offset="100%" stopColor="#C4B5FD" />
               </linearGradient>
               <filter id="glowRight" x="-20%" y="-20%" width="140%" height="140%">
                 <feGaussianBlur stdDeviation="3" result="blur" />
@@ -130,7 +132,7 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
               </filter>
             </defs>
             <path
-              d="M0,10 Q20,30 30,90 Q40,70 60,60 Q80,50 100,55 Q90,30 70,15 Q40,0 0,10 Z"
+              d="M0,20 Q20,10 40,30 Q30,50 40,80 Q60,60 75,90 Q85,70 100,60 Q90,40 80,20 Q55,0 0,20 Z"
               fill="url(#angelGradientRight)"
               opacity="0.9"
               filter="url(#glowRight)"
@@ -141,7 +143,7 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
         {/* Main Bubble */}
         <motion.button
           onClick={() => setIsOpen(!isOpen)}
-          className={`${bubbleSize} angela-bubble angela-pulse rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg flex items-center justify-center cursor-grab active:cursor-grabbing relative`}
+          className={`${bubbleSize} angela-bubble angela-pulse rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white shadow-lg flex items-center justify-center cursor-grab active:cursor-grabbing relative overflow-hidden`}
           whileHover={{ scale: 1.08, boxShadow: "0 10px 25px rgba(120, 57, 213, 0.5)" }}
           whileTap={{ scale: 0.92 }}
           animate={{
@@ -216,7 +218,7 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
                 ease: "easeInOut"
               }}
             >
-              <i className={`fas fa-dove ${iconSize} mb-1`}></i>
+              <i className={`fas fa-praying-hands ${iconSize} mb-1`}></i>
               <span className={`font-semibold ${isHomePage ? 'text-xl' : 'text-xs'}`}>Angela AI</span>
             </motion.div>
 
