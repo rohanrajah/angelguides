@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link } from 'wouter';
-import { User, Specialty } from '@shared/schema';
+import { User, Specialty, SessionType } from '@shared/schema';
 import { motion } from 'framer-motion';
+import { MessageCircle, PhoneCall, Video } from 'lucide-react';
 
 interface AdvisorCardProps {
   advisor: User;
@@ -107,11 +108,27 @@ const AdvisorCard: React.FC<AdvisorCardProps> = ({ advisor, specialties = [] }) 
         </div>
         
         <div className="mt-4">
-          <div className="text-center text-sm font-medium mb-2">Connect with me now:</div>
-          <div className="grid grid-cols-1 gap-2">
-            <Link href={`/advisors/${advisor.id}`}>
-              <a className="block w-full bg-purple-600 hover:bg-purple-700 text-white text-center py-2 rounded transition duration-200">
-                ${advisor.minuteRate?.toFixed(2) || '1.99'}/min
+          <div className="text-center text-sm font-medium mb-2">Service Options:</div>
+          <div className="grid grid-cols-3 gap-2">
+            <Link href={`/advisors/${advisor.id}?type=${SessionType.CHAT}`}>
+              <a className="flex flex-col items-center bg-indigo-600 hover:bg-indigo-700 text-white text-center py-2 px-1 rounded transition duration-200">
+                <MessageCircle size={18} className="mb-1" />
+                <div className="text-xs">Chat</div>
+                <div className="text-xs font-bold">${(advisor.chatRate ? advisor.chatRate / 100 : 1.50).toFixed(2)}/min</div>
+              </a>
+            </Link>
+            <Link href={`/advisors/${advisor.id}?type=${SessionType.AUDIO}`}>
+              <a className="flex flex-col items-center bg-purple-600 hover:bg-purple-700 text-white text-center py-2 px-1 rounded transition duration-200">
+                <PhoneCall size={18} className="mb-1" />
+                <div className="text-xs">Audio</div>
+                <div className="text-xs font-bold">${(advisor.audioRate ? advisor.audioRate / 100 : 2.00).toFixed(2)}/min</div>
+              </a>
+            </Link>
+            <Link href={`/advisors/${advisor.id}?type=${SessionType.VIDEO}`}>
+              <a className="flex flex-col items-center bg-pink-600 hover:bg-pink-700 text-white text-center py-2 px-1 rounded transition duration-200">
+                <Video size={18} className="mb-1" />
+                <div className="text-xs">Video</div>
+                <div className="text-xs font-bold">${(advisor.videoRate ? advisor.videoRate / 100 : 2.50).toFixed(2)}/min</div>
               </a>
             </Link>
           </div>

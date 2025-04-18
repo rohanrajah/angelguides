@@ -117,7 +117,9 @@ export class MemStorage implements IStorage {
         isAdvisor: true,
         avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
         bio: "Helps clients achieve inner peace and personal growth through guided meditation and spiritual practices.",
-        minuteRate: 2.00,
+        chatRate: 175,
+        audioRate: 225,
+        videoRate: 275,
         availability: "Weekends, 10am-6pm"
       },
       {
@@ -128,7 +130,9 @@ export class MemStorage implements IStorage {
         isAdvisor: true,
         avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
         bio: "Provides insight into your life path and personal journey through astrology and numerology readings.",
-        minuteRate: 1.75,
+        chatRate: 160,
+        audioRate: 210,
+        videoRate: 260,
         availability: "Tue-Sat, 11am-7pm"
       },
       {
@@ -139,7 +143,9 @@ export class MemStorage implements IStorage {
         isAdvisor: true,
         avatar: "https://images.unsplash.com/photo-1552374196-c4e7ffc6e126?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
         bio: "Connects with energies and spirits to provide guidance and clarity about your past, present, and future.",
-        minuteRate: 2.50,
+        chatRate: 200,
+        audioRate: 250,
+        videoRate: 300,
         availability: "Mon-Thu, 12pm-8pm"
       }
     ];
@@ -155,7 +161,9 @@ export class MemStorage implements IStorage {
       isAdvisor: false,
       avatar: "",
       bio: "",
-      minuteRate: 0,
+      chatRate: 0,
+      audioRate: 0,
+      videoRate: 0,
       availability: ""
     });
     
@@ -189,6 +197,8 @@ export class MemStorage implements IStorage {
       advisorId: 1,
       startTime,
       endTime,
+      sessionType: SessionType.CHAT,
+      ratePerMinute: 150,
       notes: "Tarot Reading Session"
     });
     
@@ -197,6 +207,8 @@ export class MemStorage implements IStorage {
       advisorId: 3,
       startTime: fridayStart,
       endTime: fridayEnd,
+      sessionType: SessionType.VIDEO,
+      ratePerMinute: 260,
       notes: "Astrology Reading Session"
     });
   }
