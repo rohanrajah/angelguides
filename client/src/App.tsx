@@ -18,6 +18,7 @@ import Bookings from "@/pages/bookings";
 import Messages from "@/pages/messages";
 import Profile from "@/pages/profile";
 import TopupPage from "@/pages/topup";
+import Transactions from "@/pages/transactions";
 import NotFound from "@/pages/not-found";
 import { useEffect, useState } from "react";
 import { User } from "@shared/schema";
@@ -41,6 +42,7 @@ function Router() {
       <Route path="/messages" component={Messages} />
       <Route path="/profile" component={Profile} />
       <Route path="/topup" component={TopupPage} />
+      <Route path="/transactions" component={Transactions} />
       <Route component={NotFound} />
     </Switch>
   );

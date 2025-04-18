@@ -1,6 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { TransactionList } from '@/components/transactions/TransactionList';
 import { PayoutRequestButton } from '@/components/transactions/PayoutRequestButton';
+import { TopUpDialog } from '@/components/transactions/TopUpDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency } from '@/lib/utils';
 import { 
@@ -19,10 +20,19 @@ export default function TransactionsPage() {
   });
 
   // Get user's balance
+  const queryClient = useQueryClient();
   const { data: balanceData, isLoading: balanceLoading } = useQuery({
     queryKey: ['/api/users', user?.id, 'balance'],
     enabled: !!user?.id,
   });
+  
+  // Function to refresh balances after a transaction
+  const refreshBalances = () => {
+    if (user?.id) {
+      queryClient.invalidateQueries({ queryKey: ['/api/users', user.id, 'balance'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users', user.id, 'transactions'] });
+    }
+  };
   
   if (userLoading || balanceLoading) {
     return (
@@ -72,11 +82,16 @@ export default function TransactionsPage() {
                 : 'Top up your account to book sessions with advisors'
               }
             </p>
-            {isAdvisor && (
+            {isAdvisor ? (
               <PayoutRequestButton 
                 advisorId={user?.id || 0}
                 balance={user?.earningsBalance || 0}
                 isPending={user?.pendingPayout || false}
+              />
+            ) : (
+              <TopUpDialog 
+                userId={user?.id || 0}
+                onSuccess={refreshBalances}
               />
             )}
           </CardFooter>
