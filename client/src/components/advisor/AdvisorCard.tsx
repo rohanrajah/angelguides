@@ -7,9 +7,10 @@ import { MessageCircle, PhoneCall, Video } from 'lucide-react';
 interface AdvisorCardProps {
   advisor: User;
   specialties?: Specialty[];
+  highlighted?: boolean;
 }
 
-const AdvisorCard: React.FC<AdvisorCardProps> = ({ advisor, specialties = [] }) => {
+const AdvisorCard: React.FC<AdvisorCardProps> = ({ advisor, specialties = [], highlighted = false }) => {
   // Helper function to generate star rating
   const renderStars = (rating: number) => {
     const stars = [];
@@ -62,7 +63,11 @@ const AdvisorCard: React.FC<AdvisorCardProps> = ({ advisor, specialties = [] }) 
   
   return (
     <motion.div 
-      className="advisor-card bg-white border border-gray-200 rounded-lg overflow-hidden transition duration-300"
+      className={`advisor-card bg-white rounded-lg overflow-hidden transition duration-300 
+        ${highlighted 
+          ? 'border-4 border-purple-500 shadow-lg shadow-purple-300/30' 
+          : 'border border-gray-200'
+        }`}
       whileHover={{ y: -5, boxShadow: '0 10px 25px rgba(123, 104, 238, 0.15)' }}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -96,6 +101,12 @@ const AdvisorCard: React.FC<AdvisorCardProps> = ({ advisor, specialties = [] }) 
         <div className="absolute top-18 left-0 bg-white/90 text-gray-800 text-xs py-1 px-2">
           <span>({advisor.reviewCount || 0} Reviews)</span>
         </div>
+        
+        {highlighted && (
+          <div className="absolute top-2 right-0 bg-gradient-to-r from-purple-600 to-pink-500 text-white text-xs font-bold py-1 px-2">
+            <span>Recommended by Angela</span>
+          </div>
+        )}
       </div>
       
       <div className="p-3">

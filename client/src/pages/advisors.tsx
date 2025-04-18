@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { User, Specialty } from '@shared/schema';
+import { User, Specialty, SpecialtyCategory } from '@shared/schema';
 import AdvisorCard from '@/components/advisor/AdvisorCard';
 import AdvisorFilters from '@/components/advisor/AdvisorFilters';
+import AdvisorCategoryBrowser from '@/components/advisor/AdvisorCategoryBrowser';
 import { motion } from 'framer-motion';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
@@ -192,86 +193,98 @@ const Advisors: React.FC = () => {
           </Alert>
         )}
         
-        {advisorsLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-            {[1, 2, 3, 4, 5, 6].map((_, index) => (
-              <div key={index} className="bg-white rounded-lg overflow-hidden animate-pulse border border-gray-200">
-                <div className="h-64 bg-gray-200"></div>
-                <div className="p-4">
-                  <div className="h-6 bg-gray-200 rounded w-3/4 mb-2"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/2 mb-3"></div>
-                  <div className="h-8 bg-gray-200 rounded w-full mb-3"></div>
+        {searchQuery ? (
+          // If user is searching, use the old grid view with pagination
+          advisorsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+              {[1, 2, 3, 4, 5, 6].map((_, index) => (
+                <div key={index} className="bg-white rounded-lg overflow-hidden animate-pulse border border-gray-200">
+                  <div className="h-64 bg-gray-200"></div>
+                  <div className="p-4">
+                    <div className="h-6 bg-gray-200 rounded w-3/4 mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded w-1/2 mb-3"></div>
+                    <div className="h-8 bg-gray-200 rounded w-full mb-3"></div>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : filteredAdvisors.length > 0 ? (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {currentAdvisors.map(advisor => (
-                <AdvisorCard 
-                  key={advisor.id} 
-                  advisor={advisor} 
-                  specialties={specialties.slice(0, 2)} // For demo, assign first two specialties
-                />
               ))}
             </div>
-            
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex justify-center mt-8">
-                <div className="flex space-x-1">
-                  <button 
-                    onClick={() => paginate(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1}
-                    className="px-4 py-2 border rounded-md bg-white text-gray-700 disabled:opacity-50"
-                  >
-                    Previous
-                  </button>
-                  
-                  {[...Array(totalPages)].map((_, i) => (
-                    <button 
-                      key={i}
-                      onClick={() => paginate(i + 1)}
-                      className={`px-4 py-2 border rounded-md ${
-                        currentPage === i + 1 
-                          ? 'bg-purple-600 text-white' 
-                          : 'bg-white text-gray-700'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                  
-                  <button 
-                    onClick={() => paginate(Math.min(totalPages, currentPage + 1))}
-                    disabled={currentPage === totalPages}
-                    className="px-4 py-2 border rounded-md bg-white text-gray-700 disabled:opacity-50"
-                  >
-                    Next
-                  </button>
-                </div>
+          ) : filteredAdvisors.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {currentAdvisors.map(advisor => (
+                  <AdvisorCard 
+                    key={advisor.id} 
+                    advisor={advisor} 
+                    specialties={specialties.slice(0, 2)} // For demo, assign first two specialties
+                    highlighted={recommendedAdvisors.includes(advisor.id)}
+                  />
+                ))}
               </div>
-            )}
-          </>
-        ) : (
-          <div className="bg-white rounded-lg p-6 text-center mt-6 border border-gray-200">
-            <div className="text-gray-500 mb-2">
-              <i className="fas fa-search text-3xl"></i>
+              
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex justify-center mt-8">
+                  <div className="flex space-x-1">
+                    <button 
+                      onClick={() => paginate(Math.max(1, currentPage - 1))}
+                      disabled={currentPage === 1}
+                      className="px-4 py-2 border rounded-md bg-white text-gray-700 disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+                    
+                    {[...Array(totalPages)].map((_, i) => (
+                      <button 
+                        key={i}
+                        onClick={() => paginate(i + 1)}
+                        className={`px-4 py-2 border rounded-md ${
+                          currentPage === i + 1 
+                            ? 'bg-purple-600 text-white' 
+                            : 'bg-white text-gray-700'
+                        }`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                    
+                    <button 
+                      onClick={() => paginate(Math.min(totalPages, currentPage + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-4 py-2 border rounded-md bg-white text-gray-700 disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="bg-white rounded-lg p-6 text-center mt-6 border border-gray-200">
+              <div className="text-gray-500 mb-2">
+                <i className="fas fa-search text-3xl"></i>
+              </div>
+              <h3 className="text-lg font-medium mb-2">No Advisors Found</h3>
+              <p className="text-gray-600 mb-4">
+                We couldn't find any advisors matching your search criteria. Try adjusting your filters.
+              </p>
+              <button 
+                className="inline-block bg-purple-600 hover:bg-purple-700 text-white rounded-md px-4 py-2 transition duration-200"
+                onClick={() => {
+                  setActiveSpecialty(null);
+                  setSearchQuery('');
+                }}
+              >
+                Clear Filters
+              </button>
             </div>
-            <h3 className="text-lg font-medium mb-2">No Advisors Found</h3>
-            <p className="text-gray-600 mb-4">
-              We couldn't find any advisors matching your search criteria. Try adjusting your filters.
-            </p>
-            <button 
-              className="inline-block bg-purple-600 hover:bg-purple-700 text-white rounded-md px-4 py-2 transition duration-200"
-              onClick={() => {
-                setActiveSpecialty(null);
-                setSearchQuery('');
-              }}
-            >
-              Clear Filters
-            </button>
+          )
+        ) : (
+          // If user is not searching, use the new category browser
+          <div className="bg-white rounded-lg p-6 border border-gray-200">
+            <AdvisorCategoryBrowser 
+              preselectedCategory={recommendedAdvisors.length > 0 ? SpecialtyCategory.DIVINATION : undefined}
+              recommendedAdvisors={recommendedAdvisors}
+            />
           </div>
         )}
         
