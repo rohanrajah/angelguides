@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'wouter';
 import angelaConsciousImage from '../assets/angela-conscious.jpg';
+import angelaWelcomeAudio from '../assets/audio/angela-welcome.mp3';
 import FloatingAngelaBubble from '../components/chat/FloatingAngelaBubble';
 
 // Typing animation for text
@@ -48,6 +49,7 @@ const WelcomePage: React.FC = () => {
   const bubbleRef = useRef<HTMLDivElement>(null);
   const [lipState, setLipState] = useState<'closed' | 'half-open' | 'open'>('closed');
   const [eyeState, setEyeState] = useState<'normal' | 'blink' | 'wide'>('normal');
+  const audioRef = useRef<HTMLAudioElement>(null);
   
   // Welcome message that Angela will "speak"
   const welcomeMessage = "Welcome to AngelGuides.ai. I am Angela, your AI Concierge for all your spiritual needs.";
@@ -73,6 +75,13 @@ const WelcomePage: React.FC = () => {
       // Start speaking after fade in
       setTimeout(() => {
         setAnimationState('speaking');
+        
+        // Play the audio when speaking starts
+        if (audioRef.current) {
+          audioRef.current.play().catch(error => {
+            console.error("Audio playback failed:", error);
+          });
+        }
       }, 1000);
     }, 500);
     
@@ -321,6 +330,9 @@ const WelcomePage: React.FC = () => {
           )}
         </AnimatePresence>
       </div>
+      
+      {/* Hidden audio element for narration */}
+      <audio ref={audioRef} src={angelaWelcomeAudio} preload="auto" />
     </div>
   );
 };
