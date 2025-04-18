@@ -35,9 +35,9 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
     };
   }, []);
 
-  // Size based on page - reducing homepage size to 3X
+  // Size based on page
   const bubbleSize = isHomePage ? 'w-64 h-64' : 'w-20 h-20';
-  const iconSize = isHomePage ? 'text-5xl' : 'text-2xl';
+  const iconSize = isHomePage ? 'h-24 w-24' : 'h-12 w-12';
   
   function startDrag(event: React.PointerEvent<HTMLDivElement>) {
     dragControls.start(event, { snapToCursor: false });
@@ -69,7 +69,7 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
         {/* Main Bubble */}
         <motion.button
           onClick={() => setIsOpen(!isOpen)}
-          className={`${bubbleSize} angela-bubble rounded-full bg-gradient-to-br from-blue-400 via-purple-500 to-pink-400 text-white shadow-lg flex items-center justify-center cursor-grab active:cursor-grabbing relative overflow-hidden backdrop-blur`}
+          className={`${bubbleSize} angela-bubble rounded-full bg-gradient-to-br from-blue-400 via-purple-500 to-pink-400 text-white shadow-lg flex items-center justify-center cursor-grab active:cursor-grabbing relative overflow-hidden`}
           whileHover={{ scale: 1.08, boxShadow: "0 10px 25px rgba(120, 57, 213, 0.5)" }}
           whileTap={{ scale: 0.92 }}
           animate={{
@@ -89,101 +89,105 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
         >
           {/* Siri-like waves */}
           <div className="siri-waves">
-            <div className="siri-wave" style={{width: '100%', height: '100%', top: 0, left: 0}}></div>
-            <div className="siri-wave" style={{width: '100%', height: '100%', top: 0, left: 0}}></div>
-            <div className="siri-wave" style={{width: '100%', height: '100%', top: 0, left: 0}}></div>
+            <div className="siri-wave"></div>
+            <div className="siri-wave"></div>
+            <div className="siri-wave"></div>
           </div>
           
-          <div className="relative">
-            {/* Siri-like multi-layered circular animations */}
-            <motion.div
-              className="absolute inset-0 rounded-full bg-blue-300 opacity-30"
-              animate={{
-                scale: [1, 1.7, 1],
-                opacity: [0.3, 0.1, 0.3],
-              }}
-              transition={{
-                repeat: Infinity,
-                repeatType: "mirror",
-                duration: 2.3,
-                ease: "easeInOut",
-              }}
-            />
-            <motion.div
-              className="absolute inset-0 rounded-full bg-purple-300 opacity-30"
-              animate={{
-                scale: [1, 1.6, 1],
-                opacity: [0.3, 0.15, 0.3],
-                rotate: [0, 180, 360]
-              }}
-              transition={{
-                repeat: Infinity,
-                repeatType: "loop",
-                duration: 3.5,
-                ease: "easeInOut",
-                delay: 0.2,
-              }}
-            />
-            <motion.div
-              className="absolute inset-0 rounded-full bg-pink-300 opacity-30"
-              animate={{
-                scale: [1, 1.4, 1],
-                opacity: [0.3, 0.2, 0.3],
-                rotate: [0, -180, -360]
-              }}
-              transition={{
-                repeat: Infinity,
-                repeatType: "loop",
-                duration: 4,
-                ease: "easeInOut",
-                delay: 0.5,
-              }}
-            />
-            
-            {/* Additional circular glowing rings */}
-            <motion.div 
-              className="absolute inset-0 border-4 border-white rounded-full opacity-20"
-              animate={{
-                scale: [1, 2, 1],
-                opacity: [0.2, 0, 0.2],
-              }}
-              transition={{
-                repeat: Infinity,
-                repeatType: "loop",
-                duration: 3,
-                ease: "linear"
-              }}
-            />
-            <motion.div 
-              className="absolute inset-0 border-2 border-white rounded-full opacity-15"
-              animate={{
-                scale: [1, 1.8, 1],
-                opacity: [0.15, 0, 0.15],
-              }}
-              transition={{
-                repeat: Infinity,
-                repeatType: "loop",
-                duration: 2.5,
-                ease: "linear",
-                delay: 0.3
-              }}
-            />
-            <motion.div 
-              className="absolute inset-0 border border-white rounded-full opacity-10"
-              animate={{
-                scale: [1, 1.5, 1],
-                opacity: [0.1, 0, 0.1],
-              }}
-              transition={{
-                repeat: Infinity,
-                repeatType: "loop",
-                duration: 2,
-                ease: "linear",
-                delay: 0.6
-              }}
-            />
-            
-            {/* Angela Text */}
+          {/* Circle animations */}
+          <motion.div
+            className="absolute inset-0 rounded-full bg-blue-300 opacity-30"
+            animate={{
+              scale: [1, 1.7, 1],
+              opacity: [0.3, 0.1, 0.3],
+            }}
+            transition={{
+              repeat: Infinity,
+              repeatType: "mirror",
+              duration: 2.3,
+              ease: "easeInOut",
+            }}
+          />
+          
+          <motion.div
+            className="absolute inset-0 rounded-full bg-purple-300 opacity-30"
+            animate={{
+              scale: [1, 1.6, 1],
+              opacity: [0.3, 0.15, 0.3],
+              rotate: [0, 180, 360]
+            }}
+            transition={{
+              repeat: Infinity,
+              repeatType: "loop",
+              duration: 3.5,
+              ease: "easeInOut",
+              delay: 0.2,
+            }}
+          />
+          
+          <motion.div
+            className="absolute inset-0 rounded-full bg-pink-300 opacity-30"
+            animate={{
+              scale: [1, 1.4, 1],
+              opacity: [0.3, 0.2, 0.3],
+              rotate: [0, -180, -360]
+            }}
+            transition={{
+              repeat: Infinity,
+              repeatType: "loop",
+              duration: 4,
+              ease: "easeInOut",
+              delay: 0.5,
+            }}
+          />
+          
+          {/* Glowing rings */}
+          <motion.div 
+            className="absolute inset-0 border-4 border-white rounded-full opacity-20"
+            animate={{
+              scale: [1, 2, 1],
+              opacity: [0.2, 0, 0.2],
+            }}
+            transition={{
+              repeat: Infinity,
+              repeatType: "loop",
+              duration: 3,
+              ease: "linear"
+            }}
+          />
+          
+          <motion.div 
+            className="absolute inset-0 border-2 border-white rounded-full opacity-15"
+            animate={{
+              scale: [1, 1.8, 1],
+              opacity: [0.15, 0, 0.15],
+            }}
+            transition={{
+              repeat: Infinity,
+              repeatType: "loop",
+              duration: 2.5,
+              ease: "linear",
+              delay: 0.3
+            }}
+          />
+          
+          <motion.div 
+            className="absolute inset-0 border border-white rounded-full opacity-10"
+            animate={{
+              scale: [1, 1.5, 1],
+              opacity: [0.1, 0, 0.1],
+            }}
+            transition={{
+              repeat: Infinity,
+              repeatType: "loop",
+              duration: 2,
+              ease: "linear",
+              delay: 0.6
+            }}
+          />
+          
+          {/* Content */}
+          <div className="relative z-10">
             <motion.div
               className="flex flex-col items-center justify-center"
               animate={{
@@ -199,16 +203,16 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
               <img 
                 src={angelaIconUrl} 
                 alt="Angela AI Logo" 
-                className={`${isHomePage ? 'h-24 w-24' : 'h-12 w-12'} mb-1 rounded-full`} 
+                className={`${iconSize} mb-1 rounded-full`} 
               />
               <span className={`font-semibold ${isHomePage ? 'text-xl' : 'text-xs'}`}>Angela AI</span>
             </motion.div>
-
-            {/* Notification dot */}
-            {!isOpen && (
-              <div className={`absolute -top-1 -right-1 ${isHomePage ? 'w-8 h-8' : 'w-4 h-4'} rounded-full bg-red-500 border-2 border-white`}></div>
-            )}
           </div>
+
+          {/* Notification dot */}
+          {!isOpen && (
+            <div className={`absolute -top-1 -right-1 ${isHomePage ? 'w-8 h-8' : 'w-4 h-4'} rounded-full bg-red-500 border-2 border-white z-20`}></div>
+          )}
         </motion.button>
       </div>
     </motion.div>
