@@ -219,156 +219,135 @@
   z-index: 1;
 }
 
-/* Smooth Siri Waves Animation - Apple style */
-.siri-waveform-container {
+/* Concentric Waves Animation - Apple style */
+.siri-concentric-container {
   position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  overflow: hidden;
+  border-radius: 100%;
+  opacity: 0.9;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.siri-concentric-wave {
+  position: absolute;
+  top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 5;
-  overflow: hidden;
-  border-radius: 35px;
-  opacity: 0.95;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  opacity: 0;
   mix-blend-mode: screen;
-  filter: blur(0.5px);
-  background: rgba(0, 0, 0, 0.1);
 }
 
 /* Pink wave */
-.siri-smooth-wave-pink {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0);
-  opacity: 0.8;
-  backdrop-filter: blur(8px);
-  animation: siri-wave-pink 8s ease-in-out infinite alternate;
+.siri-wave-pink {
+  background: radial-gradient(circle, rgba(236, 72, 153, 0) 20%, rgba(236, 72, 153, 0.8) 40%, rgba(236, 72, 153, 0) 60%);
+  animation: siri-concentric-pink 8s ease-in-out infinite;
 }
 
 /* Blue wave */
-.siri-smooth-wave-blue {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0);
-  opacity: 0.8;
-  backdrop-filter: blur(8px);
-  animation: siri-wave-blue 8s ease-in-out infinite alternate-reverse;
-}
-
-/* Teal wave */
-.siri-smooth-wave-teal {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0);
-  opacity: 0.8;
-  backdrop-filter: blur(8px);
-  animation: siri-wave-teal 8s ease-in-out infinite alternate;
+.siri-wave-blue {
+  background: radial-gradient(circle, rgba(56, 189, 248, 0) 30%, rgba(56, 189, 248, 0.8) 50%, rgba(56, 189, 248, 0) 70%);
+  animation: siri-concentric-blue 7s ease-in-out infinite;
   animation-delay: 0.5s;
 }
 
-/* White wave */
-.siri-smooth-wave-white {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0);
-  opacity: 0.5;
-  backdrop-filter: blur(8px);
-  animation: siri-wave-white 8s ease-in-out infinite alternate-reverse;
+/* Teal wave */
+.siri-wave-teal {
+  background: radial-gradient(circle, rgba(45, 212, 191, 0) 35%, rgba(45, 212, 191, 0.8) 55%, rgba(45, 212, 191, 0) 75%);
+  animation: siri-concentric-teal 6s ease-in-out infinite;
   animation-delay: 1s;
 }
 
-/* Wave animations - Improved to match Siri image */
-@keyframes siri-wave-pink {
+/* White wave */
+.siri-wave-white {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0) 40%, rgba(255, 255, 255, 0.8) 60%, rgba(255, 255, 255, 0) 80%);
+  animation: siri-concentric-white 9s ease-in-out infinite;
+  animation-delay: 1.5s;
+}
+
+/* Purple wave */
+.siri-wave-purple {
+  background: radial-gradient(circle, rgba(168, 85, 247, 0) 25%, rgba(168, 85, 247, 0.8) 45%, rgba(168, 85, 247, 0) 65%);
+  animation: siri-concentric-purple 7.5s ease-in-out infinite;
+  animation-delay: 0.75s;
+}
+
+/* Concentric Wave animations */
+@keyframes siri-concentric-pink {
   0% {
-    box-shadow: 
-      0 -90px 30px -10px rgba(236, 72, 153, 0.9),
-      0 -60px 60px 0px rgba(236, 72, 153, 0.5),
-      0 100px 80px 0px rgba(236, 72, 153, 0.3);
+    transform: translate(-50%, -50%) scale(0.1);
+    opacity: 0.8;
   }
   50% {
-    box-shadow: 
-      0 -70px 30px -10px rgba(236, 72, 153, 0.7),
-      0 0px 60px 0px rgba(236, 72, 153, 0.5),
-      0 70px 80px 0px rgba(236, 72, 153, 0.8);
+    opacity: 0.5;
   }
   100% {
-    box-shadow: 
-      0 50px 30px -10px rgba(236, 72, 153, 0.9),
-      0 60px 60px 0px rgba(236, 72, 153, 0.5),
-      0 -60px 80px 0px rgba(236, 72, 153, 0.3);
+    transform: translate(-50%, -50%) scale(2.2);
+    opacity: 0;
   }
 }
 
-@keyframes siri-wave-blue {
+@keyframes siri-concentric-blue {
   0% {
-    box-shadow: 
-      0 -80px 30px -20px rgba(56, 189, 248, 0.9),
-      0 50px 60px 0px rgba(56, 189, 248, 0.5),
-      0 -30px 80px 0px rgba(56, 189, 248, 0.4);
+    transform: translate(-50%, -50%) scale(0.1);
+    opacity: 0.9;
   }
   50% {
-    box-shadow: 
-      0 -40px 30px -20px rgba(56, 189, 248, 0.6),
-      0 0px 60px 0px rgba(56, 189, 248, 0.5),
-      0 40px 80px 0px rgba(56, 189, 248, 0.8);
+    opacity: 0.6;
   }
   100% {
-    box-shadow: 
-      0 60px 30px -20px rgba(56, 189, 248, 0.9),
-      0 -50px 60px 0px rgba(56, 189, 248, 0.5),
-      0 30px 80px 0px rgba(56, 189, 248, 0.4);
+    transform: translate(-50%, -50%) scale(2);
+    opacity: 0;
   }
 }
 
-@keyframes siri-wave-teal {
+@keyframes siri-concentric-teal {
   0% {
-    box-shadow: 
-      0 50px 30px -5px rgba(45, 212, 191, 0.9),
-      0 -70px 60px 0px rgba(45, 212, 191, 0.5),
-      0 0px 80px 0px rgba(45, 212, 191, 0.3);
+    transform: translate(-50%, -50%) scale(0.1);
+    opacity: 0.7;
   }
   50% {
-    box-shadow: 
-      0 0px 30px -5px rgba(45, 212, 191, 0.7),
-      0 0px 60px 0px rgba(45, 212, 191, 0.5),
-      0 0px 80px 0px rgba(45, 212, 191, 0.8);
+    opacity: 0.4;
   }
   100% {
-    box-shadow: 
-      0 -50px 30px -5px rgba(45, 212, 191, 0.9),
-      0 70px 60px 0px rgba(45, 212, 191, 0.5),
-      0 0px 80px 0px rgba(45, 212, 191, 0.3);
+    transform: translate(-50%, -50%) scale(1.8);
+    opacity: 0;
   }
 }
 
-@keyframes siri-wave-white {
+@keyframes siri-concentric-white {
   0% {
-    box-shadow: 
-      0 -30px 30px 0px rgba(255, 255, 255, 0.9),
-      0 60px 60px 0px rgba(255, 255, 255, 0.5),
-      0 -50px 80px 0px rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%) scale(0.1);
+    opacity: 0.6;
   }
   50% {
-    box-shadow: 
-      0 0px 30px 0px rgba(255, 255, 255, 0.7),
-      0 0px 60px 0px rgba(255, 255, 255, 0.5),
-      0 0px 80px 0px rgba(255, 255, 255, 0.6);
+    opacity: 0.3;
   }
   100% {
-    box-shadow: 
-      0 30px 30px 0px rgba(255, 255, 255, 0.9),
-      0 -60px 60px 0px rgba(255, 255, 255, 0.5),
-      0 50px 80px 0px rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%) scale(1.6);
+    opacity: 0;
+  }
+}
+
+@keyframes siri-concentric-purple {
+  0% {
+    transform: translate(-50%, -50%) scale(0.1);
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.9);
+    opacity: 0;
   }
 }
 

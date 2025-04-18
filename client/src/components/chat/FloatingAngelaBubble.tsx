@@ -69,7 +69,7 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
         {/* Main Bubble */}
         <motion.button
           onClick={() => setIsOpen(!isOpen)}
-          className={`${bubbleSize} angela-bubble rounded-full bg-gradient-to-br from-blue-400 via-purple-500 to-pink-400 text-white shadow-lg flex items-center justify-center cursor-grab active:cursor-grabbing relative overflow-hidden`}
+          className={`${bubbleSize} angela-bubble rounded-full bg-gradient-radial from-indigo-800 via-indigo-900 to-purple-950 text-white shadow-lg flex items-center justify-center cursor-grab active:cursor-grabbing relative overflow-hidden`}
           whileHover={{ scale: 1.08, boxShadow: "0 10px 25px rgba(120, 57, 213, 0.5)" }}
           whileTap={{ scale: 0.92 }}
           animate={{
@@ -80,138 +80,30 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
               "0 15px 35px rgba(236, 72, 153, 0.8)",
               "0 10px 20px rgba(168, 85, 247, 0.7)",
               "0 6px 12px rgba(60, 149, 248, 0.6)",
-            ],
-            background: [
-              "linear-gradient(145deg, rgba(59, 130, 246, 0.9), rgba(124, 58, 237, 0.7), rgba(236, 72, 153, 0.8))",
-              "linear-gradient(145deg, rgba(124, 58, 237, 0.7), rgba(236, 72, 153, 0.8), rgba(59, 130, 246, 0.9))",
-              "linear-gradient(145deg, rgba(236, 72, 153, 0.8), rgba(59, 130, 246, 0.9), rgba(124, 58, 237, 0.7))",
-              "linear-gradient(145deg, rgba(124, 58, 237, 0.7), rgba(236, 72, 153, 0.8), rgba(59, 130, 246, 0.9))",
-              "linear-gradient(145deg, rgba(59, 130, 246, 0.9), rgba(124, 58, 237, 0.7), rgba(236, 72, 153, 0.8))",
             ]
           }}
           transition={{
             repeat: Infinity,
             repeatType: "loop",
-            duration: 8,
+            duration: 6,
             ease: "easeInOut"
           }}
         >
-          {/* Siri-like gradient waves */}
-          <div className="siri-waves">
-            <div className="siri-wave siri-wave-blue"></div>
-            <div className="siri-wave siri-wave-purple"></div>
-            <div className="siri-wave siri-wave-pink"></div>
-            <div className="siri-wave siri-wave-blue"></div>
-            <div className="siri-wave siri-wave-purple"></div>
-            
-            {/* Horizontal gradient waves */}
-            <div className="siri-horizontal-wave"></div>
-            <div className="siri-horizontal-wave"></div>
-            <div className="siri-horizontal-wave"></div>
-          </div>
+          {/* Background glow effect */}
+          <div className="absolute inset-0 bg-blue-500/10 rounded-full blur-md"></div>
           
-          {/* Circle animations */}
-          <motion.div
-            className="absolute inset-0 rounded-full bg-blue-300 opacity-30"
-            animate={{
-              scale: [1, 1.7, 1],
-              opacity: [0.3, 0.1, 0.3],
-            }}
-            transition={{
-              repeat: Infinity,
-              repeatType: "mirror",
-              duration: 2.3,
-              ease: "easeInOut",
-            }}
-          />
-          
-          <motion.div
-            className="absolute inset-0 rounded-full bg-purple-300 opacity-30"
-            animate={{
-              scale: [1, 1.6, 1],
-              opacity: [0.3, 0.15, 0.3],
-              rotate: [0, 180, 360]
-            }}
-            transition={{
-              repeat: Infinity,
-              repeatType: "loop",
-              duration: 3.5,
-              ease: "easeInOut",
-              delay: 0.2,
-            }}
-          />
-          
-          <motion.div
-            className="absolute inset-0 rounded-full bg-pink-300 opacity-30"
-            animate={{
-              scale: [1, 1.4, 1],
-              opacity: [0.3, 0.2, 0.3],
-              rotate: [0, -180, -360]
-            }}
-            transition={{
-              repeat: Infinity,
-              repeatType: "loop",
-              duration: 4,
-              ease: "easeInOut",
-              delay: 0.5,
-            }}
-          />
-          
-          {/* Glowing rings */}
-          <motion.div 
-            className="absolute inset-0 border-4 border-white rounded-full opacity-20"
-            animate={{
-              scale: [1, 2, 1],
-              opacity: [0.2, 0, 0.2],
-            }}
-            transition={{
-              repeat: Infinity,
-              repeatType: "loop",
-              duration: 3,
-              ease: "linear"
-            }}
-          />
-          
-          <motion.div 
-            className="absolute inset-0 border-2 border-white rounded-full opacity-15"
-            animate={{
-              scale: [1, 1.8, 1],
-              opacity: [0.15, 0, 0.15],
-            }}
-            transition={{
-              repeat: Infinity,
-              repeatType: "loop",
-              duration: 2.5,
-              ease: "linear",
-              delay: 0.3
-            }}
-          />
-          
-          <motion.div 
-            className="absolute inset-0 border border-white rounded-full opacity-10"
-            animate={{
-              scale: [1, 1.5, 1],
-              opacity: [0.1, 0, 0.1],
-            }}
-            transition={{
-              repeat: Infinity,
-              repeatType: "loop",
-              duration: 2,
-              ease: "linear",
-              delay: 0.6
-            }}
-          />
-          
-          {/* Smooth Siri Waves - Matching Apple's design */}
-          <div className={`siri-waveform-container ${isHomePage ? 'w-full h-3/5' : 'w-full h-1/2'}`} 
-               style={{ 
-                 top: isHomePage ? '50%' : '45%',
-                 backdropFilter: 'contrast(1.2) brightness(1.1)'
-               }}>
-            <div className="siri-smooth-wave-pink"></div>
-            <div className="siri-smooth-wave-blue"></div>
-            <div className="siri-smooth-wave-teal"></div>
-            <div className="siri-smooth-wave-white"></div>
+          {/* Concentric Waves around logo */}
+          <div className="siri-concentric-container">
+            <div className="siri-concentric-wave siri-wave-pink"></div>
+            <div className="siri-concentric-wave siri-wave-blue"></div>
+            <div className="siri-concentric-wave siri-wave-teal"></div>
+            <div className="siri-concentric-wave siri-wave-white"></div>
+            <div className="siri-concentric-wave siri-wave-pink" style={{animationDelay: '2s'}}></div>
+            <div className="siri-concentric-wave siri-wave-blue" style={{animationDelay: '2.5s'}}></div>
+            <div className="siri-concentric-wave siri-wave-teal" style={{animationDelay: '3s'}}></div>
+            <div className="siri-concentric-wave siri-wave-white" style={{animationDelay: '3.5s'}}></div>
+            {/* Additional color wave */}
+            <div className="siri-concentric-wave siri-wave-purple"></div>
           </div>
           
           {/* Content */}
