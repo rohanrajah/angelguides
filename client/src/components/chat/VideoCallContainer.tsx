@@ -10,7 +10,7 @@ import {
   ScreenShare,
   ScreenShareOff
 } from 'lucide-react';
-import { sendMessage } from '@/lib/websocket';
+import { sendMessage, onMessage } from '@/lib/websocket';
 
 interface VideoCallContainerProps {
   sessionId: number;

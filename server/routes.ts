@@ -899,9 +899,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Store message in database
             await storage.sendMessage({
               senderId: userId,
-              recipientId,
-              content,
-              timestamp: new Date()
+              receiverId: recipientId,
+              content
             });
             break;
             

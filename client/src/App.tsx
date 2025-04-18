@@ -8,6 +8,7 @@ import Footer from "@/components/layout/Footer";
 import FloatingAngelaBubble from "@/components/chat/FloatingAngelaBubble";
 import AngelaOnboarding from "@/components/onboarding/AngelaOnboarding";
 import AngelaGuidedTour from "@/components/onboarding/AngelaGuidedTour";
+import { WebSocketProvider } from "@/components/WebSocketProvider";
 
 // Pages
 import Home from "@/pages/home";
@@ -21,6 +22,7 @@ import TopupPage from "@/pages/topup";
 import Transactions from "@/pages/transactions";
 import Dashboard from "@/pages/dashboard";
 import NotFound from "@/pages/not-found";
+import TestPage from "@/pages/test";
 import { useEffect, useState } from "react";
 import { User } from "@shared/schema";
 import { apiRequest } from "./lib/queryClient";
@@ -45,6 +47,7 @@ function Router() {
       <Route path="/profile" component={Profile} />
       <Route path="/topup" component={TopupPage} />
       <Route path="/transactions" component={Transactions} />
+      <Route path="/test" component={TestPage} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -152,29 +155,34 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className={`min-h-screen flex flex-col ${isWelcomePage ? 'bg-transparent' : 'bg-neutral-lightest'}`}>
-        {!isWelcomePage && <Header user={currentUser} />}
-        <main className="flex-grow main-content">
-          <Router />
-        </main>
-        {!isWelcomePage && <Footer />}
-        {/* Angela AI bubble appears on all pages */}
-        <FloatingAngelaBubble userId={currentUser?.id || 5} />
-        
-        {/* Angela AI Onboarding Modal */}
-        {showOnboarding && !isWelcomePage && (
-          <AngelaOnboarding onComplete={handleOnboardingComplete} />
-        )}
-        
-        {/* Angela AI Guided Tour */}
-        {showGuidedTour && !isWelcomePage && (
-          <AngelaGuidedTour 
-            steps={tourSteps} 
-            isActive={showGuidedTour}
-            onComplete={handleGuidedTourComplete} 
-          />
-        )}
-      </div>
+      <WebSocketProvider 
+        userId={currentUser?.id} 
+        userType={currentUser?.userType}
+      >
+        <div className={`min-h-screen flex flex-col ${isWelcomePage ? 'bg-transparent' : 'bg-neutral-lightest'}`}>
+          {!isWelcomePage && <Header user={currentUser} />}
+          <main className="flex-grow main-content">
+            <Router />
+          </main>
+          {!isWelcomePage && <Footer />}
+          {/* Angela AI bubble appears on all pages */}
+          <FloatingAngelaBubble userId={currentUser?.id || 5} />
+          
+          {/* Angela AI Onboarding Modal */}
+          {showOnboarding && !isWelcomePage && (
+            <AngelaOnboarding onComplete={handleOnboardingComplete} />
+          )}
+          
+          {/* Angela AI Guided Tour */}
+          {showGuidedTour && !isWelcomePage && (
+            <AngelaGuidedTour 
+              steps={tourSteps} 
+              isActive={showGuidedTour}
+              onComplete={handleGuidedTourComplete} 
+            />
+          )}
+        </div>
+      </WebSocketProvider>
     </QueryClientProvider>
   );
 }

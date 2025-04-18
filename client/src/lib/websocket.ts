@@ -20,8 +20,12 @@ export function connectWebSocket() {
   
   // Create WebSocket with the correct protocol and path
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  
+  // In Replit environment, we can use the host directly since Vite proxies to the server
+  // Make the WebSocket URL relative to ensure it connects to the same origin
   const wsUrl = `${protocol}//${window.location.host}/ws`;
   
+  console.log(`Connecting to WebSocket at ${wsUrl}`);
   socket = new WebSocket(wsUrl);
   
   socket.onopen = () => {
