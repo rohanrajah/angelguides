@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'wouter';
-import circleLogoImage from '../../assets/img/circular-logo.svg';
+import logo3D from '../../assets/img/logo-3d.png';
 
 const Footer: React.FC = () => {
   return (
@@ -9,7 +9,18 @@ const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
             <div className="flex flex-col items-center mb-4">
-              <img src={circleLogoImage} alt="AngelGuides.AI Logo" className="h-10 w-10" />
+              <div className="logo-3d-container h-10 w-10 relative rounded-full overflow-hidden shadow-lg transform transition-transform hover:scale-105">
+                <img 
+                  src={logo3D} 
+                  alt="AngelGuides.AI Logo" 
+                  className="h-10 w-10 rounded-full object-cover"
+                  style={{
+                    transform: 'perspective(800px) rotateY(10deg)',
+                    boxShadow: 'inset 0 0 10px rgba(255,255,255,0.5)',
+                  }}
+                />
+                <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-purple-500/20 to-transparent"></div>
+              </div>
               <h3 className="font-sans text-sm font-extrabold bg-gradient-to-r from-purple-700 to-indigo-500 bg-clip-text text-transparent tracking-tight mt-1">
                 AngelGuides.AI
               </h3>
