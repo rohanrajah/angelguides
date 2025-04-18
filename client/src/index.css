@@ -2,6 +2,35 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Angela Guided Tour Styles */
+.angela-tour-highlight {
+  position: relative;
+  z-index: 50;
+  box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.7) !important;
+  transition: all 0.3s ease-in-out;
+  border-radius: 3px;
+}
+
+.angela-tour-pulse {
+  position: absolute;
+  border-radius: 3px;
+  animation: angela-tour-pulse 2s infinite;
+  box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.4);
+  pointer-events: none;
+}
+
+@keyframes angela-tour-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(168, 85, 247, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(168, 85, 247, 0);
+  }
+}
+
 /* Siri-like animations for Angela AI bubble */
 .angela-bubble {
   position: relative;
