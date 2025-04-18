@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { getAngelaResponse } from "./openai";
+import { getAngelaResponse, startAdvisorMatchingFlow } from "./openai";
 import { z } from "zod";
 import { insertUserSchema, insertSessionSchema, insertMessageSchema } from "@shared/schema";
 import Stripe from "stripe";
@@ -135,6 +135,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching Angela conversation:", error);
       res.status(500).json({ message: "Failed to fetch conversation" });
+    }
+  });
+  
+  // Start the advisor matching flow
+  app.get("/api/angela/:userId/start-matching", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      // Get or create a conversation for this user
+      const conversation = await storage.getOrCreateConversation(userId);
+      
+      // Start the advisor matching flow
+      const matchingResponse = await startAdvisorMatchingFlow();
+      
+      // Add Angela's response to the conversation
+      const updatedMessages = [
+        ...conversation.messages,
+        {
+          role: "assistant",
+          content: matchingResponse.message,
+          timestamp: new Date()
+        }
+      ];
+      
+      // Update the conversation in storage
+      await storage.updateConversation(conversation.id, updatedMessages);
+      
+      // Return the response
+      res.json(matchingResponse);
+    } catch (error) {
+      console.error("Error starting matching flow:", error);
+      res.status(500).json({ message: "Failed to start advisor matching" });
     }
   });
 
