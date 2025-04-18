@@ -2,14 +2,22 @@ import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizz
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// User schema (both regular users and advisors)
+// User type enum
+export enum UserType {
+  USER = 'user',
+  ADVISOR = 'advisor',
+  ADMIN = 'admin'
+}
+
+// User schema (users, advisors, admins)
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   name: text("name").notNull(),
   email: text("email").notNull(),
-  isAdvisor: boolean("is_advisor").default(false),
+  userType: text("user_type").notNull().default(UserType.USER), // New field for user type
+  isAdvisor: boolean("is_advisor").default(false), // Keeping for backward compatibility
   avatar: text("avatar"),
   bio: text("bio"),
   chatRate: integer("chat_rate"), // Per minute rate for chat services in cents
@@ -19,12 +27,12 @@ export const users = pgTable("users", {
   reviewCount: integer("review_count"),
   availability: text("availability"),
   online: boolean("online").default(false),
-  accountBalance: integer("account_balance").default(0), // Account balance in cents for clients
+  accountBalance: integer("account_balance").default(0), // Account balance in cents for all users
   earningsBalance: integer("earnings_balance").default(0), // Pending earnings in cents for advisors
   totalEarnings: integer("total_earnings").default(0), // All-time earnings in cents for advisors
   pendingPayout: boolean("pending_payout").default(false), // Flag for requested payouts
-  stripeCustomerId: text("stripe_customer_id"), // For client payments
-  stripeConnectId: text("stripe_connect_id"), // For advisor payouts
+  stripeCustomerId: text("stripe_customer_id"), // For payments
+  stripeConnectId: text("stripe_connect_id"), // For payouts
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -32,6 +40,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   password: true,
   name: true,
   email: true,
+  userType: true,
   isAdvisor: true,
   avatar: true,
   bio: true,

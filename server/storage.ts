@@ -7,7 +7,7 @@ import {
   reviews, type Review, type InsertReview,
   conversations, type Conversation, type InsertConversation, type ChatMessage,
   transactions, type Transaction, type InsertTransaction,
-  SessionType, SpecialtyCategory, TransactionType
+  SessionType, SpecialtyCategory, TransactionType, UserType
 } from "@shared/schema";
 
 export interface IStorage {
@@ -17,6 +17,8 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   getAdvisors(): Promise<User[]>;
   getAdvisorById(id: number): Promise<User | undefined>;
+  getRegularUsers(): Promise<User[]>;
+  getAdminUsers(): Promise<User[]>;
   getAdvisorsBySpecialty(specialtyId: number): Promise<User[]>;
   updateUserStatus(id: number, online: boolean): Promise<User | undefined>;
   
@@ -275,20 +277,24 @@ export class MemStorage implements IStorage {
 
   async createUser(user: InsertUser): Promise<User> {
     const id = this.userIdCounter++;
+    // Determine user type based on isAdvisor for backward compatibility
+    const userType = user.userType ?? (user.isAdvisor ? UserType.ADVISOR : UserType.USER);
+    
     const newUser: User = { 
       id,
       username: user.username,
       password: user.password,
       name: user.name,
       email: user.email,
-      isAdvisor: user.isAdvisor ?? false,
+      userType, // Set the new user type field
+      isAdvisor: user.isAdvisor ?? (userType === UserType.ADVISOR), // Ensure isAdvisor matches userType
       avatar: user.avatar ?? null,
       bio: user.bio ?? null,
       chatRate: user.chatRate ?? null,
       audioRate: user.audioRate ?? null,
       videoRate: user.videoRate ?? null,
-      rating: user.isAdvisor ? 4 + Math.random() : 0,
-      reviewCount: user.isAdvisor ? Math.floor(Math.random() * 100) + 50 : 0,
+      rating: userType === UserType.ADVISOR ? 4 + Math.random() : 0,
+      reviewCount: userType === UserType.ADVISOR ? Math.floor(Math.random() * 100) + 50 : 0,
       online: Math.random() > 0.5,
       accountBalance: 0,
       earningsBalance: 0,
@@ -303,12 +309,26 @@ export class MemStorage implements IStorage {
   }
 
   async getAdvisors(): Promise<User[]> {
-    return Array.from(this.users.values()).filter(user => user.isAdvisor);
+    return Array.from(this.users.values()).filter(user => 
+      user.userType === UserType.ADVISOR || user.isAdvisor
+    );
   }
 
   async getAdvisorById(id: number): Promise<User | undefined> {
     const user = await this.getUser(id);
-    return user?.isAdvisor ? user : undefined;
+    return (user?.userType === UserType.ADVISOR || user?.isAdvisor) ? user : undefined;
+  }
+  
+  async getAdminUsers(): Promise<User[]> {
+    return Array.from(this.users.values()).filter(user => 
+      user.userType === UserType.ADMIN
+    );
+  }
+  
+  async getRegularUsers(): Promise<User[]> {
+    return Array.from(this.users.values()).filter(user => 
+      user.userType === UserType.USER && !user.isAdvisor
+    );
   }
 
   async getAdvisorsBySpecialty(specialtyId: number): Promise<User[]> {
