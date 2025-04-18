@@ -11,7 +11,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   let stripe: Stripe | undefined;
   if (process.env.STRIPE_SECRET_KEY) {
     stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: '2023-10-16',
+      apiVersion: '2025-03-31.basil',
     });
   }
   // Get all advisors
@@ -151,7 +151,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Add Angela's response to the conversation
       const updatedMessages = [
-        ...conversation.messages,
+        ...(conversation.messages as any[]),
         {
           role: "assistant",
           content: matchingResponse.message,

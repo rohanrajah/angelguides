@@ -139,6 +139,9 @@ const WelcomePage: React.FC = () => {
       // Mark that user has seen welcome page
       localStorage.setItem('hasSeenWelcome', 'true');
       
+      // Store recommended advisors in localStorage to use on advisors page
+      localStorage.setItem('recommendedAdvisors', JSON.stringify(advisorIds));
+      
       // Redirect to advisors page with recommended advisors
       setTimeout(() => {
         setLocation("/advisors");

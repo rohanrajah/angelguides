@@ -4,12 +4,27 @@ import { User, Specialty } from '@shared/schema';
 import AdvisorCard from '@/components/advisor/AdvisorCard';
 import AdvisorFilters from '@/components/advisor/AdvisorFilters';
 import { motion } from 'framer-motion';
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 const Advisors: React.FC = () => {
   const [activeSpecialty, setActiveSpecialty] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
   const advisorsPerPage = 9;
+  const [recommendedAdvisors, setRecommendedAdvisors] = useState<number[]>([]);
+  
+  // Check for recommended advisors on mount
+  useEffect(() => {
+    const recommendedAdvisorsStr = localStorage.getItem('recommendedAdvisors');
+    if (recommendedAdvisorsStr) {
+      try {
+        const advisorIds = JSON.parse(recommendedAdvisorsStr);
+        setRecommendedAdvisors(advisorIds);
+      } catch (e) {
+        console.error('Error parsing recommended advisors', e);
+      }
+    }
+  }, []);
   
   // Fetch all specialties
   const { data: specialties = [], isLoading: specialtiesLoading } = useQuery<Specialty[]>({
@@ -131,6 +146,51 @@ const Advisors: React.FC = () => {
             />
           </div>
         </div>
+        
+        {/* Recommended advisors banner */}
+        {recommendedAdvisors.length > 0 && (
+          <Alert className="mb-6 bg-gradient-to-r from-purple-100 to-pink-100 border-purple-200">
+            <div className="flex items-center">
+              <div className="bg-purple-600 rounded-full p-2 mr-3">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="white" />
+                </svg>
+              </div>
+              <AlertTitle className="text-purple-800 font-bold text-lg">Your Perfect Advisor Matches</AlertTitle>
+            </div>
+            <AlertDescription className="mt-2 text-purple-800">
+              <p>Based on your answers, Angela has found {recommendedAdvisors.length} advisors who are perfect for your spiritual needs!</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {recommendedAdvisors.map(id => {
+                  const advisor = advisors.find(a => a.id === id);
+                  if (!advisor) return null;
+                  return (
+                    <div 
+                      key={id}
+                      className="inline-flex items-center gap-2 bg-white/50 px-3 py-1 rounded-full border border-purple-200"
+                    >
+                      <span className="w-6 h-6 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white text-xs">
+                        {advisor.name.charAt(0)}
+                      </span>
+                      <span className="font-medium text-purple-900">{advisor.name}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-3 text-sm text-right">
+                <button 
+                  onClick={() => {
+                    localStorage.removeItem('recommendedAdvisors');
+                    setRecommendedAdvisors([]);
+                  }}
+                  className="text-purple-600 hover:text-purple-800 font-medium"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
         
         {advisorsLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
