@@ -16,16 +16,19 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   name: text("name").notNull(),
   email: text("email").notNull(),
-  userType: text("user_type").notNull().default(UserType.USER), // New field for user type
+  phone: text("phone"),
+  userType: text("user_type").notNull().default(UserType.USER), // User type: user, advisor, admin
   isAdvisor: boolean("is_advisor").default(false), // Keeping for backward compatibility
-  avatar: text("avatar"),
-  bio: text("bio"),
+  avatar: text("avatar"), // Profile picture URL
+  bio: text("bio"), // Biography text for advisors
+  introVideo: text("intro_video"), // Video URL for advisor introduction video
+  specialties: jsonb("specialties").default([]), // Array of specialty IDs
   chatRate: integer("chat_rate"), // Per minute rate for chat services in cents
   audioRate: integer("audio_rate"), // Per minute rate for audio calls in cents
   videoRate: integer("video_rate"), // Per minute rate for video calls in cents
   rating: integer("rating"),
   reviewCount: integer("review_count"),
-  availability: text("availability"),
+  availability: text("availability"), // JSON string of availability
   online: boolean("online").default(false),
   accountBalance: integer("account_balance").default(0), // Account balance in cents for all users
   earningsBalance: integer("earnings_balance").default(0), // Pending earnings in cents for advisors
@@ -33,6 +36,9 @@ export const users = pgTable("users", {
   pendingPayout: boolean("pending_payout").default(false), // Flag for requested payouts
   stripeCustomerId: text("stripe_customer_id"), // For payments
   stripeConnectId: text("stripe_connect_id"), // For payouts
+  firebaseUid: text("firebase_uid"), // For Firebase Authentication integration
+  lastLogin: timestamp("last_login"), // Track last login time
+  profileCompleted: boolean("profile_completed").default(false), // Whether the profile is fully set up
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -40,14 +46,19 @@ export const insertUserSchema = createInsertSchema(users).pick({
   password: true,
   name: true,
   email: true,
+  phone: true,
   userType: true,
   isAdvisor: true,
   avatar: true,
   bio: true,
+  introVideo: true,
+  specialties: true,
   chatRate: true,
   audioRate: true,
   videoRate: true,
   availability: true,
+  firebaseUid: true,
+  profileCompleted: true,
 });
 
 // Specialties schema
