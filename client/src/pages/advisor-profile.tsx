@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { useRoute, Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
-import { User, Specialty, Session } from '@shared/schema';
+import { User, Specialty, Session, SessionType } from '@shared/schema';
 import { format, addDays } from 'date-fns';
 import { motion } from 'framer-motion';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from "@/hooks/use-toast";
+import { MessageCircle, PhoneCall, Video } from 'lucide-react';
 
 const AdvisorProfile: React.FC = () => {
   const [match, params] = useRoute<{ id: string }>('/advisors/:id');
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedTime, setSelectedTime] = useState<string>('');
+  const [selectedServiceType, setSelectedServiceType] = useState<SessionType>(SessionType.CHAT);
   const [bookingInProgress, setBookingInProgress] = useState(false);
   
   // Generate available times for demo purposes
@@ -48,9 +50,34 @@ const AdvisorProfile: React.FC = () => {
     queryKey: ['/api/me'],
   });
   
+  // Check for service type in URL
+  React.useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const typeParam = searchParams.get('type');
+    if (typeParam && Object.values(SessionType).includes(typeParam as SessionType)) {
+      setSelectedServiceType(typeParam as SessionType);
+    }
+  }, []);
+  
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date);
     setSelectedTime('');
+  };
+  
+  // Helper function to get rate based on selected service type
+  const getSelectedRate = (): number => {
+    if (!advisor) return 0;
+    
+    switch (selectedServiceType) {
+      case SessionType.CHAT:
+        return advisor.chatRate ? advisor.chatRate / 100 : 1.50;
+      case SessionType.AUDIO:
+        return advisor.audioRate ? advisor.audioRate / 100 : 2.00; 
+      case SessionType.VIDEO:
+        return advisor.videoRate ? advisor.videoRate / 100 : 2.50;
+      default:
+        return advisor.chatRate ? advisor.chatRate / 100 : 1.50;
+    }
   };
   
   const handleBookSession = async () => {
@@ -68,19 +95,24 @@ const AdvisorProfile: React.FC = () => {
       const endTime = new Date(startTime);
       endTime.setHours(startTime.getHours() + 1);
       
+      // Get appropriate rate for the service type
+      const ratePerMinute = getSelectedRate();
+      
       // Send API request to book session
       await apiRequest('POST', '/api/sessions', {
         userId: currentUser.id,
         advisorId: advisor.id,
         startTime,
         endTime,
-        notes: `Session with ${advisor.name}`
+        sessionType: selectedServiceType,
+        ratePerMinute,
+        notes: `${selectedServiceType} session with ${advisor.name}`
       });
       
       // Show success message
       toast({
-        title: "Session Booked",
-        description: `Your session with ${advisor.name} has been scheduled for ${format(startTime, 'MMM d, yyyy')} at ${format(startTime, 'h:mm a')}.`,
+        title: `${selectedServiceType} Session Booked`,
+        description: `Your ${selectedServiceType.toLowerCase()} session with ${advisor.name} has been scheduled for ${format(startTime, 'MMM d, yyyy')} at ${format(startTime, 'h:mm a')}.`,
       });
       
       // Invalidate sessions cache
@@ -218,11 +250,37 @@ const AdvisorProfile: React.FC = () => {
                 </div>
                 
                 <div className="pt-4 border-t border-gray-200">
-                  <h3 className="font-semibold text-gray-800 mb-2">Rate</h3>
-                  <div className="text-2xl font-bold text-purple-600">
-                    ${advisor.minuteRate?.toFixed(2)}/min
+                  <h3 className="font-semibold text-gray-800 mb-2">Service Rates</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="flex items-center">
+                        <MessageCircle size={16} className="mr-2" />
+                        <span>Chat</span>
+                      </span>
+                      <span className="font-semibold text-purple-600">
+                        ${(advisor.chatRate ? advisor.chatRate / 100 : 1.50).toFixed(2)}/min
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="flex items-center">
+                        <PhoneCall size={16} className="mr-2" />
+                        <span>Audio</span>
+                      </span>
+                      <span className="font-semibold text-purple-600">
+                        ${(advisor.audioRate ? advisor.audioRate / 100 : 2.00).toFixed(2)}/min
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="flex items-center">
+                        <Video size={16} className="mr-2" />
+                        <span>Video</span>
+                      </span>
+                      <span className="font-semibold text-purple-600">
+                        ${(advisor.videoRate ? advisor.videoRate / 100 : 2.50).toFixed(2)}/min
+                      </span>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-600 mt-2">
                     Billed per minute. Average session: 30-60 minutes
                   </p>
                 </div>
@@ -236,14 +294,35 @@ const AdvisorProfile: React.FC = () => {
               
               <div className="p-4">
                 <div className="grid grid-cols-1 gap-3">
-                  <button className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-md font-medium transition">
-                    <i className="fas fa-video mr-2"></i> Video Call
+                  <button 
+                    className={`w-full py-3 rounded-md font-medium transition flex items-center justify-center
+                      ${selectedServiceType === SessionType.VIDEO 
+                        ? 'bg-pink-700 text-white' 
+                        : 'bg-pink-600 hover:bg-pink-700 text-white'}`}
+                    onClick={() => setSelectedServiceType(SessionType.VIDEO)}
+                  >
+                    <Video className="mr-2" size={18} /> Video Call
+                    <span className="ml-auto">${(advisor.videoRate ? advisor.videoRate / 100 : 2.50).toFixed(2)}/min</span>
                   </button>
-                  <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-md font-medium transition">
-                    <i className="fas fa-phone-alt mr-2"></i> Voice Call
+                  <button 
+                    className={`w-full py-3 rounded-md font-medium transition flex items-center justify-center
+                      ${selectedServiceType === SessionType.AUDIO 
+                        ? 'bg-purple-700 text-white' 
+                        : 'bg-purple-600 hover:bg-purple-700 text-white'}`}
+                    onClick={() => setSelectedServiceType(SessionType.AUDIO)}
+                  >
+                    <PhoneCall className="mr-2" size={18} /> Audio Call
+                    <span className="ml-auto">${(advisor.audioRate ? advisor.audioRate / 100 : 2.00).toFixed(2)}/min</span>
                   </button>
-                  <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-md font-medium transition">
-                    <i className="fas fa-comment-alt mr-2"></i> Chat Session
+                  <button 
+                    className={`w-full py-3 rounded-md font-medium transition flex items-center justify-center
+                      ${selectedServiceType === SessionType.CHAT 
+                        ? 'bg-indigo-700 text-white' 
+                        : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}
+                    onClick={() => setSelectedServiceType(SessionType.CHAT)}
+                  >
+                    <MessageCircle className="mr-2" size={18} /> Chat Session
+                    <span className="ml-auto">${(advisor.chatRate ? advisor.chatRate / 100 : 1.50).toFixed(2)}/min</span>
                   </button>
                 </div>
               </div>
@@ -327,6 +406,16 @@ const AdvisorProfile: React.FC = () => {
                     <span className="font-medium">{advisor.name}</span>
                   </div>
                   <div className="flex justify-between mb-2">
+                    <span className="text-gray-600">Service Type:</span>
+                    <span className="flex items-center font-medium">
+                      {selectedServiceType === SessionType.CHAT && <MessageCircle size={16} className="mr-1" />}
+                      {selectedServiceType === SessionType.AUDIO && <PhoneCall size={16} className="mr-1" />}
+                      {selectedServiceType === SessionType.VIDEO && <Video size={16} className="mr-1" />}
+                      {selectedServiceType === SessionType.CHAT ? 'Chat' : 
+                       selectedServiceType === SessionType.AUDIO ? 'Audio Call' : 'Video Call'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between mb-2">
                     <span className="text-gray-600">Date:</span>
                     <span className="font-medium">{selectedDate ? format(selectedDate, 'MMMM d, yyyy') : 'Select a date'}</span>
                   </div>
@@ -345,9 +434,13 @@ const AdvisorProfile: React.FC = () => {
                     <span className="text-gray-600">Duration:</span>
                     <span className="font-medium">30 minutes</span>
                   </div>
+                  <div className="flex justify-between mb-2">
+                    <span className="text-gray-600">Rate:</span>
+                    <span className="font-medium">${getSelectedRate().toFixed(2)}/minute</span>
+                  </div>
                   <div className="flex justify-between font-medium text-lg mt-4 pt-4 border-t border-gray-200">
                     <span>Total (estimated):</span>
-                    <span className="text-purple-600">${((advisor.minuteRate || 0) * 30).toFixed(2)}</span>
+                    <span className="text-purple-600">${(getSelectedRate() * 30).toFixed(2)}</span>
                   </div>
                 </div>
                 
