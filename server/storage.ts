@@ -40,6 +40,8 @@ export interface IStorage {
   getSessionsByUser(userId: number): Promise<Session[]>;
   getSessionsByAdvisor(advisorId: number): Promise<Session[]>;
   getUpcomingSessionsByUser(userId: number): Promise<Session[]>;
+  getSessionById(id: number): Promise<Session | undefined>;
+  updateSessionStatus(sessionId: number, status: string): Promise<Session | undefined>;
   
   // Message methods
   sendMessage(message: InsertMessage): Promise<Message>;
@@ -448,6 +450,16 @@ export class MemStorage implements IStorage {
         session.status === "scheduled"
       )
       .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  }
+  
+  async updateSessionStatus(sessionId: number, status: string): Promise<Session | undefined> {
+    const session = this.sessions.get(sessionId);
+    if (!session) return undefined;
+    
+    const updatedSession = { ...session, status };
+    this.sessions.set(sessionId, updatedSession);
+    
+    return updatedSession;
   }
 
   // Message methods

@@ -479,7 +479,7 @@ const AdvisorProfile: React.FC = () => {
                 {advisor && advisor.id && (
                   <>
                     {/* Rating summary section */}
-                    <RatingsSummary advisorId={advisor.id} />
+                    <RatingSummarySection advisorId={advisor.id} />
                     
                     {/* Review listing */}
                     <div className="pt-6 border-t border-gray-200 mt-6">

@@ -124,6 +124,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ message: "Failed to book session" });
     }
   });
+  
+  // Update session status
+  app.patch("/api/sessions/:id/status", async (req: Request, res: Response) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+      const { status } = req.body;
+      
+      if (!status) {
+        return res.status(400).json({ message: "Status is required" });
+      }
+      
+      const updatedSession = await storage.updateSessionStatus(sessionId, status);
+      
+      if (!updatedSession) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      
+      res.json(updatedSession);
+    } catch (error: any) {
+      console.error("Error updating session status:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
 
   // Send a message
   app.post("/api/messages", async (req: Request, res: Response) => {
