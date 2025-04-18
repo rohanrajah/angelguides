@@ -44,30 +44,82 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
       <motion.button
         onClick={() => setIsOpen(!isOpen)}
         className="w-16 h-16 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg flex items-center justify-center"
-        whileHover={{ scale: 1.05, boxShadow: "0 10px 25px rgba(120, 57, 213, 0.4)" }}
-        whileTap={{ scale: 0.95 }}
+        whileHover={{ scale: 1.08, boxShadow: "0 10px 25px rgba(120, 57, 213, 0.5)" }}
+        whileTap={{ scale: 0.92 }}
         animate={{
           scale: [1, 1.05, 1],
+          boxShadow: [
+            "0 6px 12px rgba(120, 57, 213, 0.3)",
+            "0 10px 24px rgba(120, 57, 213, 0.5)",
+            "0 6px 12px rgba(120, 57, 213, 0.3)",
+          ],
         }}
         transition={{
           repeat: Infinity,
           repeatType: "reverse",
-          duration: 2.5,
+          duration: 3,
         }}
       >
         <div className="relative">
+          {/* Multi-layered glow effect */}
           <motion.div
-            className="absolute inset-0 rounded-full bg-white opacity-20"
+            className="absolute inset-0 rounded-full bg-white opacity-10"
             animate={{
-              scale: [1, 1.4, 1],
+              scale: [1, 1.7, 1],
+              opacity: [0.1, 0.15, 0.1],
+            }}
+            transition={{
+              repeat: Infinity,
+              repeatType: "reverse",
+              duration: 3,
+              ease: "easeInOut",
+            }}
+          />
+          <motion.div
+            className="absolute inset-0 rounded-full bg-white opacity-15"
+            animate={{
+              scale: [1, 1.5, 1],
+              opacity: [0.15, 0.25, 0.15],
             }}
             transition={{
               repeat: Infinity,
               repeatType: "reverse",
               duration: 2.5,
+              ease: "easeInOut",
+              delay: 0.2,
             }}
           />
-          <i className="fas fa-robot text-2xl"></i>
+          <motion.div
+            className="absolute inset-0 rounded-full bg-white opacity-20"
+            animate={{
+              scale: [1, 1.3, 1],
+              opacity: [0.2, 0.3, 0.2],
+            }}
+            transition={{
+              repeat: Infinity,
+              repeatType: "reverse",
+              duration: 2,
+              ease: "easeInOut",
+              delay: 0.4,
+            }}
+          />
+          
+          {/* Icon animation */}
+          <motion.div
+            animate={{
+              scale: [1, 1.1, 1],
+            }}
+            transition={{
+              repeat: Infinity,
+              repeatType: "reverse", 
+              duration: 2,
+              ease: "easeInOut"
+            }}
+          >
+            <i className="fas fa-robot text-2xl"></i>
+          </motion.div>
+
+          {/* Notification dot */}
           {!isOpen && (
             <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 border-2 border-white"></div>
           )}

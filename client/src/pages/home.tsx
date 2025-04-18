@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import AdvisorCard from '@/components/advisor/AdvisorCard';
 import AdvisorFilters from '@/components/advisor/AdvisorFilters';
 import SessionCard from '@/components/session/SessionCard';
-//import AngelaChatWidget from '@/components/chat/AngelaChatWidget';
+// Angela AI is now available as a floating bubble across all pages
 
 const Home: React.FC = () => {
   const [activeSpecialty, setActiveSpecialty] = useState<number | null>(null);
