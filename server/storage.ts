@@ -5,7 +5,7 @@ import {
   sessions, type Session, type InsertSession,
   messages, type Message, type InsertMessage,
   conversations, type Conversation, type InsertConversation, type ChatMessage,
-  SessionType
+  SessionType, SpecialtyCategory
 } from "@shared/schema";
 
 export interface IStorage {
@@ -27,6 +27,8 @@ export interface IStorage {
   getAllSpecialties(): Promise<Specialty[]>;
   getSpecialty(id: number): Promise<Specialty | undefined>;
   createSpecialty(specialty: InsertSpecialty): Promise<Specialty>;
+  getSpecialtiesByCategory(category: string): Promise<Specialty[]>;
+  getAdvisorsByCategory(category: string): Promise<User[]>;
   
   // Advisor Specialty methods
   assignSpecialtyToAdvisor(advisorSpecialty: InsertAdvisorSpecialty): Promise<AdvisorSpecialty>;
@@ -83,13 +85,21 @@ export class MemStorage implements IStorage {
   }
 
   private initializeData() {
-    // Create specialties
+    // Create specialties with categories
     const specialtyData: InsertSpecialty[] = [
-      { name: "Tarot", icon: "cards" },
-      { name: "Astrology", icon: "moon" },
-      { name: "Meditation", icon: "spa" },
-      { name: "Energy Healing", icon: "hands" },
-      { name: "Psychic Reading", icon: "crystal-ball" }
+      { name: "Tarot", icon: "cards", category: SpecialtyCategory.DIVINATION },
+      { name: "Astrology", icon: "moon", category: SpecialtyCategory.ASTROLOGY },
+      { name: "Meditation", icon: "spa", category: SpecialtyCategory.SPIRITUAL_GUIDANCE },
+      { name: "Energy Healing", icon: "hands", category: SpecialtyCategory.HEALING },
+      { name: "Psychic Reading", icon: "crystal-ball", category: SpecialtyCategory.DIVINATION },
+      { name: "Reiki", icon: "hands", category: SpecialtyCategory.HEALING },
+      { name: "Dream Analysis", icon: "moon", category: SpecialtyCategory.DREAM_INTERPRETATION },
+      { name: "Clairvoyance", icon: "eye", category: SpecialtyCategory.MEDIUM },
+      { name: "Chakra Balancing", icon: "spiral", category: SpecialtyCategory.ENERGY_WORK },
+      { name: "Past Life Reading", icon: "clock", category: SpecialtyCategory.PAST_LIVES },
+      { name: "Channeling", icon: "radio", category: SpecialtyCategory.CHANNELING },
+      { name: "Pendulum", icon: "target", category: SpecialtyCategory.DIVINATION },
+      { name: "Numerology", icon: "hash", category: SpecialtyCategory.DIVINATION }
     ];
     
     specialtyData.forEach(specialty => this.createSpecialty(specialty));
@@ -324,9 +334,31 @@ export class MemStorage implements IStorage {
 
   async createSpecialty(specialty: InsertSpecialty): Promise<Specialty> {
     const id = this.specialtyIdCounter++;
-    const newSpecialty: Specialty = { ...specialty, id };
+    const newSpecialty: Specialty = { ...specialty, id, category: specialty.category || 'general' };
     this.specialties.set(id, newSpecialty);
     return newSpecialty;
+  }
+  
+  async getSpecialtiesByCategory(category: string): Promise<Specialty[]> {
+    return Array.from(this.specialties.values())
+      .filter(specialty => specialty.category === category);
+  }
+  
+  async getAdvisorsByCategory(category: string): Promise<User[]> {
+    // First get all specialties in this category
+    const specialtiesInCategory = await this.getSpecialtiesByCategory(category);
+    const specialtyIds = specialtiesInCategory.map(s => s.id);
+    
+    // Get all advisor IDs with these specialties
+    const advisorIds = new Set<number>();
+    
+    Array.from(this.advisorSpecialties.values())
+      .filter(as => specialtyIds.includes(as.specialtyId))
+      .forEach(as => advisorIds.add(as.advisorId));
+    
+    // Return advisors with these IDs
+    return Array.from(this.users.values())
+      .filter(user => user.isAdvisor && advisorIds.has(user.id));
   }
 
   // Advisor Specialty methods

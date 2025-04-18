@@ -56,6 +56,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch advisors by specialty" });
     }
   });
+  
+  // Get advisors by category
+  app.get("/api/advisors/category/:category", async (req: Request, res: Response) => {
+    try {
+      const category = req.params.category;
+      const advisors = await storage.getAdvisorsByCategory(category);
+      res.json(advisors);
+    } catch (error) {
+      console.error("Error fetching advisors by category:", error);
+      res.status(500).json({ message: "Failed to fetch advisors by category" });
+    }
+  });
+  
+  // Get specialties by category
+  app.get("/api/specialties/category/:category", async (req: Request, res: Response) => {
+    try {
+      const category = req.params.category;
+      const specialties = await storage.getSpecialtiesByCategory(category);
+      res.json(specialties);
+    } catch (error) {
+      console.error("Error fetching specialties by category:", error);
+      res.status(500).json({ message: "Failed to fetch specialties by category" });
+    }
+  });
 
   // Get all specialties
   app.get("/api/specialties", async (req: Request, res: Response) => {

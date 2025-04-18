@@ -48,6 +48,7 @@ export const specialties = pgTable("specialties", {
 export const insertSpecialtySchema = createInsertSchema(specialties).pick({
   name: true,
   icon: true,
+  category: true,
 });
 
 // Advisor specialties join table
@@ -144,4 +145,18 @@ export enum SessionType {
   CHAT = 'chat',
   AUDIO = 'audio',
   VIDEO = 'video'
+}
+
+// Advisor specialty categories
+export enum SpecialtyCategory {
+  DIVINATION = 'divination',
+  HEALING = 'healing',
+  SPIRITUAL_GUIDANCE = 'spiritual-guidance',
+  MEDIUM = 'mediumship',
+  ASTROLOGY = 'astrology',
+  DREAM_INTERPRETATION = 'dream-interpretation',
+  ENERGY_WORK = 'energy-work',
+  PAST_LIVES = 'past-lives',
+  CHANNELING = 'channeling',
+  GENERAL = 'general'
 }
