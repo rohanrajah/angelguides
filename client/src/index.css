@@ -2,6 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+}
+
+.angela-pulse::before {
+  content: '';
+  position: absolute;
+  left: -10%;
+  top: -10%;
+  width: 120%;
+  height: 120%;
+  border-radius: 50%;
+  background-color: rgba(147, 112, 219, 0.5);
+  animation: pulse-ring 2s infinite;
+  z-index: -1;
+}
+
 @layer base {
   * {
     @apply border-border;

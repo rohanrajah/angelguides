@@ -12,7 +12,7 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
   const [isOpen, setIsOpen] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
   const [location] = useLocation();
-  const isHomePage = location === "/";
+  const isHomePage = location === "/" || location === "/home";
   
   // Position values for dragging
   const x = useMotionValue(0);
@@ -34,10 +34,10 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
     };
   }, []);
 
-  // Size based on page
-  const bubbleSize = isHomePage ? 'w-80 h-80' : 'w-16 h-16';
-  const iconSize = isHomePage ? 'text-5xl' : 'text-2xl';
-  const wingSize = isHomePage ? 'w-96 h-96' : 'w-24 h-24';
+  // Size based on page - making the homepage bubble much larger
+  const bubbleSize = isHomePage ? 'w-96 h-96' : 'w-20 h-20';
+  const iconSize = isHomePage ? 'text-6xl' : 'text-2xl';
+  const wingSize = isHomePage ? 'w-[30rem] h-[30rem]' : 'w-32 h-32';
   
   function startDrag(event: React.PointerEvent<HTMLDivElement>) {
     dragControls.start(event, { snapToCursor: false });
@@ -141,21 +141,22 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
         {/* Main Bubble */}
         <motion.button
           onClick={() => setIsOpen(!isOpen)}
-          className={`${bubbleSize} angela-bubble rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg flex items-center justify-center cursor-grab active:cursor-grabbing`}
+          className={`${bubbleSize} angela-bubble angela-pulse rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg flex items-center justify-center cursor-grab active:cursor-grabbing relative`}
           whileHover={{ scale: 1.08, boxShadow: "0 10px 25px rgba(120, 57, 213, 0.5)" }}
           whileTap={{ scale: 0.92 }}
           animate={{
-            scale: [1, 1.05, 1],
+            scale: [1, 1.08, 1],
             boxShadow: [
-              "0 6px 12px rgba(120, 57, 213, 0.3)",
-              "0 10px 24px rgba(120, 57, 213, 0.5)",
-              "0 6px 12px rgba(120, 57, 213, 0.3)",
+              "0 6px 12px rgba(120, 57, 213, 0.4)",
+              "0 15px 35px rgba(120, 57, 213, 0.8)",
+              "0 6px 12px rgba(120, 57, 213, 0.4)",
             ],
+            y: [0, -10, 0],
           }}
           transition={{
             repeat: Infinity,
             repeatType: "reverse",
-            duration: 3,
+            duration: 2.5,
           }}
         >
           <div className="relative">
