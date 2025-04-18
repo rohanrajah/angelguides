@@ -45,9 +45,7 @@ const TypedText: React.FC<{
 
 const WelcomePage: React.FC = () => {
   const [animationState, setAnimationState] = useState<'initial' | 'fadeIn' | 'speaking' | 'matchingQuestionnaire' | 'endPhase' | 'complete'>('initial');
-  const [showBubble, setShowBubble] = useState(false);
   const [, setLocation] = useLocation();
-  const bubbleRef = useRef<HTMLDivElement>(null);
   const [lipState, setLipState] = useState<'closed' | 'half-open' | 'open'>('closed');
   const [eyeState, setEyeState] = useState<'normal' | 'blink' | 'wide'>('normal');
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -132,10 +130,8 @@ const WelcomePage: React.FC = () => {
     // After questionnaire is completed, move to end phase
     setAnimationState('endPhase');
     
-    // Show the bubble after a short delay
-    setTimeout(() => {
-      setShowBubble(true);
-      
+    // Prepare transition to next page with a little delay to show matching completion
+    setTimeout(() => {      
       // Mark that user has seen welcome page
       localStorage.setItem('hasSeenWelcome', 'true');
       
@@ -145,8 +141,8 @@ const WelcomePage: React.FC = () => {
       // Redirect to advisors page with recommended advisors
       setTimeout(() => {
         setLocation("/advisors");
-      }, 4000);
-    }, 1500);
+      }, 2500);
+    }, 1000);
   };
 
   return (
@@ -336,29 +332,10 @@ const WelcomePage: React.FC = () => {
             </motion.div>
           )}
           
-          {/* Final Angela bubble animation */}
-          {showBubble && (
-            <motion.div 
-              ref={bubbleRef}
-              className="absolute"
-              initial={{ opacity: 0, scale: 0 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ 
-                type: "spring",
-                stiffness: 260,
-                damping: 20,
-                duration: 1 
-              }}
-              style={{ 
-                top: '50%', 
-                left: '50%', 
-                translateX: '-50%', 
-                translateY: '-50%' 
-              }}
-            >
-              <FloatingAngelaBubble userId={5} />
-            </motion.div>
-          )}
+          {/* 
+            Final Angela bubble animation - removed since we're now showing 
+            the bubble globally from App.tsx
+          */}
         </AnimatePresence>
       </div>
       
