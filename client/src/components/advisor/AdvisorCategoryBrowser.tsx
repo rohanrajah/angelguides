@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { SpecialtyCategory } from '@shared/schema';
+import { User, Specialty, SpecialtyCategory } from '@shared/schema';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import AdvisorCard from './AdvisorCard';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -47,7 +47,7 @@ const AdvisorCategoryBrowser: React.FC<AdvisorCategoryBrowserProps> = ({
   );
 
   // Get categories
-  const { data: allCategories } = useQuery<Specialty[]>({
+  const { data: allCategories } = useQuery<Specialty[], Error, string[]>({
     queryKey: ['/api/specialties'],
     select: (data) => {
       // Group by category
@@ -66,7 +66,7 @@ const AdvisorCategoryBrowser: React.FC<AdvisorCategoryBrowserProps> = ({
     data: advisors = [], 
     isLoading: isLoadingAdvisors,
     isError 
-  } = useQuery({
+  } = useQuery<User[]>({
     queryKey: ['/api/advisors/category', activeCategory],
     enabled: !!activeCategory,
   });
@@ -99,7 +99,7 @@ const AdvisorCategoryBrowser: React.FC<AdvisorCategoryBrowserProps> = ({
     <div className="space-y-6">
       <Tabs defaultValue={activeCategory} onValueChange={setActiveCategory}>
         <TabsList className="flex flex-wrap mb-6 h-auto">
-          {availableCategories.map((category) => (
+          {availableCategories.map((category: string) => (
             <TabsTrigger 
               key={category} 
               value={category}
@@ -110,7 +110,7 @@ const AdvisorCategoryBrowser: React.FC<AdvisorCategoryBrowserProps> = ({
           ))}
         </TabsList>
 
-        {availableCategories.map((category) => (
+        {availableCategories.map((category: string) => (
           <TabsContent key={category} value={category}>
             <div className="mb-6">
               <Alert>
@@ -138,7 +138,7 @@ const AdvisorCategoryBrowser: React.FC<AdvisorCategoryBrowserProps> = ({
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {advisors.map((advisor: any) => (
+                {advisors.map((advisor) => (
                   <AdvisorCard 
                     key={advisor.id} 
                     advisor={advisor} 
