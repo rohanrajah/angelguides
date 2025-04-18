@@ -9,6 +9,7 @@ import FloatingAngelaBubble from "@/components/chat/FloatingAngelaBubble";
 
 // Pages
 import Home from "@/pages/home";
+import Welcome from "@/pages/welcome";
 import Advisors from "@/pages/advisors";
 import AdvisorProfile from "@/pages/advisor-profile";
 import Bookings from "@/pages/bookings";
@@ -30,7 +31,8 @@ function Router() {
   
   return (
     <Switch>
-      <Route path="/" component={Home} />
+      <Route path="/" component={Welcome} />
+      <Route path="/home" component={Home} />
       <Route path="/advisors" component={Advisors} />
       <Route path="/advisors/:id" component={AdvisorProfile} />
       <Route path="/bookings" component={Bookings} />
@@ -45,6 +47,10 @@ function Router() {
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [location] = useLocation();
+  
+  // Check if we're on the welcome page
+  const isWelcomePage = location === "/";
 
   useEffect(() => {
     const fetchCurrentUser = async () => {
@@ -79,13 +85,13 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen flex flex-col bg-neutral-lightest">
-        <Header user={currentUser} />
+      <div className={`min-h-screen flex flex-col ${isWelcomePage ? 'bg-transparent' : 'bg-neutral-lightest'}`}>
+        {!isWelcomePage && <Header user={currentUser} />}
         <main className="flex-grow">
           <Router />
         </main>
-        <Footer />
-        <FloatingAngelaBubble userId={currentUser?.id || 5} />
+        {!isWelcomePage && <Footer />}
+        {!isWelcomePage && <FloatingAngelaBubble userId={currentUser?.id || 5} />}
       </div>
     </QueryClientProvider>
   );
