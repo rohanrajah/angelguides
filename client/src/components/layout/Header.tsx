@@ -12,7 +12,7 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navItems = [
-    { label: 'Dashboard', path: '/', icon: 'fa-home' },
+    { label: 'Dashboard', path: '/home', icon: 'fa-home' },
     { label: 'Advisors', path: '/advisors', icon: 'fa-users' },
     { label: 'Bookings', path: '/bookings', icon: 'fa-calendar-alt' },
     { label: 'Messages', path: '/messages', icon: 'fa-comments' },
@@ -33,7 +33,7 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
     <header className="border-b border-neutral-light sticky top-0 bg-white/90 backdrop-blur-sm z-30">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <div className="flex items-center">
-          <Link href="/">
+          <Link href="/home">
             <a className="flex items-center">
               <div className="text-primary mr-2">
                 <i className="fas fa-spa text-2xl"></i>
