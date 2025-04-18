@@ -85,7 +85,7 @@ function App() {
           <Router />
         </main>
         <Footer />
-        {currentUser && <FloatingAngelaBubble userId={currentUser.id} />}
+        <FloatingAngelaBubble userId={currentUser?.id || 5} />
       </div>
     </QueryClientProvider>
   );

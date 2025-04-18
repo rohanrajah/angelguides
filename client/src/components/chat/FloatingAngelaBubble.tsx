@@ -45,12 +45,7 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
 
   return (
     <motion.div 
-      className="fixed z-50"
-      initial={{ 
-        bottom: isHomePage ? '50%' : '8rem', 
-        right: isHomePage ? '50%' : '2rem', 
-        transform: isHomePage ? 'translate(50%, 50%)' : 'none' 
-      }}
+      className={`fixed z-50 ${isHomePage ? 'top-1/4 left-1/2 -translate-x-1/2' : 'bottom-8 right-8'}`}
       style={{ x, y }}
       drag
       dragControls={dragControls}
@@ -63,7 +58,7 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
             initial={{ opacity: 0, scale: 0.8, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 20 }}
-            className={`absolute ${isHomePage ? 'bottom-48 -right-48' : 'bottom-20 right-0'} w-80 md:w-96 shadow-2xl`}
+            className={`absolute ${isHomePage ? 'top-full mt-8 left-1/2 -translate-x-1/2' : 'bottom-20 right-0'} w-80 md:w-96 shadow-2xl`}
           >
             <AngelaChatWidget userId={userId} isFloating={true} />
           </motion.div>
@@ -220,7 +215,7 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
                 ease: "easeInOut"
               }}
             >
-              <i className={`fas fa-feather-alt ${iconSize} mb-1`}></i>
+              <i className={`fas fa-dove ${iconSize} mb-1`}></i>
               <span className={`font-semibold ${isHomePage ? 'text-xl' : 'text-xs'}`}>Angela AI</span>
             </motion.div>
 
