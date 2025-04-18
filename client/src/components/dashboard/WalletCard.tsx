@@ -1,94 +1,108 @@
 import React from 'react';
+import { User, UserType } from '@shared/schema';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowUpRight, Wallet, ArrowDownLeft, DollarSign } from 'lucide-react';
+import { Wallet, DollarSign, ArrowUpRight, CreditCard } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
-import { User, UserType } from '@shared/schema';
 
 interface WalletCardProps {
   user: User;
   onTopUp?: () => void;
   onWithdraw?: () => void;
-  onViewAllTransactions?: () => void;
 }
 
-const WalletCard = ({ user, onTopUp, onWithdraw, onViewAllTransactions }: WalletCardProps) => {
-  const showTopUp = user.userType !== UserType.ADVISOR;
-  const showWithdraw = user.userType === UserType.ADVISOR && (user.earningsBalance || 0) > 0;
-
+const WalletCard = ({ user, onTopUp, onWithdraw }: WalletCardProps) => {
+  const isAdvisor = user.userType === UserType.ADVISOR || user.isAdvisor;
+  const isAdmin = user.userType === UserType.ADMIN;
+  
   return (
-    <Card className="shadow-md w-full">
+    <Card className="shadow-md">
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center">
+        <CardTitle className="flex items-center text-xl">
           <Wallet className="mr-2 h-5 w-5 text-primary" />
-          My Wallet
+          {isAdvisor ? 'Your Earnings' : 'Your Wallet'}
         </CardTitle>
         <CardDescription>
-          Manage your account balance
+          {isAdvisor 
+            ? 'Track your earnings and request payouts' 
+            : 'Manage your account balance'}
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="flex flex-col">
-            <span className="text-sm text-muted-foreground">Available Balance</span>
-            <span className="text-3xl font-bold text-primary">
-              {formatCurrency(user.accountBalance || 0)}
-            </span>
+      <CardContent className="pb-0">
+        <div className="flex flex-col space-y-4">
+          <div className="rounded-lg bg-neutral-50 p-4">
+            <p className="text-sm text-muted-foreground mb-1">
+              {isAdvisor ? 'Available for Withdrawal' : 'Current Balance'}
+            </p>
+            <h3 className="text-3xl font-bold text-primary">
+              {isAdvisor 
+                ? formatCurrency(user.earningsBalance || 0)
+                : formatCurrency(user.accountBalance || 0)}
+            </h3>
           </div>
 
-          {user.userType === UserType.ADVISOR && (
-            <div className="flex flex-col">
-              <span className="text-sm text-muted-foreground">Earnings Balance</span>
-              <span className="text-2xl font-bold text-emerald-600">
-                {formatCurrency(user.earningsBalance || 0)}
-              </span>
+          {isAdvisor && (
+            <div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Total Earnings</span>
+                <span className="font-medium">{formatCurrency(user.totalEarnings || 0)}</span>
+              </div>
+              <div className="flex justify-between text-sm mt-1">
+                <span className="text-muted-foreground">Pending Payout</span>
+                <span className={`font-medium ${user.pendingPayout ? 'text-amber-500' : ''}`}>
+                  {user.pendingPayout ? 'In Progress' : 'None'}
+                </span>
+              </div>
             </div>
           )}
-
-          {user.userType === UserType.ADVISOR && (
-            <div className="flex flex-col">
-              <span className="text-sm text-muted-foreground">Total Earnings</span>
-              <span className="text-xl font-semibold text-emerald-600">
-                {formatCurrency(user.totalEarnings || 0)}
-              </span>
+          
+          {!isAdvisor && !isAdmin && (
+            <div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Last Top-up</span>
+                <span className="font-medium">
+                  {/* We'll fetch this data from transactions later */}
+                  None
+                </span>
+              </div>
+              <div className="flex justify-between text-sm mt-1">
+                <span className="text-muted-foreground">Spent this month</span>
+                <span className="font-medium">{formatCurrency(0)}</span>
+              </div>
+            </div>
+          )}
+          
+          {isAdmin && (
+            <div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">System Balance</span>
+                <span className="font-medium">{formatCurrency(0)}</span>
+              </div>
+              <div className="flex justify-between text-sm mt-1">
+                <span className="text-muted-foreground">Pending Payouts</span>
+                <span className="font-medium">{formatCurrency(0)}</span>
+              </div>
             </div>
           )}
         </div>
       </CardContent>
-      <CardFooter className="flex justify-between">
-        {showTopUp && (
+      <CardFooter className="pt-4">
+        {isAdvisor ? (
           <Button 
-            variant="default" 
-            size="sm" 
-            className="flex items-center" 
-            onClick={onTopUp}
+            onClick={onWithdraw} 
+            className="w-full" 
+            disabled={!(user.earningsBalance && user.earningsBalance > 0) || user.pendingPayout}
           >
             <ArrowUpRight className="mr-1 h-4 w-4" />
-            Top Up
+            {user.pendingPayout ? 'Payout In Progress' : 'Request Payout'}
           </Button>
-        )}
-        
-        {showWithdraw && (
+        ) : (
           <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex items-center" 
-            onClick={onWithdraw}
+            onClick={onTopUp} 
+            className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700"
           >
-            <ArrowDownLeft className="mr-1 h-4 w-4" />
-            Withdraw
-          </Button>
-        )}
-        
-        {user.userType === UserType.ADMIN && (
-          <Button 
-            variant="default" 
-            size="sm" 
-            className="flex items-center"
-            onClick={onViewAllTransactions}
-          >
-            <DollarSign className="mr-1 h-4 w-4" />
-            View All Transactions
+            <CreditCard className="mr-1 h-4 w-4" />
+            Add Funds
           </Button>
         )}
       </CardFooter>

@@ -1,12 +1,13 @@
 import React from 'react';
-import { User, UserType, Session } from '@shared/schema';
+import { User, Session } from '@shared/schema';
 import WalletCard from './WalletCard';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, Clock, Search, Star, History } from 'lucide-react';
+import { Calendar, Clock, Star, MessageSquare } from 'lucide-react';
 import { Link } from 'wouter';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
+import { format } from 'date-fns';
 
 interface UserDashboardProps {
   user: User;
@@ -14,16 +15,21 @@ interface UserDashboardProps {
 }
 
 const UserDashboard = ({ user, onTopUp }: UserDashboardProps) => {
+  // Fetch user's upcoming sessions
   const { data: sessions, isLoading: isLoadingSessions } = useQuery<Session[]>({
     queryKey: [`/api/users/${user.id}/sessions`],
   });
 
-  const upcomingSessions = sessions?.filter(session => 
-    session.status === 'scheduled' && new Date(session.startTime) > new Date()
-  ).slice(0, 3) || [];
+  // Fetch user's favorite advisors
+  const { data: favoriteAdvisors, isLoading: isLoadingFavorites } = useQuery<User[]>({
+    queryKey: [`/api/users/${user.id}/favorites`],
+  });
 
-  // Get the current time in user's timezone
-  const now = new Date();
+  // Get upcoming sessions (limit to 3)
+  const upcomingSessions = sessions
+    ?.filter(session => session.status === 'scheduled')
+    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+    .slice(0, 3) || [];
 
   return (
     <div className="container mx-auto p-4">
@@ -35,33 +41,30 @@ const UserDashboard = ({ user, onTopUp }: UserDashboardProps) => {
           <WalletCard user={user} onTopUp={onTopUp} />
         </div>
         
-        {/* Quick Actions */}
+        {/* Recent Activity */}
         <Card className="md:col-span-2 shadow-md">
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Things you can do right now</CardDescription>
+            <CardTitle>Recent Activity</CardTitle>
+            <CardDescription>Your latest interactions and sessions</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Button variant="outline" className="h-24 flex flex-col items-center justify-center space-y-2" asChild>
-              <Link href="/advisors">
-                <Search className="h-6 w-6 text-primary" />
-                <span>Find an Advisor</span>
-              </Link>
-            </Button>
+            <div className="flex flex-col items-center justify-center p-4 bg-muted rounded-lg">
+              <Calendar className="h-8 w-8 text-blue-500 mb-2" />
+              <span className="text-2xl font-bold">{sessions?.length || 0}</span>
+              <span className="text-sm text-muted-foreground">Total Sessions</span>
+            </div>
             
-            <Button variant="outline" className="h-24 flex flex-col items-center justify-center space-y-2" asChild>
-              <Link href="/bookings">
-                <Calendar className="h-6 w-6 text-primary" />
-                <span>Schedule a Session</span>
-              </Link>
-            </Button>
+            <div className="flex flex-col items-center justify-center p-4 bg-muted rounded-lg">
+              <Star className="h-8 w-8 text-amber-500 mb-2" />
+              <span className="text-2xl font-bold">{favoriteAdvisors?.length || 0}</span>
+              <span className="text-sm text-muted-foreground">Favorite Advisors</span>
+            </div>
             
-            <Button variant="outline" className="h-24 flex flex-col items-center justify-center space-y-2" asChild>
-              <Link href="/messages">
-                <History className="h-6 w-6 text-primary" />
-                <span>Past Sessions</span>
-              </Link>
-            </Button>
+            <div className="flex flex-col items-center justify-center p-4 bg-muted rounded-lg">
+              <MessageSquare className="h-8 w-8 text-green-500 mb-2" />
+              <span className="text-2xl font-bold">0</span>
+              <span className="text-sm text-muted-foreground">Unread Messages</span>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -82,24 +85,22 @@ const UserDashboard = ({ user, onTopUp }: UserDashboardProps) => {
             <div className="space-y-4">
               {upcomingSessions.map(session => {
                 const sessionDate = new Date(session.startTime);
-                const formattedDate = sessionDate.toLocaleDateString();
-                const formattedTime = sessionDate.toLocaleTimeString(undefined, {
-                  hour: '2-digit',
-                  minute: '2-digit'
-                });
+                const formattedDate = format(sessionDate, 'MMMM d, yyyy');
+                const formattedTime = format(sessionDate, 'h:mm a');
                 
                 return (
                   <div key={session.id} className="flex justify-between items-center p-4 border rounded-lg">
                     <div>
-                      <h3 className="font-medium">Session with {session.advisorName || 'Advisor'}</h3>
+                      <h3 className="font-medium">Session with Advisor #{session.advisorId}</h3>
                       <div className="text-sm text-muted-foreground">{formattedDate} at {formattedTime}</div>
-                      <Badge variant={
-                        sessionDate.getTime() - now.getTime() < 1000 * 60 * 30 ? 'destructive' : 'outline'
-                      }>
-                        {sessionDate.getTime() - now.getTime() < 1000 * 60 * 30 
-                          ? 'Starting Soon' 
-                          : 'Scheduled'}
-                      </Badge>
+                      <div className="flex items-center mt-1">
+                        <Badge variant="outline">
+                          {session.status === 'scheduled' ? 'Upcoming' : 
+                           session.status === 'in_progress' ? 'In Progress' : 
+                           'Completed'}
+                        </Badge>
+                        <span className="ml-2 text-sm text-muted-foreground">{session.sessionType}</span>
+                      </div>
                     </div>
                     <Button asChild>
                       <Link href={`/session/${session.id}`}>
@@ -113,12 +114,64 @@ const UserDashboard = ({ user, onTopUp }: UserDashboardProps) => {
           ) : (
             <div className="text-center py-6 text-muted-foreground">
               <p>No upcoming sessions scheduled.</p>
-              <Button className="mt-2" asChild>
-                <Link href="/advisors">Find an Advisor</Link>
-              </Button>
             </div>
           )}
         </CardContent>
+        <CardFooter>
+          <Button variant="outline" className="w-full" asChild>
+            <Link href="/bookings">View All Sessions</Link>
+          </Button>
+        </CardFooter>
+      </Card>
+      
+      {/* Recommended Advisors */}
+      <Card className="mt-6 shadow-md">
+        <CardHeader>
+          <CardTitle>Recommended Advisors</CardTitle>
+          <CardDescription>Based on your preferences and past sessions</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {isLoadingFavorites ? (
+              <div className="text-center py-4 col-span-2">Loading advisors...</div>
+            ) : favoriteAdvisors && favoriteAdvisors.length > 0 ? (
+              favoriteAdvisors.slice(0, 4).map(advisor => (
+                <div key={advisor.id} className="border rounded-lg p-4 flex items-center space-x-4">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    {advisor.avatar ? (
+                      <img src={advisor.avatar} alt={advisor.name} className="w-full h-full rounded-full object-cover" />
+                    ) : (
+                      <span className="text-primary font-semibold">{advisor.name.split(' ').map(n => n[0]).join('')}</span>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-medium">{advisor.name}</h4>
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Star className="h-3 w-3 text-amber-500 mr-1" />
+                      <span>{advisor.rating || 0}/5</span>
+                      <span className="mx-2">•</span>
+                      <span>{advisor.specialty || 'Spiritual Advisor'}</span>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/advisors/${advisor.id}`}>
+                      View
+                    </Link>
+                  </Button>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-6 text-muted-foreground col-span-2">
+                <p>No recommended advisors yet. Start booking sessions to get personalized recommendations.</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+        <CardFooter>
+          <Button variant="outline" className="w-full" asChild>
+            <Link href="/advisors">Browse All Advisors</Link>
+          </Button>
+        </CardFooter>
       </Card>
     </div>
   );

@@ -19,6 +19,7 @@ import Messages from "@/pages/messages";
 import Profile from "@/pages/profile";
 import TopupPage from "@/pages/topup";
 import Transactions from "@/pages/transactions";
+import Dashboard from "@/pages/dashboard";
 import NotFound from "@/pages/not-found";
 import { useEffect, useState } from "react";
 import { User } from "@shared/schema";
@@ -36,6 +37,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Welcome} />
       <Route path="/home" component={Home} />
+      <Route path="/dashboard" component={Dashboard} />
       <Route path="/advisors" component={Advisors} />
       <Route path="/advisors/:id" component={AdvisorProfile} />
       <Route path="/bookings" component={Bookings} />
