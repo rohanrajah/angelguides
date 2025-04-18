@@ -252,12 +252,22 @@ export class MemStorage implements IStorage {
   async createUser(user: InsertUser): Promise<User> {
     const id = this.userIdCounter++;
     const newUser: User = { 
-      ...user, 
       id,
+      username: user.username,
+      password: user.password,
+      name: user.name,
+      email: user.email,
+      isAdvisor: user.isAdvisor ?? false,
+      avatar: user.avatar ?? null,
+      bio: user.bio ?? null,
+      chatRate: user.chatRate ?? null,
+      audioRate: user.audioRate ?? null,
+      videoRate: user.videoRate ?? null,
       rating: user.isAdvisor ? 4 + Math.random() : 0,
       reviewCount: user.isAdvisor ? Math.floor(Math.random() * 100) + 50 : 0,
       online: Math.random() > 0.5,
       accountBalance: 0,
+      availability: user.availability ?? null,
       stripeCustomerId: null
     };
     this.users.set(id, newUser);
@@ -398,7 +408,17 @@ export class MemStorage implements IStorage {
   // Session methods
   async createSession(session: InsertSession): Promise<Session> {
     const id = this.sessionIdCounter++;
-    const newSession: Session = { ...session, id, status: "scheduled" };
+    const newSession: Session = { 
+      id,
+      userId: session.userId,
+      advisorId: session.advisorId,
+      startTime: session.startTime,
+      endTime: session.endTime,
+      sessionType: session.sessionType,
+      status: "scheduled",
+      notes: session.notes ?? null,
+      ratePerMinute: session.ratePerMinute
+    };
     this.sessions.set(id, newSession);
     return newSession;
   }
@@ -508,8 +528,12 @@ export class MemStorage implements IStorage {
   async createReview(review: InsertReview): Promise<Review> {
     const id = this.reviewIdCounter++;
     const newReview: Review = {
-      ...review,
       id,
+      rating: review.rating,
+      userId: review.userId,
+      advisorId: review.advisorId,
+      content: review.content ?? null,
+      sessionId: review.sessionId,
       createdAt: new Date(),
       response: null,
       responseDate: null,

@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useRoute, Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
-import { User, Specialty, Session, SessionType } from '@shared/schema';
+import { User, Specialty, Session, SessionType, Review } from '@shared/schema';
 import { format, addDays } from 'date-fns';
 import { motion } from 'framer-motion';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from "@/hooks/use-toast";
-import { MessageCircle, PhoneCall, Video } from 'lucide-react';
+import { MessageCircle, PhoneCall, Video, StarIcon } from 'lucide-react';
+import { ReviewDisplay, ReviewForm, RatingSummary } from '@/components/reviews';
 
 const AdvisorProfile: React.FC = () => {
   const [match, params] = useRoute<{ id: string }>('/advisors/:id');
