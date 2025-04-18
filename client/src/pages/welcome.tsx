@@ -5,10 +5,16 @@ import angelaConsciousImage from '../assets/angela-conscious.jpg';
 import FloatingAngelaBubble from '../components/chat/FloatingAngelaBubble';
 
 // Typing animation for text
-const TypedText: React.FC<{text: string, onComplete?: () => void, delay?: number}> = ({ 
+const TypedText: React.FC<{
+  text: string, 
+  onComplete?: () => void, 
+  onCharacterTyped?: (char: string) => void,
+  delay?: number
+}> = ({ 
   text, 
   onComplete, 
-  delay = 50 
+  onCharacterTyped,
+  delay = 80 
 }) => {
   const [displayedText, setDisplayedText] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -16,75 +22,107 @@ const TypedText: React.FC<{text: string, onComplete?: () => void, delay?: number
   useEffect(() => {
     if (currentIndex < text.length) {
       const timeout = setTimeout(() => {
-        setDisplayedText(prev => prev + text[currentIndex]);
+        const nextChar = text[currentIndex];
+        setDisplayedText(prev => prev + nextChar);
         setCurrentIndex(currentIndex + 1);
+        
+        // Call character callback for talking animation
+        if (onCharacterTyped) {
+          onCharacterTyped(nextChar);
+        }
       }, delay);
       
       return () => clearTimeout(timeout);
     } else if (onComplete) {
       onComplete();
     }
-  }, [currentIndex, text, delay, onComplete]);
+  }, [currentIndex, text, delay, onComplete, onCharacterTyped]);
   
   return <span>{displayedText}</span>;
 };
 
 const WelcomePage: React.FC = () => {
   const [animationState, setAnimationState] = useState<'initial' | 'fadeIn' | 'speaking' | 'endPhase' | 'complete'>('initial');
-  const [textIndex, setTextIndex] = useState(0);
   const [showBubble, setShowBubble] = useState(false);
   const [, setLocation] = useLocation();
   const bubbleRef = useRef<HTMLDivElement>(null);
+  const [lipState, setLipState] = useState<'closed' | 'half-open' | 'open'>('closed');
+  const [eyeState, setEyeState] = useState<'normal' | 'blink' | 'wide'>('normal');
   
-  // Welcome messages that Angela will "speak"
-  const welcomeMessages = [
-    "Welcome to AngelGuides.ai",
-    "I'm Angela, your spiritual AI concierge.",
-    "I'm here to connect you with the perfect spiritual advisor for your needs.",
-    "Let me guide you on your journey..."
-  ];
+  // Welcome message that Angela will "speak"
+  const welcomeMessage = "Welcome to AngelGuides.ai. I am Angela, your AI Concierge for all your spiritual needs.";
+  
+  // Trigger random eye blinks
+  useEffect(() => {
+    if (animationState === 'speaking') {
+      const blinkInterval = setInterval(() => {
+        // Random blink
+        setEyeState('blink');
+        setTimeout(() => setEyeState('normal'), 200);
+      }, 3000 + Math.random() * 2000); // Random blink intervals
+      
+      return () => clearInterval(blinkInterval);
+    }
+  }, [animationState]);
 
   useEffect(() => {
     // Initial fade in animation
     const initialAnimation = setTimeout(() => {
       setAnimationState('fadeIn');
+      
+      // Start speaking after fade in
+      setTimeout(() => {
+        setAnimationState('speaking');
+      }, 1000);
     }, 500);
     
     return () => clearTimeout(initialAnimation);
   }, []);
   
-  // Handle the typing completion for each message
-  const handleTypingComplete = () => {
-    if (textIndex < welcomeMessages.length - 1) {
-      setTimeout(() => {
-        setTextIndex(textIndex + 1);
-      }, 1000); // Pause between messages
-    } else {
-      // After all messages are typed, move to end phase
-      setTimeout(() => {
-        setAnimationState('endPhase');
-        
-        // Show the bubble after a short delay
-        setTimeout(() => {
-          setShowBubble(true);
-          
-          // Redirect to home page after showing the bubble
-          setTimeout(() => {
-            setLocation("/home");
-          }, 4000);
-        }, 1500);
-      }, 1000);
+  // Handle lip movement based on character being spoken
+  const handleCharacterTyped = (char: string) => {
+    // Vowels make the mouth open wide
+    if (['a', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U'].includes(char)) {
+      setLipState('open');
+      setTimeout(() => setLipState('half-open'), 120);
+    } 
+    // Consonants make the mouth half open
+    else if (char !== ' ' && char !== '.' && char !== ',') {
+      setLipState('half-open');
+      setTimeout(() => setLipState('closed'), 80);
+    } 
+    // For spaces and punctuation, close the mouth briefly
+    else {
+      setLipState('closed');
+    }
+    
+    // Add occasional eye widening on emphasis words
+    if (char === 'A' || char === 'W') {
+      setEyeState('wide');
+      setTimeout(() => setEyeState('normal'), 500);
     }
   };
 
-  useEffect(() => {
-    // Start speaking after fade in
-    if (animationState === 'fadeIn') {
+  // Handle the typing completion
+  const handleTypingComplete = () => {
+    // Reset mouth to closed position
+    setLipState('closed');
+    
+    // After message is typed, move to end phase
+    setTimeout(() => {
+      setAnimationState('endPhase');
+      
+      // Show the bubble after a short delay
       setTimeout(() => {
-        setAnimationState('speaking');
-      }, 1000);
-    }
-  }, [animationState]);
+        setShowBubble(true);
+        
+        // Redirect to home page after showing the bubble
+        setTimeout(() => {
+          setLocation("/home");
+        }, 4000);
+      }, 1500);
+    }, 1000);
+  };
 
   return (
     <div className="relative w-full h-screen bg-gradient-to-b from-indigo-950 to-black overflow-hidden">
@@ -155,32 +193,79 @@ const WelcomePage: React.FC = () => {
               exit={{ opacity: 0, y: -50 }}
               transition={{ duration: 1 }}
             >
-              {/* Angela image */}
-              <motion.div 
-                className="relative mb-8 w-64 h-64 md:w-80 md:h-80 rounded-full overflow-hidden shadow-[0_0_40px_rgba(120,60,220,0.5)]"
-                animate={{
-                  boxShadow: [
-                    "0 0 40px rgba(120, 60, 220, 0.5)",
-                    "0 0 80px rgba(120, 60, 220, 0.8)",
-                    "0 0 40px rgba(120, 60, 220, 0.5)",
-                  ],
-                }}
-                transition={{
-                  duration: 4,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-              >
-                <img 
-                  src={angelaConsciousImage} 
-                  alt="Angela AI" 
-                  className="w-full h-full object-cover"
+              {/* Angela image container with facial animations */}
+              <div className="relative mb-8 w-64 h-64 md:w-80 md:h-80 overflow-visible">
+                {/* Animated glow behind Angela */}
+                <motion.div 
+                  className="absolute inset-0 rounded-full shadow-[0_0_40px_rgba(120,60,220,0.5)]"
+                  animate={{
+                    boxShadow: [
+                      "0 0 40px rgba(120, 60, 220, 0.5)",
+                      "0 0 80px rgba(120, 60, 220, 0.8)",
+                      "0 0 40px rgba(120, 60, 220, 0.5)",
+                    ],
+                  }}
+                  transition={{
+                    duration: 4,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
                 />
                 
-                {/* Overlay effect for "talking" animation */}
+                {/* Base image */}
+                <div className="relative rounded-full overflow-hidden w-full h-full">
+                  <img 
+                    src={angelaConsciousImage} 
+                    alt="Angela AI" 
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                
+                {/* Animated mouth overlay */}
+                {animationState === 'speaking' && (
+                  <div className="absolute left-0 top-0 w-full h-full">
+                    {/* Lip animation */}
+                    <motion.div 
+                      className="absolute bottom-[30%] left-[50%] w-10 h-3 bg-pink-300/70 rounded-full"
+                      style={{ translateX: '-50%' }}
+                      animate={{
+                        height: lipState === 'closed' ? '3px' : 
+                               lipState === 'half-open' ? '6px' : '10px',
+                        width: lipState === 'open' ? '30px' : '24px'
+                      }}
+                      transition={{ duration: 0.1 }}
+                    />
+                    
+                    {/* Eye animations - left eye */}
+                    <motion.div 
+                      className="absolute top-[38%] left-[38%] w-4 h-4"
+                      animate={{
+                        scaleY: eyeState === 'blink' ? 0.1 : 1,
+                        scaleX: eyeState === 'wide' ? 1.2 : 1
+                      }}
+                      transition={{ duration: 0.1 }}
+                    >
+                      <div className="w-full h-full bg-blue-400/30 rounded-full"></div>
+                    </motion.div>
+                    
+                    {/* Eye animations - right eye */}
+                    <motion.div 
+                      className="absolute top-[38%] right-[38%] w-4 h-4"
+                      animate={{
+                        scaleY: eyeState === 'blink' ? 0.1 : 1,
+                        scaleX: eyeState === 'wide' ? 1.2 : 1
+                      }}
+                      transition={{ duration: 0.1 }}
+                    >
+                      <div className="w-full h-full bg-blue-400/30 rounded-full"></div>
+                    </motion.div>
+                  </div>
+                )}
+                
+                {/* Glowing effect while speaking */}
                 {animationState === 'speaking' && (
                   <motion.div 
-                    className="absolute inset-0 bg-gradient-to-t from-blue-500/20 to-transparent"
+                    className="absolute inset-0 bg-gradient-to-t from-blue-500/20 to-transparent rounded-full"
                     animate={{
                       opacity: [0.2, 0.4, 0.2],
                     }}
@@ -191,7 +276,7 @@ const WelcomePage: React.FC = () => {
                     }}
                   />
                 )}
-              </motion.div>
+              </div>
               
               {/* Speaking text */}
               {animationState === 'speaking' && (
@@ -202,7 +287,8 @@ const WelcomePage: React.FC = () => {
                   transition={{ duration: 0.5 }}
                 >
                   <TypedText 
-                    text={welcomeMessages[textIndex]} 
+                    text={welcomeMessage}
+                    onCharacterTyped={handleCharacterTyped}
                     onComplete={handleTypingComplete}
                   />
                 </motion.div>
