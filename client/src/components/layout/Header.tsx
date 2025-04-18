@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { User } from '@shared/schema';
 import { motion } from 'framer-motion';
-import logoImage from '../../assets/logo.png';
+import circleLogoImage from '../../assets/img/circle-logo.svg';
 
 interface HeaderProps {
   user: User | null;
@@ -36,9 +36,9 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
         <div className="flex items-center">
           <Link href="/home">
             <a className="flex flex-col items-center">
-              <div className="flex items-center">
-                <img src={logoImage} alt="AngelGuides.AI Logo" className="h-10 mr-2" />
-                <h1 className="font-sans text-2xl font-extrabold bg-gradient-to-r from-purple-700 to-indigo-500 bg-clip-text text-transparent tracking-tight">
+              <div className="flex flex-col items-center">
+                <img src={circleLogoImage} alt="AngelGuides.AI Logo" className="h-12 w-12" />
+                <h1 className="font-sans text-sm font-extrabold bg-gradient-to-r from-purple-700 to-indigo-500 bg-clip-text text-transparent tracking-tight mt-1">
                   AngelGuides.AI
                 </h1>
               </div>

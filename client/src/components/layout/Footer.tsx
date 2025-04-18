@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'wouter';
-import logoImage from '../../assets/logo.png';
+import circleLogoImage from '../../assets/img/circle-logo.svg';
 
 const Footer: React.FC = () => {
   return (
@@ -8,9 +8,9 @@ const Footer: React.FC = () => {
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
-            <div className="flex items-center mb-4">
-              <img src={logoImage} alt="AngelGuides.AI Logo" className="h-8 mr-2" />
-              <h3 className="font-sans text-xl font-extrabold bg-gradient-to-r from-purple-700 to-indigo-500 bg-clip-text text-transparent tracking-tight">
+            <div className="flex flex-col items-center mb-4">
+              <img src={circleLogoImage} alt="AngelGuides.AI Logo" className="h-10 w-10" />
+              <h3 className="font-sans text-sm font-extrabold bg-gradient-to-r from-purple-700 to-indigo-500 bg-clip-text text-transparent tracking-tight mt-1">
                 AngelGuides.AI
               </h3>
             </div>
