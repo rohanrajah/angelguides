@@ -470,78 +470,29 @@ const AdvisorProfile: React.FC = () => {
             
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
               <div className="bg-purple-100 p-4 border-b border-gray-200">
-                <h2 className="font-bold text-xl text-purple-800">Client Reviews</h2>
+                <h2 className="font-bold text-xl text-purple-800">Reviews & Ratings</h2>
               </div>
               
               <div className="p-4">
-                <div className="space-y-4">
-                  {/* Sample reviews - in a real app, these would come from the API */}
-                  <div className="border-b border-gray-200 pb-4">
-                    <div className="flex items-center mb-2">
-                      <div className="w-10 h-10 rounded-full bg-gray-200 mr-3"></div>
-                      <div>
-                        <div className="font-medium">Maria L.</div>
-                        <div className="text-yellow-500 text-sm">
-                          <i className="fas fa-star"></i>
-                          <i className="fas fa-star"></i>
-                          <i className="fas fa-star"></i>
-                          <i className="fas fa-star"></i>
-                          <i className="fas fa-star"></i>
-                        </div>
-                      </div>
-                      <div className="text-xs text-gray-500 ml-auto">2 weeks ago</div>
+                {advisor && advisor.id && (
+                  <>
+                    {/* Rating summary section */}
+                    <RatingsSummarySection advisorId={advisor.id} />
+                    
+                    {/* Review listing */}
+                    <div className="pt-6 border-t border-gray-200 mt-6">
+                      <ReviewDisplay advisorId={advisor.id} />
                     </div>
-                    <p className="text-gray-600 text-sm">
-                      My session with {advisor.name} was truly transformative. Their insights provided clarity on issues I've been struggling with for months. Highly recommended!
-                    </p>
-                  </div>
-                  
-                  <div className="border-b border-gray-200 pb-4">
-                    <div className="flex items-center mb-2">
-                      <div className="w-10 h-10 rounded-full bg-gray-200 mr-3"></div>
-                      <div>
-                        <div className="font-medium">James T.</div>
-                        <div className="text-yellow-500 text-sm">
-                          <i className="fas fa-star"></i>
-                          <i className="fas fa-star"></i>
-                          <i className="fas fa-star"></i>
-                          <i className="fas fa-star"></i>
-                          <i className="far fa-star"></i>
-                        </div>
-                      </div>
-                      <div className="text-xs text-gray-500 ml-auto">1 month ago</div>
-                    </div>
-                    <p className="text-gray-600 text-sm">
-                      {advisor.name} has an amazing ability to connect with the spiritual realm. The guidance I received was spot on and helped me make an important life decision.
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <div className="flex items-center mb-2">
-                      <div className="w-10 h-10 rounded-full bg-gray-200 mr-3"></div>
-                      <div>
-                        <div className="font-medium">Sophia R.</div>
-                        <div className="text-yellow-500 text-sm">
-                          <i className="fas fa-star"></i>
-                          <i className="fas fa-star"></i>
-                          <i className="fas fa-star"></i>
-                          <i className="fas fa-star"></i>
-                          <i className="fas fa-star-half-alt"></i>
-                        </div>
-                      </div>
-                      <div className="text-xs text-gray-500 ml-auto">2 months ago</div>
-                    </div>
-                    <p className="text-gray-600 text-sm">
-                      I was skeptical at first, but my reading with {advisor.name} blew me away. They knew things they couldn't possibly have known, and provided practical advice that has already improved my life.
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="mt-6 text-center">
-                  <button className="text-purple-600 hover:text-purple-800 font-medium">
-                    View All {advisor.reviewCount} Reviews
-                  </button>
-                </div>
+                    
+                    {/* Add review section if user has had a session with this advisor */}
+                    {currentUser && currentUser.id && (
+                      <SessionReviewCheck 
+                        userId={currentUser.id} 
+                        advisorId={advisor.id} 
+                      />
+                    )}
+                  </>
+                )}
               </div>
             </div>
           </div>
