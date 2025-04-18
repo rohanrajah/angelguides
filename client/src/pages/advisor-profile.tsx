@@ -479,7 +479,7 @@ const AdvisorProfile: React.FC = () => {
                 {advisor && advisor.id && (
                   <>
                     {/* Rating summary section */}
-                    <RatingsSummarySection advisorId={advisor.id} />
+                    <RatingsSummary advisorId={advisor.id} />
                     
                     {/* Review listing */}
                     <div className="pt-6 border-t border-gray-200 mt-6">
@@ -505,11 +505,11 @@ const AdvisorProfile: React.FC = () => {
 };
 
 // Component to fetch reviews and display the rating summary
-interface RatingsSummarySectionProps {
+interface RatingSummarySectionProps {
   advisorId: number;
 }
 
-const RatingsSummarySection: React.FC<RatingsSummarySectionProps> = ({ advisorId }) => {
+const RatingSummarySection: React.FC<RatingSummarySectionProps> = ({ advisorId }) => {
   const { data: reviews = [], isLoading } = useQuery<Review[]>({
     queryKey: ['/api/advisors', advisorId, 'reviews'],
     enabled: !!advisorId,
