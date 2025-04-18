@@ -6,6 +6,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import FloatingAngelaBubble from "@/components/chat/FloatingAngelaBubble";
+import AngelaOnboarding from "@/components/onboarding/AngelaOnboarding";
+import AngelaGuidedTour from "@/components/onboarding/AngelaGuidedTour";
 
 // Pages
 import Home from "@/pages/home";
@@ -51,6 +53,10 @@ function App() {
   const [location] = useLocation();
   const [seenWelcome, setSeenWelcome] = useState<boolean>(false);
   
+  // Onboarding states
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
+  const [showGuidedTour, setShowGuidedTour] = useState<boolean>(false);
+  
   // Check if we're on the welcome page
   const isWelcomePage = location === "/";
 
@@ -64,6 +70,16 @@ function App() {
       setLocation('/');
     }
   }, [location, setLocation]);
+  
+  // Check if user has completed onboarding
+  useEffect(() => {
+    if (!isWelcomePage && !loading) {
+      const hasCompletedOnboarding = localStorage.getItem('angelaOnboardingComplete') === 'true';
+      if (!hasCompletedOnboarding) {
+        setShowOnboarding(true);
+      }
+    }
+  }, [isWelcomePage, loading]);
 
   useEffect(() => {
     const fetchCurrentUser = async () => {
@@ -96,15 +112,63 @@ function App() {
     );
   }
 
+  // Tour steps for the guided tour
+  const tourSteps = [
+    {
+      target: '.angela-bubble', // Target the Angela bubble
+      title: 'Meet Angela',
+      content: 'Click on this bubble anytime you need guidance or want to match with an advisor.',
+      position: 'left' as const
+    },
+    {
+      target: '.header-nav', // Target the header navigation
+      title: 'Browse Advisors',
+      content: 'Explore our community of spiritual advisors and find your perfect match.',
+      position: 'bottom' as const
+    },
+    {
+      target: '.main-content', // Target the main content area
+      title: 'Your Spiritual Journey',
+      content: 'This is where your personalized spiritual content will appear.',
+      position: 'top' as const
+    }
+  ];
+  
+  // Handle onboarding completion
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+    setShowGuidedTour(true);
+  };
+  
+  // Handle guided tour completion
+  const handleGuidedTourComplete = () => {
+    setShowGuidedTour(false);
+    localStorage.setItem('angelaGuidedTourComplete', 'true');
+  };
+
   return (
     <QueryClientProvider client={queryClient}>
       <div className={`min-h-screen flex flex-col ${isWelcomePage ? 'bg-transparent' : 'bg-neutral-lightest'}`}>
         {!isWelcomePage && <Header user={currentUser} />}
-        <main className="flex-grow">
+        <main className="flex-grow main-content">
           <Router />
         </main>
         {!isWelcomePage && <Footer />}
         {!isWelcomePage && <FloatingAngelaBubble userId={currentUser?.id || 5} />}
+        
+        {/* Angela AI Onboarding Modal */}
+        {showOnboarding && !isWelcomePage && (
+          <AngelaOnboarding onComplete={handleOnboardingComplete} />
+        )}
+        
+        {/* Angela AI Guided Tour */}
+        {showGuidedTour && !isWelcomePage && (
+          <AngelaGuidedTour 
+            steps={tourSteps} 
+            isActive={showGuidedTour}
+            onComplete={handleGuidedTourComplete} 
+          />
+        )}
       </div>
     </QueryClientProvider>
   );

@@ -47,7 +47,7 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
         </div>
         
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center space-x-8">
+        <nav className="hidden md:flex items-center space-x-8 header-nav">
           {navItems.map((item) => (
             <Link href={item.path} key={item.path}>
               <a className={`navbar-item text-neutral-dark hover:text-primary transition duration-200 relative ${
