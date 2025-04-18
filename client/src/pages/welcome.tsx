@@ -4,6 +4,7 @@ import { useLocation } from 'wouter';
 import angelaConsciousImage from '@/assets/angela-conscious.jpg';
 import angelaWelcomeAudio from '@/assets/audio/angela-welcome.mp3';
 import FloatingAngelaBubble from '@/components/chat/FloatingAngelaBubble';
+import AdvisorMatchingQuestionnaire from '@/components/advisor/AdvisorMatchingQuestionnaire';
 
 // Typing animation for text
 const TypedText: React.FC<{
@@ -43,13 +44,14 @@ const TypedText: React.FC<{
 };
 
 const WelcomePage: React.FC = () => {
-  const [animationState, setAnimationState] = useState<'initial' | 'fadeIn' | 'speaking' | 'endPhase' | 'complete'>('initial');
+  const [animationState, setAnimationState] = useState<'initial' | 'fadeIn' | 'speaking' | 'matchingQuestionnaire' | 'endPhase' | 'complete'>('initial');
   const [showBubble, setShowBubble] = useState(false);
   const [, setLocation] = useLocation();
   const bubbleRef = useRef<HTMLDivElement>(null);
   const [lipState, setLipState] = useState<'closed' | 'half-open' | 'open'>('closed');
   const [eyeState, setEyeState] = useState<'normal' | 'blink' | 'wide'>('normal');
   const audioRef = useRef<HTMLAudioElement>(null);
+  const [recommendedAdvisorIds, setRecommendedAdvisorIds] = useState<number[]>([]);
   
   // Welcome message that Angela will "speak"
   const welcomeMessage = "Welcome to AngelGuides.ai. I am Angela, your AI Concierge for all your spiritual needs.";
@@ -117,23 +119,31 @@ const WelcomePage: React.FC = () => {
     // Reset mouth to closed position
     setLipState('closed');
     
-    // After message is typed, move to end phase
+    // After message is typed, start the matching questionnaire
     setTimeout(() => {
-      setAnimationState('endPhase');
-      
-      // Show the bubble after a short delay
-      setTimeout(() => {
-        setShowBubble(true);
-        
-        // Mark that user has seen welcome page
-        localStorage.setItem('hasSeenWelcome', 'true');
-        
-        // Redirect to home page after showing the bubble
-        setTimeout(() => {
-          setLocation("/home");
-        }, 4000);
-      }, 1500);
+      setAnimationState('matchingQuestionnaire');
     }, 1000);
+  };
+  
+  // Handle completion of the matching questionnaire
+  const handleMatchingComplete = (advisorIds: number[]) => {
+    setRecommendedAdvisorIds(advisorIds);
+    
+    // After questionnaire is completed, move to end phase
+    setAnimationState('endPhase');
+    
+    // Show the bubble after a short delay
+    setTimeout(() => {
+      setShowBubble(true);
+      
+      // Mark that user has seen welcome page
+      localStorage.setItem('hasSeenWelcome', 'true');
+      
+      // Redirect to advisors page with recommended advisors
+      setTimeout(() => {
+        setLocation("/advisors");
+      }, 4000);
+    }, 1500);
   };
 
   return (
@@ -302,6 +312,21 @@ const WelcomePage: React.FC = () => {
                     text={welcomeMessage}
                     onCharacterTyped={handleCharacterTyped}
                     onComplete={handleTypingComplete}
+                  />
+                </motion.div>
+              )}
+              
+              {/* Advisor Matching Questionnaire */}
+              {animationState === 'matchingQuestionnaire' && (
+                <motion.div
+                  className="w-full"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <AdvisorMatchingQuestionnaire 
+                    userId={5} 
+                    onComplete={handleMatchingComplete}
                   />
                 </motion.div>
               )}
