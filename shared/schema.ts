@@ -19,8 +19,12 @@ export const users = pgTable("users", {
   reviewCount: integer("review_count"),
   availability: text("availability"),
   online: boolean("online").default(false),
-  accountBalance: integer("account_balance").default(0), // Account balance in cents
-  stripeCustomerId: text("stripe_customer_id"),
+  accountBalance: integer("account_balance").default(0), // Account balance in cents for clients
+  earningsBalance: integer("earnings_balance").default(0), // Pending earnings in cents for advisors
+  totalEarnings: integer("total_earnings").default(0), // All-time earnings in cents for advisors
+  pendingPayout: boolean("pending_payout").default(false), // Flag for requested payouts
+  stripeCustomerId: text("stripe_customer_id"), // For client payments
+  stripeConnectId: text("stripe_connect_id"), // For advisor payouts
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -71,9 +75,14 @@ export const sessions = pgTable("sessions", {
   startTime: timestamp("start_time").notNull(),
   endTime: timestamp("end_time").notNull(),
   sessionType: text("session_type").notNull(), // chat, audio, video
-  status: text("status").notNull().default("scheduled"), // scheduled, completed, canceled
+  status: text("status").notNull().default("scheduled"), // scheduled, in_progress, completed, canceled
   notes: text("notes"),
   ratePerMinute: integer("rate_per_minute").notNull(), // The rate that was applied for this session
+  actualStartTime: timestamp("actual_start_time"), // When the session actually started
+  actualEndTime: timestamp("actual_end_time"), // When the session actually ended
+  actualDuration: integer("actual_duration"), // In minutes
+  billedAmount: integer("billed_amount"), // Total amount billed in cents
+  isPaid: boolean("is_paid").default(false), // Whether the advisor has been paid for this session
 });
 
 export const insertSessionSchema = createInsertSchema(sessions).pick({
@@ -184,3 +193,38 @@ export enum SpecialtyCategory {
   CHANNELING = 'channeling',
   GENERAL = 'general'
 }
+
+// Transaction types
+export enum TransactionType {
+  SESSION_PAYMENT = 'session_payment',
+  ADVISOR_PAYOUT = 'advisor_payout',
+  USER_TOPUP = 'user_topup'
+}
+
+// Transactions for tracking all money movements
+export const transactions = pgTable("transactions", {
+  id: serial("id").primaryKey(),
+  type: text("type").notNull(), // session_payment, advisor_payout, user_topup
+  userId: integer("user_id").notNull(), // User who the transaction is for
+  advisorId: integer("advisor_id"), // Optional, only for session payments
+  sessionId: integer("session_id"), // Optional, only for session payments
+  amount: integer("amount").notNull(), // Amount in cents (positive for earnings, negative for payments)
+  description: text("description").notNull(),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  paymentStatus: text("payment_status").notNull().default("completed"), // pending, completed, failed
+  paymentReference: text("payment_reference"), // Reference to external payment processor
+});
+
+export const insertTransactionSchema = createInsertSchema(transactions).pick({
+  type: true,
+  userId: true,
+  advisorId: true,
+  sessionId: true,
+  amount: true,
+  description: true,
+  paymentStatus: true,
+  paymentReference: true,
+});
+
+export type Transaction = typeof transactions.$inferSelect;
+export type InsertTransaction = z.infer<typeof insertTransactionSchema>;

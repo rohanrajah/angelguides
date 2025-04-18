@@ -6,7 +6,8 @@ import {
   messages, type Message, type InsertMessage,
   reviews, type Review, type InsertReview,
   conversations, type Conversation, type InsertConversation, type ChatMessage,
-  SessionType, SpecialtyCategory
+  transactions, type Transaction, type InsertTransaction,
+  SessionType, SpecialtyCategory, TransactionType
 } from "@shared/schema";
 
 export interface IStorage {
@@ -23,6 +24,14 @@ export interface IStorage {
   addUserBalance(userId: number, amount: number): Promise<User | undefined>; // amount in cents
   deductUserBalance(userId: number, amount: number): Promise<User | undefined>; // amount in cents
   updateStripeCustomerId(userId: number, stripeCustomerId: string): Promise<User | undefined>;
+  updateStripeConnectId(userId: number, stripeConnectId: string): Promise<User | undefined>;
+  
+  // Advisor earnings methods
+  addAdvisorEarnings(advisorId: number, amount: number): Promise<User | undefined>; // amount in cents
+  deductAdvisorEarnings(advisorId: number, amount: number): Promise<User | undefined>; // amount in cents
+  getAdvisorEarningsBalance(advisorId: number): Promise<number>; // returns balance in cents
+  getTotalAdvisorEarnings(advisorId: number): Promise<number>; // returns total earnings in cents
+  setPendingPayout(advisorId: number, isPending: boolean): Promise<User | undefined>;
   
   // Specialty methods
   getAllSpecialties(): Promise<Specialty[]>;
@@ -42,6 +51,15 @@ export interface IStorage {
   getUpcomingSessionsByUser(userId: number): Promise<Session[]>;
   getSessionById(id: number): Promise<Session | undefined>;
   updateSessionStatus(sessionId: number, status: string): Promise<Session | undefined>;
+  startSession(sessionId: number): Promise<Session | undefined>; // Set actualStartTime and status
+  endSession(sessionId: number): Promise<Session | undefined>; // Set actualEndTime, actualDuration, and calculate billedAmount
+  markSessionPaid(sessionId: number): Promise<Session | undefined>; // Mark session as paid to advisor
+  
+  // Transaction methods
+  createTransaction(transaction: InsertTransaction): Promise<Transaction>;
+  getTransactionsByUser(userId: number): Promise<Transaction[]>;
+  getTransactionsByAdvisor(advisorId: number): Promise<Transaction[]>;
+  getTransactionsBySession(sessionId: number): Promise<Transaction[]>;
   
   // Message methods
   sendMessage(message: InsertMessage): Promise<Message>;
@@ -71,6 +89,7 @@ export class MemStorage implements IStorage {
   private messages: Map<number, Message>;
   private conversations: Map<number, Conversation>;
   private reviews: Map<number, Review>;
+  private transactions: Map<number, Transaction>;
   
   private userIdCounter: number;
   private specialtyIdCounter: number;
@@ -79,6 +98,7 @@ export class MemStorage implements IStorage {
   private messageIdCounter: number;
   private conversationIdCounter: number;
   private reviewIdCounter: number;
+  private transactionIdCounter: number;
 
   constructor() {
     this.users = new Map();
@@ -88,6 +108,7 @@ export class MemStorage implements IStorage {
     this.messages = new Map();
     this.conversations = new Map();
     this.reviews = new Map();
+    this.transactions = new Map();
     
     this.userIdCounter = 1;
     this.specialtyIdCounter = 1;
@@ -96,6 +117,7 @@ export class MemStorage implements IStorage {
     this.messageIdCounter = 1;
     this.conversationIdCounter = 1;
     this.reviewIdCounter = 1;
+    this.transactionIdCounter = 1;
     
     // Initialize with sample data
     this.initializeData();
@@ -269,8 +291,12 @@ export class MemStorage implements IStorage {
       reviewCount: user.isAdvisor ? Math.floor(Math.random() * 100) + 50 : 0,
       online: Math.random() > 0.5,
       accountBalance: 0,
+      earningsBalance: 0,
+      totalEarnings: 0,
+      pendingPayout: false,
       availability: user.availability ?? null,
-      stripeCustomerId: null
+      stripeCustomerId: null,
+      stripeConnectId: null
     };
     this.users.set(id, newUser);
     return newUser;
@@ -419,7 +445,12 @@ export class MemStorage implements IStorage {
       sessionType: session.sessionType,
       status: "scheduled",
       notes: session.notes ?? null,
-      ratePerMinute: session.ratePerMinute
+      ratePerMinute: session.ratePerMinute,
+      actualStartTime: null,
+      actualEndTime: null,
+      actualDuration: null,
+      billedAmount: null,
+      isPaid: false
     };
     this.sessions.set(id, newSession);
     return newSession;
