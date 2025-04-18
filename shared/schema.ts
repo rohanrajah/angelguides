@@ -58,6 +58,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   videoRate: true,
   availability: true,
   firebaseUid: true,
+  lastLogin: true,
   profileCompleted: true,
 });
 

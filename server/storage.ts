@@ -153,52 +153,72 @@ export class MemStorage implements IStorage {
         password: "password123",
         name: "Sarah Johnson",
         email: "sarah@angelguides.ai",
+        phone: "555-789-1234",
+        userType: UserType.ADVISOR,
         isAdvisor: true,
         avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
         bio: "Specializing in tarot readings that provide clarity and guidance for life's most challenging decisions.",
+        introVideo: null,
+        specialties: [],
         chatRate: 150,
         audioRate: 200,
         videoRate: 250,
-        availability: "Mon-Fri, 9am-5pm"
+        availability: "Mon-Fri, 9am-5pm",
+        profileCompleted: true
       },
       {
         username: "michaelchen",
         password: "password123",
         name: "Michael Chen",
         email: "michael@angelguides.ai",
+        phone: "555-456-7890",
+        userType: UserType.ADVISOR,
         isAdvisor: true,
         avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
         bio: "Helps clients achieve inner peace and personal growth through guided meditation and spiritual practices.",
+        introVideo: null,
+        specialties: [],
         chatRate: 175,
         audioRate: 225,
         videoRate: 275,
-        availability: "Weekends, 10am-6pm"
+        availability: "Weekends, 10am-6pm",
+        profileCompleted: true
       },
       {
         username: "elenapatel",
         password: "password123",
         name: "Elena Patel",
         email: "elena@angelguides.ai",
+        phone: "555-234-5678",
+        userType: UserType.ADVISOR,
         isAdvisor: true,
         avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
         bio: "Provides insight into your life path and personal journey through astrology and numerology readings.",
+        introVideo: null,
+        specialties: [],
         chatRate: 160,
         audioRate: 210,
         videoRate: 260,
-        availability: "Tue-Sat, 11am-7pm"
+        availability: "Tue-Sat, 11am-7pm",
+        profileCompleted: true
       },
       {
         username: "davidwilson",
         password: "password123",
         name: "David Wilson",
         email: "david@angelguides.ai",
+        phone: "555-345-6789",
+        userType: UserType.ADVISOR,
         isAdvisor: true,
         avatar: "https://images.unsplash.com/photo-1552374196-c4e7ffc6e126?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
         bio: "Connects with energies and spirits to provide guidance and clarity about your past, present, and future.",
+        introVideo: null,
+        specialties: [],
         chatRate: 200,
         audioRate: 250,
         videoRate: 300,
-        availability: "Mon-Thu, 12pm-8pm"
+        availability: "Mon-Thu, 12pm-8pm",
+        profileCompleted: true
       }
     ];
     
@@ -210,13 +230,18 @@ export class MemStorage implements IStorage {
       password: "password123",
       name: "John Doe",
       email: "john@example.com",
+      phone: "555-123-4567",
+      userType: UserType.USER,
       isAdvisor: false,
       avatar: "",
       bio: "",
+      introVideo: null,
+      specialties: [],
       chatRate: 0,
       audioRate: 0,
       videoRate: 0,
-      availability: ""
+      availability: "",
+      profileCompleted: false
     });
     
     // Assign specialties to advisors
@@ -287,10 +312,13 @@ export class MemStorage implements IStorage {
       password: user.password,
       name: user.name,
       email: user.email,
+      phone: user.phone ?? null,
       userType, // Set the new user type field
       isAdvisor: user.isAdvisor ?? (userType === UserType.ADVISOR), // Ensure isAdvisor matches userType
       avatar: user.avatar ?? null,
       bio: user.bio ?? null,
+      introVideo: user.introVideo ?? null,
+      specialties: user.specialties ?? [],
       chatRate: user.chatRate ?? null,
       audioRate: user.audioRate ?? null,
       videoRate: user.videoRate ?? null,
@@ -303,7 +331,10 @@ export class MemStorage implements IStorage {
       pendingPayout: false,
       availability: user.availability ?? null,
       stripeCustomerId: null,
-      stripeConnectId: null
+      stripeConnectId: null,
+      firebaseUid: user.firebaseUid ?? null,
+      lastLogin: new Date(),
+      profileCompleted: user.profileCompleted ?? false // Default to false - they'll need to complete profile setup
     };
     this.users.set(id, newUser);
     return newUser;

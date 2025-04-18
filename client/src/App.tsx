@@ -18,6 +18,7 @@ import AdvisorProfile from "@/pages/advisor-profile";
 import Bookings from "@/pages/bookings";
 import Messages from "@/pages/messages";
 import Profile from "@/pages/profile";
+import ProfileSetup from "@/pages/profile-setup";
 import TopupPage from "@/pages/topup";
 import Transactions from "@/pages/transactions";
 import Dashboard from "@/pages/dashboard";
@@ -45,6 +46,7 @@ function Router() {
       <Route path="/bookings" component={Bookings} />
       <Route path="/messages" component={Messages} />
       <Route path="/profile" component={Profile} />
+      <Route path="/profile-setup" component={ProfileSetup} />
       <Route path="/topup" component={TopupPage} />
       <Route path="/transactions" component={Transactions} />
       <Route path="/test" component={TestPage} />

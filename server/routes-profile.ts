@@ -1,150 +1,256 @@
-import { Request, Response } from "express";
-import { Express } from "express";
+import { Express, Response } from "express";
 import { storage } from "./storage";
-import { UserType } from "../shared/schema";
+import multer from "multer";
+import { randomUUID } from "crypto";
+import path from "path";
+import fs from "fs";
+import { User } from "@shared/schema";
 
-// Extend the Express Request type to include session
-declare module 'express-serve-static-core' {
-  interface Request {
-    session: {
-      userId?: number;
-      [key: string]: any;
-    };
-  }
+// Define custom Request type that includes user
+interface Request extends Express.Request {
+  user?: User;
+  body: any;
+  file?: any;
+  params: any;
 }
 
-// In-memory storage for uploaded files (would use S3 or similar in production)
-const uploadedFiles = new Map<string, Buffer>();
+// Setup file directories if they don't exist
+const UPLOAD_DIR = "./uploads";
+const AVATAR_DIR = path.join(UPLOAD_DIR, "avatars");
+const VIDEO_DIR = path.join(UPLOAD_DIR, "videos");
+
+// Create upload directories if they don't exist
+if (!fs.existsSync(UPLOAD_DIR)) {
+  fs.mkdirSync(UPLOAD_DIR);
+}
+if (!fs.existsSync(AVATAR_DIR)) {
+  fs.mkdirSync(AVATAR_DIR);
+}
+if (!fs.existsSync(VIDEO_DIR)) {
+  fs.mkdirSync(VIDEO_DIR);
+}
+
+// Configure storage for uploaded files
+const fileStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // Determine if this is an avatar or video upload
+    const isAvatar = req.originalUrl.includes('/upload/avatar');
+    const destination = isAvatar ? AVATAR_DIR : VIDEO_DIR;
+    cb(null, destination);
+  },
+  filename: (req, file, cb) => {
+    // Generate a unique filename with the original extension
+    const fileExt = path.extname(file.originalname).toLowerCase();
+    const fileName = `${randomUUID()}${fileExt}`;
+    cb(null, fileName);
+  }
+});
+
+// Setup upload middleware with file type filtering
+const upload = multer({
+  storage: fileStorage,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB max file size
+    files: 1 // Only one file at a time
+  },
+  fileFilter: (req, file, cb) => {
+    // Allow only specific file types
+    const isAvatar = req.originalUrl.includes('/upload/avatar');
+    
+    if (isAvatar) {
+      // Image files for avatars
+      if (file.mimetype.startsWith('image/')) {
+        cb(null, true);
+      } else {
+        cb(new Error('Only image files are allowed for avatars'));
+      }
+    } else {
+      // Video files for intro videos
+      if (file.mimetype.startsWith('video/')) {
+        cb(null, true);
+      } else {
+        cb(new Error('Only video files are allowed for intro videos'));
+      }
+    }
+  }
+});
 
 export function registerProfileRoutes(app: Express) {
   // Update user profile
   app.patch("/api/users/profile", async (req: Request, res: Response) => {
-    const userId = req.session.userId;
-    if (!userId) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-    
     try {
+      // Get user ID from the authenticated session
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      // Get the current user
       const currentUser = await storage.getUser(userId);
       if (!currentUser) {
         return res.status(404).json({ error: "User not found" });
       }
       
-      // Only admins can change userType
-      if (req.body.userType && req.body.userType !== currentUser.userType && currentUser.userType !== UserType.ADMIN) {
-        return res.status(403).json({ error: "Only administrators can change user types" });
+      // Extract fields to update
+      const {
+        name,
+        email,
+        phone,
+        bio,
+        specialties,
+        chatRate,
+        audioRate,
+        videoRate,
+        userType,
+        availability,
+        profileCompleted
+      } = req.body;
+      
+      // Create update object
+      const updateData: Partial<User> = {};
+      
+      // Basic fields for all users
+      if (name !== undefined) updateData.name = name;
+      if (email !== undefined) updateData.email = email;
+      if (phone !== undefined) updateData.phone = phone;
+      if (bio !== undefined) updateData.bio = bio;
+      
+      // Only admins can change user type for other users
+      // Regular users can only switch between USER and ADVISOR
+      if (userType !== undefined) {
+        if (currentUser.userType === 'admin' || (userType === 'user' || userType === 'advisor')) {
+          updateData.userType = userType;
+        } else {
+          return res.status(403).json({ error: "Unauthorized user type change" });
+        }
       }
       
-      // Update user and ensure isAdvisor flag is consistent with userType
-      const userData = { 
-        ...req.body,
-        isAdvisor: req.body.userType === UserType.ADVISOR 
-      };
+      // Advisor-specific fields
+      if (specialties !== undefined) updateData.specialties = specialties;
+      if (chatRate !== undefined) updateData.chatRate = chatRate;
+      if (audioRate !== undefined) updateData.audioRate = audioRate;
+      if (videoRate !== undefined) updateData.videoRate = videoRate;
+      if (availability !== undefined) updateData.availability = availability;
       
-      const updatedUser = await storage.updateUser(userId, userData);
-      res.json(updatedUser);
-    } catch (error) {
-      console.error('Error updating user profile:', error);
-      res.status(500).json({ error: "Failed to update profile" });
+      // Profile completion status
+      if (profileCompleted !== undefined) updateData.profileCompleted = profileCompleted;
+      
+      // Update the user
+      const updatedUser = await storage.updateUser(userId, updateData);
+      
+      // Remove sensitive data before sending the response
+      if (updatedUser) {
+        const { password, ...userWithoutPassword } = updatedUser;
+        res.json(userWithoutPassword);
+      } else {
+        res.status(500).json({ error: "Failed to update user" });
+      }
+    } catch (error: any) {
+      console.error("Profile update error:", error);
+      res.status(500).json({ error: error.message });
     }
   });
   
-  // Upload profile picture
-  app.post("/api/upload/avatar", async (req: Request, res: Response) => {
-    const userId = req.session.userId;
-    if (!userId) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-    
+  // Upload avatar
+  app.post("/api/upload/avatar", upload.single('avatar'), async (req: Request, res: Response) => {
     try {
-      // In a real implementation, this would store the file and return a URL
-      // For demo purposes, we'll simulate successful upload
-      const fileId = `avatar-${userId}-${Date.now()}`;
-      uploadedFiles.set(fileId, Buffer.from('dummy-image-data'));
+      // Get user ID from the authenticated session
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
       
-      // Return a simulated URL that could be used to access the file
-      const avatarUrl = `/api/files/${fileId}`;
+      // Check if file was uploaded
+      if (!req.file) {
+        return res.status(400).json({ error: "No avatar file provided" });
+      }
       
-      // Update the user's avatar URL in the database
-      await storage.updateUser(userId, { avatar: avatarUrl });
+      // Get the file path
+      const filePath = `/api/files/${req.file.filename}`;
       
-      res.json({ url: avatarUrl });
-    } catch (error) {
-      console.error('Error uploading avatar:', error);
-      res.status(500).json({ error: "Failed to upload avatar" });
+      // Update user avatar
+      const updatedUser = await storage.updateUser(userId, { avatar: filePath });
+      
+      if (updatedUser) {
+        res.json({ url: filePath });
+      } else {
+        res.status(500).json({ error: "Failed to update avatar" });
+      }
+    } catch (error: any) {
+      console.error("Avatar upload error:", error);
+      res.status(500).json({ error: error.message });
     }
   });
   
-  // Upload intro video
-  app.post("/api/upload/video", async (req: Request, res: Response) => {
-    const userId = req.session.userId;
-    if (!userId) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-    
+  // Upload intro video (for advisors)
+  app.post("/api/upload/video", upload.single('video'), async (req: Request, res: Response) => {
     try {
-      // Check if user is an advisor or admin
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
+      // Get user ID from the authenticated session
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
       }
       
-      if (user.userType !== UserType.ADVISOR && user.userType !== UserType.ADMIN) {
-        return res.status(403).json({ error: "Only advisors can upload intro videos" });
+      // Check if file was uploaded
+      if (!req.file) {
+        return res.status(400).json({ error: "No video file provided" });
       }
       
-      // In a real implementation, this would store the file and return a URL
-      // For demo purposes, we'll simulate successful upload
-      const fileId = `video-${userId}-${Date.now()}`;
-      uploadedFiles.set(fileId, Buffer.from('dummy-video-data'));
+      // Get the file path
+      const filePath = `/api/files/${req.file.filename}`;
       
-      // Return a simulated URL that could be used to access the file
-      const videoUrl = `/api/files/${fileId}`;
+      // Update user intro video
+      const updatedUser = await storage.updateUser(userId, { introVideo: filePath });
       
-      // Update the user's introVideo URL in the database
-      await storage.updateUser(userId, { introVideo: videoUrl });
-      
-      res.json({ url: videoUrl });
-    } catch (error) {
-      console.error('Error uploading video:', error);
-      res.status(500).json({ error: "Failed to upload video" });
+      if (updatedUser) {
+        res.json({ url: filePath });
+      } else {
+        res.status(500).json({ error: "Failed to update intro video" });
+      }
+    } catch (error: any) {
+      console.error("Video upload error:", error);
+      res.status(500).json({ error: error.message });
     }
   });
   
   // Serve uploaded files
   app.get("/api/files/:fileId", (req: Request, res: Response) => {
-    const { fileId } = req.params;
-    const fileData = uploadedFiles.get(fileId);
+    const fileId = req.params.fileId;
     
-    if (!fileData) {
-      return res.status(404).json({ error: "File not found" });
+    // Check if the file exists
+    const avatarPath = path.join(AVATAR_DIR, fileId);
+    const videoPath = path.join(VIDEO_DIR, fileId);
+    
+    if (fs.existsSync(avatarPath)) {
+      res.sendFile(avatarPath);
+    } else if (fs.existsSync(videoPath)) {
+      res.sendFile(videoPath);
+    } else {
+      res.status(404).json({ error: "File not found" });
     }
-    
-    // In a real implementation, you'd set proper content type and serve actual file data
-    // For demo purposes, we're just confirming the file exists
-    res.json({ message: "File exists", fileId });
   });
   
-  // Make one of our users an admin (for demo purposes)
+  // Make user an admin (for testing purposes)
   app.get("/api/make-admin", async (req: Request, res: Response) => {
-    // This is a demo endpoint that would usually be secured
     try {
-      // Get the current user
-      const userId = req.session.userId;
+      // Get user ID from the authenticated session
+      const userId = req.user?.id;
       if (!userId) {
         return res.status(401).json({ error: "Not authenticated" });
       }
       
-      // Update the user to be an admin
-      await storage.updateUser(userId, { 
-        userType: UserType.ADMIN,
-        isAdvisor: false
-      });
+      // Make the user an admin
+      const updatedUser = await storage.updateUser(userId, { userType: "admin" });
       
-      res.json({ success: true, message: "You are now an admin" });
-    } catch (error) {
-      console.error('Error making user admin:', error);
-      res.status(500).json({ error: "Failed to update user role" });
+      if (updatedUser) {
+        const { password, ...userWithoutPassword } = updatedUser;
+        res.json(userWithoutPassword);
+      } else {
+        res.status(500).json({ error: "Failed to update user" });
+      }
+    } catch (error: any) {
+      console.error("Admin update error:", error);
+      res.status(500).json({ error: error.message });
     }
   });
 }
