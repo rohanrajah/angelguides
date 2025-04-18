@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 // Layout Components
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import FloatingAngelaBubble from "@/components/chat/FloatingAngelaBubble";
 
 // Pages
 import Home from "@/pages/home";
@@ -84,6 +85,7 @@ function App() {
           <Router />
         </main>
         <Footer />
+        {currentUser && <FloatingAngelaBubble userId={currentUser.id} />}
       </div>
     </QueryClientProvider>
   );

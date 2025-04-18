@@ -8,6 +8,7 @@ import { Link } from 'wouter';
 
 interface AngelaChatWidgetProps {
   userId: number;
+  isFloating?: boolean;
 }
 
 const ProgressIndicator = ({ current, total }: { current: number; total: number }) => {
@@ -112,7 +113,7 @@ const AdvisorRecommendation = ({
   );
 };
 
-const AngelaChatWidget: React.FC<AngelaChatWidgetProps> = ({ userId }) => {
+const AngelaChatWidget: React.FC<AngelaChatWidgetProps> = ({ userId, isFloating = false }) => {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [message, setMessage] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -228,7 +229,7 @@ const AngelaChatWidget: React.FC<AngelaChatWidgetProps> = ({ userId }) => {
   }
   
   return (
-    <div className="bg-white rounded-xl shadow-xl mb-6 sticky top-24 border border-purple-100">
+    <div className={`bg-white rounded-xl shadow-xl ${!isFloating ? 'mb-6 sticky top-24' : ''} border border-purple-100`}>
       <div className="p-4 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-t-xl text-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
