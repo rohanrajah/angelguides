@@ -47,10 +47,23 @@ function Router() {
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [, setLocation] = useLocation();
   const [location] = useLocation();
+  const [seenWelcome, setSeenWelcome] = useState<boolean>(false);
   
   // Check if we're on the welcome page
   const isWelcomePage = location === "/";
+
+  // Check if user has seen welcome page
+  useEffect(() => {
+    const hasSeenWelcome = localStorage.getItem('hasSeenWelcome') === 'true';
+    setSeenWelcome(hasSeenWelcome);
+    
+    // If not on welcome page and has not seen welcome, redirect to welcome page
+    if (location !== '/' && !hasSeenWelcome) {
+      setLocation('/');
+    }
+  }, [location, setLocation]);
 
   useEffect(() => {
     const fetchCurrentUser = async () => {

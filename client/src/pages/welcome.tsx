@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'wouter';
-import angelaConsciousImage from '../assets/angela-conscious.jpg';
-import angelaWelcomeAudio from '../assets/audio/angela-welcome.mp3';
-import FloatingAngelaBubble from '../components/chat/FloatingAngelaBubble';
+import angelaConsciousImage from '@/assets/angela-conscious.jpg';
+import angelaWelcomeAudio from '@/assets/audio/angela-welcome.mp3';
+import FloatingAngelaBubble from '@/components/chat/FloatingAngelaBubble';
 
 // Typing animation for text
 const TypedText: React.FC<{
@@ -124,6 +124,9 @@ const WelcomePage: React.FC = () => {
       // Show the bubble after a short delay
       setTimeout(() => {
         setShowBubble(true);
+        
+        // Mark that user has seen welcome page
+        localStorage.setItem('hasSeenWelcome', 'true');
         
         // Redirect to home page after showing the bubble
         setTimeout(() => {
@@ -333,6 +336,19 @@ const WelcomePage: React.FC = () => {
       
       {/* Hidden audio element for narration */}
       <audio ref={audioRef} src={angelaWelcomeAudio} preload="auto" />
+      
+      {/* Skip button */}
+      <div className="absolute bottom-6 right-6">
+        <button 
+          onClick={() => {
+            localStorage.setItem('hasSeenWelcome', 'true');
+            setLocation("/home");
+          }}
+          className="px-4 py-2 text-white text-sm bg-white/10 hover:bg-white/20 rounded-full transition-colors duration-200 backdrop-blur-sm"
+        >
+          Skip Intro
+        </button>
+      </div>
     </div>
   );
 };
