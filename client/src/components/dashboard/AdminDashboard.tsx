@@ -152,7 +152,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
                         <TableCell>{formatCurrency(payout.amount)}</TableCell>
                         <TableCell>{new Date(payout.requestDate).toLocaleDateString()}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">Pending</Badge>
+                          <Badge variant="secondary">Pending</Badge>
                         </TableCell>
                         <TableCell className="text-right">
                           <Button 
@@ -214,7 +214,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={user.online ? 'success' : 'outline'}>
+                          <Badge variant={user.online ? 'default' : 'outline'}>
                             {user.online ? 'Online' : 'Offline'}
                           </Badge>
                         </TableCell>
@@ -265,7 +265,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
                     {transactions.slice(0, 5).map(transaction => (
                       <TableRow key={transaction.id}>
                         <TableCell className="font-medium">#{transaction.id}</TableCell>
-                        <TableCell>{transaction.userName || transaction.userId}</TableCell>
+                        <TableCell>User #{transaction.userId}</TableCell>
                         <TableCell>
                           <Badge variant={
                             transaction.type === 'user_topup' 
@@ -285,7 +285,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
                         <TableCell>
                           <Badge variant={
                             transaction.paymentStatus === 'completed' 
-                              ? 'success' 
+                              ? 'default' 
                               : transaction.paymentStatus === 'pending' 
                                 ? 'outline' 
                                 : 'destructive'

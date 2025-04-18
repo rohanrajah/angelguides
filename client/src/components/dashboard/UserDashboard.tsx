@@ -150,7 +150,7 @@ const UserDashboard = ({ user, onTopUp }: UserDashboardProps) => {
                       <Star className="h-3 w-3 text-amber-500 mr-1" />
                       <span>{advisor.rating || 0}/5</span>
                       <span className="mx-2">•</span>
-                      <span>{advisor.specialty || 'Spiritual Advisor'}</span>
+                      <span>Spiritual Advisor</span>
                     </div>
                   </div>
                   <Button variant="outline" size="sm" asChild>

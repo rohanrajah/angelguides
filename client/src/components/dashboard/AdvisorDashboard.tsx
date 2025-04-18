@@ -71,7 +71,7 @@ const AdvisorDashboard = ({ user, onWithdraw }: AdvisorDashboardProps) => {
         <h1 className="text-2xl font-bold">Welcome back, {user.name}</h1>
         
         <div className="flex items-center space-x-4 mt-3 md:mt-0">
-          <Badge variant={user.online ? "success" : "secondary"} className="py-1 px-3">
+          <Badge variant={user.online ? "default" : "secondary"} className="py-1 px-3">
             {user.online ? "Online" : "Offline"}
           </Badge>
           
@@ -158,7 +158,7 @@ const AdvisorDashboard = ({ user, onWithdraw }: AdvisorDashboardProps) => {
                 return (
                   <div key={session.id} className="flex justify-between items-center p-4 border rounded-lg">
                     <div>
-                      <h3 className="font-medium">Session with {session.userName || 'Client'}</h3>
+                      <h3 className="font-medium">Session with Client #{session.userId}</h3>
                       <div className="text-sm text-muted-foreground">Today at {formattedTime}</div>
                       <div className="flex items-center mt-1">
                         <Badge variant={session.status === 'in_progress' ? 'default' : 'outline'}>

@@ -91,7 +91,7 @@ const WalletCard = ({ user, onTopUp, onWithdraw }: WalletCardProps) => {
           <Button 
             onClick={onWithdraw} 
             className="w-full" 
-            disabled={!(user.earningsBalance && user.earningsBalance > 0) || user.pendingPayout}
+            disabled={!(user.earningsBalance && user.earningsBalance > 0) || !!user.pendingPayout}
           >
             <ArrowUpRight className="mr-1 h-4 w-4" />
             {user.pendingPayout ? 'Payout In Progress' : 'Request Payout'}
