@@ -39,6 +39,7 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
   const bubbleSize = isHomePage ? 'w-64 h-64' : 'w-20 h-20';
   const iconSize = isHomePage ? 'text-5xl' : 'text-2xl';
   const wingSize = isHomePage ? 'w-[20rem] h-[20rem]' : 'w-32 h-32';
+  const wingPosition = isHomePage ? '-top-3/4' : '-top-1/2';
   
   function startDrag(event: React.PointerEvent<HTMLDivElement>) {
     dragControls.start(event, { snapToCursor: false });
@@ -69,11 +70,11 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
       <div className="relative" onPointerDown={startDrag}>
         {/* Left Wing */}
         <motion.div
-          className={`absolute ${wingSize} -left-3/4 top-0 pointer-events-none`}
-          initial={{ rotate: -10, originX: 1, originY: 0.5 }}
+          className={`absolute ${wingSize} -left-3/4 ${wingPosition} pointer-events-none`}
+          initial={{ rotate: -60, originX: 1, originY: 0.5 }}
           animate={{
-            rotate: [-10, -30, -10],
-            translateY: [0, -5, 0],
+            rotate: [-60, -75, -60],
+            translateY: [0, -15, 0],
           }}
           transition={{
             repeat: Infinity,
@@ -96,7 +97,7 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
               </filter>
             </defs>
             <path
-              d="M100,20 Q80,10 60,30 Q70,50 60,80 Q40,60 25,90 Q15,70 0,60 Q10,40 20,20 Q45,0 100,20 Z"
+              d="M100,50 Q80,20 60,10 Q40,0 20,10 Q10,20 0,40 Q20,30 40,20 Q60,10 80,20 Q90,30 100,50 Z"
               fill="url(#angelGradientLeft)"
               opacity="0.9"
               filter="url(#glowLeft)"
@@ -106,11 +107,11 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
 
         {/* Right Wing */}
         <motion.div
-          className={`absolute ${wingSize} -right-3/4 top-0 pointer-events-none`}
-          initial={{ rotate: 10, originX: 0, originY: 0.5 }}
+          className={`absolute ${wingSize} -right-3/4 ${wingPosition} pointer-events-none`}
+          initial={{ rotate: 60, originX: 0, originY: 0.5 }}
           animate={{
-            rotate: [10, 30, 10],
-            translateY: [0, -5, 0],
+            rotate: [60, 75, 60],
+            translateY: [0, -15, 0],
           }}
           transition={{
             repeat: Infinity,
@@ -133,7 +134,7 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
               </filter>
             </defs>
             <path
-              d="M0,20 Q20,10 40,30 Q30,50 40,80 Q60,60 75,90 Q85,70 100,60 Q90,40 80,20 Q55,0 0,20 Z"
+              d="M0,50 Q10,20 20,10 Q40,0 60,10 Q80,20 100,40 Q80,30 60,20 Q40,10 20,20 Q10,30 0,50 Z"
               fill="url(#angelGradientRight)"
               opacity="0.9"
               filter="url(#glowRight)"
