@@ -132,7 +132,31 @@ export type Message = typeof messages.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 
 export type Conversation = typeof conversations.$inferSelect;
+// Reviews schema
+export const reviews = pgTable("reviews", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  advisorId: integer("advisor_id").notNull(),
+  sessionId: integer("session_id").notNull(),
+  rating: integer("rating").notNull(), // 1-5 stars
+  content: text("content"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  response: text("response"), // Advisor's response to the review
+  responseDate: timestamp("response_date"),
+  isHidden: boolean("is_hidden").default(false), // For moderation purposes
+});
+
+export const insertReviewSchema = createInsertSchema(reviews).pick({
+  userId: true,
+  advisorId: true,
+  sessionId: true,
+  rating: true,
+  content: true,
+});
+
 export type InsertConversation = z.infer<typeof insertConversationSchema>;
+export type Review = typeof reviews.$inferSelect;
+export type InsertReview = z.infer<typeof insertReviewSchema>;
 
 export type ChatMessage = {
   role: 'user' | 'assistant';

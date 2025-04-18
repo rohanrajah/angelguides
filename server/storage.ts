@@ -4,6 +4,7 @@ import {
   advisorSpecialties, type AdvisorSpecialty, type InsertAdvisorSpecialty,
   sessions, type Session, type InsertSession,
   messages, type Message, type InsertMessage,
+  reviews, type Review, type InsertReview,
   conversations, type Conversation, type InsertConversation, type ChatMessage,
   SessionType, SpecialtyCategory
 } from "@shared/schema";
@@ -48,6 +49,16 @@ export interface IStorage {
   // AI Concierge methods
   getOrCreateConversation(userId: number): Promise<Conversation>;
   updateConversation(id: number, messages: ChatMessage[]): Promise<Conversation>;
+  
+  // Review methods
+  createReview(review: InsertReview): Promise<Review>;
+  getReviewById(id: number): Promise<Review | undefined>;
+  getReviewsByUser(userId: number): Promise<Review[]>;
+  getReviewsByAdvisor(advisorId: number): Promise<Review[]>;
+  getReviewBySession(sessionId: number): Promise<Review | undefined>;
+  getAverageRatingForAdvisor(advisorId: number): Promise<number>;
+  addResponseToReview(reviewId: number, response: string): Promise<Review | undefined>;
+  updateAdvisorRating(advisorId: number): Promise<User | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -57,6 +68,7 @@ export class MemStorage implements IStorage {
   private sessions: Map<number, Session>;
   private messages: Map<number, Message>;
   private conversations: Map<number, Conversation>;
+  private reviews: Map<number, Review>;
   
   private userIdCounter: number;
   private specialtyIdCounter: number;
@@ -64,6 +76,7 @@ export class MemStorage implements IStorage {
   private sessionIdCounter: number;
   private messageIdCounter: number;
   private conversationIdCounter: number;
+  private reviewIdCounter: number;
 
   constructor() {
     this.users = new Map();
@@ -72,6 +85,7 @@ export class MemStorage implements IStorage {
     this.sessions = new Map();
     this.messages = new Map();
     this.conversations = new Map();
+    this.reviews = new Map();
     
     this.userIdCounter = 1;
     this.specialtyIdCounter = 1;
@@ -79,6 +93,7 @@ export class MemStorage implements IStorage {
     this.sessionIdCounter = 1;
     this.messageIdCounter = 1;
     this.conversationIdCounter = 1;
+    this.reviewIdCounter = 1;
     
     // Initialize with sample data
     this.initializeData();
