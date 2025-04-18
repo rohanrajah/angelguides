@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'wouter';
 import angelaConsciousImage from '@/assets/angela-conscious.jpg';
 import angelaWelcomeAudio from '@/assets/audio/angela-welcome.mp3';
-import FloatingAngelaBubble from '@/components/chat/FloatingAngelaBubble';
+// FloatingAngelaBubble is now rendered in App.tsx for all pages
 import AdvisorMatchingQuestionnaire from '@/components/advisor/AdvisorMatchingQuestionnaire';
 
 // Typing animation for text

@@ -13,6 +13,7 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
   const [isOpen, setIsOpen] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
   const [location] = useLocation();
+  // Full size on home and landing page, smaller on other pages
   const isHomePage = location === "/" || location === "/home";
   
   // Position values for dragging
@@ -35,9 +36,9 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
     };
   }, []);
 
-  // Size based on page
+  // Size based on page - full size on home/landing, 1/3 size on other pages
   const bubbleSize = isHomePage ? 'w-64 h-64' : 'w-20 h-20';
-  const iconSize = isHomePage ? 'h-24 w-24' : 'h-12 w-12';
+  const iconSize = isHomePage ? 'h-24 w-24' : 'h-8 w-8';
   
   function startDrag(event: React.PointerEvent<HTMLDivElement>) {
     dragControls.start(event, { snapToCursor: false });

@@ -154,7 +154,8 @@ function App() {
           <Router />
         </main>
         {!isWelcomePage && <Footer />}
-        {!isWelcomePage && <FloatingAngelaBubble userId={currentUser?.id || 5} />}
+        {/* Angela AI bubble appears on all pages */}
+        <FloatingAngelaBubble userId={currentUser?.id || 5} />
         
         {/* Angela AI Onboarding Modal */}
         {showOnboarding && !isWelcomePage && (
