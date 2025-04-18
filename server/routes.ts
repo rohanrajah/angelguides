@@ -250,7 +250,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create a transaction record for the payout request
       await storage.createTransaction({
-        type: 'advisor_payout',
+        type: TransactionType.ADVISOR_PAYOUT,
         userId: advisorId,
         amount: earningsBalance,
         description: `Payout request for $${(earningsBalance / 100).toFixed(2)}`,
@@ -292,7 +292,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create a transaction record for the completed payout
       await storage.createTransaction({
-        type: 'advisor_payout',
+        type: TransactionType.ADVISOR_PAYOUT,
         userId: advisorId,
         amount: earningsBalance,
         description: `Completed payout of $${(earningsBalance / 100).toFixed(2)}`,

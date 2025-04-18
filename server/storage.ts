@@ -617,7 +617,7 @@ export class MemStorage implements IStorage {
         advisorId: session.advisorId,
         sessionId: session.id,
         amount: billedAmount,
-        description: `Payment for ${durationMinutes} minute ${session.sessionType} session with ${(await this.getUser(session.advisorId))?.name}`,
+        description: `Payment for ${durationMinutes} minute ${session.sessionType} session with ${(await this.getAdvisorById(session.advisorId))?.name}`,
         paymentStatus: 'completed'
       });
       
