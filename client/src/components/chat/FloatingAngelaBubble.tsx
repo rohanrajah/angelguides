@@ -75,23 +75,39 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
           animate={{
             scale: [1, 1.05, 1],
             boxShadow: [
-              "0 6px 12px rgba(120, 57, 213, 0.4)",
-              "0 15px 35px rgba(120, 57, 213, 0.8)",
-              "0 6px 12px rgba(120, 57, 213, 0.4)",
+              "0 6px 12px rgba(60, 149, 248, 0.6)",
+              "0 10px 20px rgba(168, 85, 247, 0.7)",
+              "0 15px 35px rgba(236, 72, 153, 0.8)",
+              "0 10px 20px rgba(168, 85, 247, 0.7)",
+              "0 6px 12px rgba(60, 149, 248, 0.6)",
+            ],
+            background: [
+              "linear-gradient(145deg, rgba(59, 130, 246, 0.9), rgba(124, 58, 237, 0.7), rgba(236, 72, 153, 0.8))",
+              "linear-gradient(145deg, rgba(124, 58, 237, 0.7), rgba(236, 72, 153, 0.8), rgba(59, 130, 246, 0.9))",
+              "linear-gradient(145deg, rgba(236, 72, 153, 0.8), rgba(59, 130, 246, 0.9), rgba(124, 58, 237, 0.7))",
+              "linear-gradient(145deg, rgba(124, 58, 237, 0.7), rgba(236, 72, 153, 0.8), rgba(59, 130, 246, 0.9))",
+              "linear-gradient(145deg, rgba(59, 130, 246, 0.9), rgba(124, 58, 237, 0.7), rgba(236, 72, 153, 0.8))",
             ]
           }}
           transition={{
             repeat: Infinity,
-            repeatType: "reverse",
-            duration: 3,
+            repeatType: "loop",
+            duration: 8,
             ease: "easeInOut"
           }}
         >
-          {/* Siri-like waves */}
+          {/* Siri-like gradient waves */}
           <div className="siri-waves">
-            <div className="siri-wave"></div>
-            <div className="siri-wave"></div>
-            <div className="siri-wave"></div>
+            <div className="siri-wave siri-wave-blue"></div>
+            <div className="siri-wave siri-wave-purple"></div>
+            <div className="siri-wave siri-wave-pink"></div>
+            <div className="siri-wave siri-wave-blue"></div>
+            <div className="siri-wave siri-wave-purple"></div>
+            
+            {/* Horizontal gradient waves */}
+            <div className="siri-horizontal-wave"></div>
+            <div className="siri-horizontal-wave"></div>
+            <div className="siri-horizontal-wave"></div>
           </div>
           
           {/* Circle animations */}
