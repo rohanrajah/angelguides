@@ -5,7 +5,7 @@ import { Link } from 'wouter';
 import { motion } from 'framer-motion';
 
 // Components
-import AdvisorCard from '@/components/advisor/AdvisorCard';
+import { AdvisorCard } from '@/components/advisor/AdvisorCard';
 import AdvisorFilters from '@/components/advisor/AdvisorFilters';
 import SessionCard from '@/components/session/SessionCard';
 // Angela AI is now available as a floating bubble across all pages
