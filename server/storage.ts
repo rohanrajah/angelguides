@@ -402,6 +402,10 @@ export class MemStorage implements IStorage {
     this.sessions.set(id, newSession);
     return newSession;
   }
+  
+  async getSessionById(id: number): Promise<Session | undefined> {
+    return this.sessions.get(id);
+  }
 
   async getSessionsByUser(userId: number): Promise<Session[]> {
     return Array.from(this.sessions.values())
@@ -442,10 +446,10 @@ export class MemStorage implements IStorage {
   async getConversation(userId1: number, userId2: number): Promise<Message[]> {
     return Array.from(this.messages.values())
       .filter(message => 
-        (message.senderId === userId1 && message.receiverId === userId2) ||
+        (message.senderId === userId1 && message.receiverId === userId2) || 
         (message.senderId === userId2 && message.receiverId === userId1)
       )
-      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
   }
 
   async getUnreadMessageCount(userId: number): Promise<number> {
@@ -456,19 +460,20 @@ export class MemStorage implements IStorage {
 
   // AI Concierge methods
   async getOrCreateConversation(userId: number): Promise<Conversation> {
-    // Find existing conversation
-    const existing = Array.from(this.conversations.values())
-      .find(convo => convo.userId === userId);
+    // Try to find existing conversation for this user
+    const existingConversation = Array.from(this.conversations.values())
+      .find(conv => conv.userId === userId);
     
-    if (existing) {
-      return existing;
+    if (existingConversation) {
+      return existingConversation;
     }
     
-    // Create new conversation
+    // Create new conversation if none exists
     const id = this.conversationIdCounter++;
+    
     const welcomeMessage: ChatMessage = {
       role: 'assistant',
-      content: 'Welcome to Angel Guides! I\'m Angela AI, your spiritual guide assistant. How can I help you today?',
+      content: "Hi! I'm Angela, your spiritual guide. How can I help you today?",
       timestamp: new Date()
     };
     
@@ -497,6 +502,96 @@ export class MemStorage implements IStorage {
     
     this.conversations.set(id, updatedConversation);
     return updatedConversation;
+  }
+
+  // Review methods
+  async createReview(review: InsertReview): Promise<Review> {
+    const id = this.reviewIdCounter++;
+    const newReview: Review = {
+      ...review,
+      id,
+      createdAt: new Date(),
+      response: null,
+      responseDate: null,
+      isHidden: false
+    };
+    this.reviews.set(id, newReview);
+    
+    // Update the advisor's rating after a new review
+    await this.updateAdvisorRating(review.advisorId);
+    
+    return newReview;
+  }
+
+  async getReviewById(id: number): Promise<Review | undefined> {
+    return this.reviews.get(id);
+  }
+
+  async getReviewsByUser(userId: number): Promise<Review[]> {
+    return Array.from(this.reviews.values())
+      .filter(review => review.userId === userId);
+  }
+
+  async getReviewsByAdvisor(advisorId: number): Promise<Review[]> {
+    return Array.from(this.reviews.values())
+      .filter(review => review.advisorId === advisorId && !review.isHidden)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()); // Sort by newest first
+  }
+
+  async getReviewBySession(sessionId: number): Promise<Review | undefined> {
+    return Array.from(this.reviews.values())
+      .find(review => review.sessionId === sessionId);
+  }
+
+  async getAverageRatingForAdvisor(advisorId: number): Promise<number> {
+    const reviews = await this.getReviewsByAdvisor(advisorId);
+    if (reviews.length === 0) {
+      return 0;
+    }
+    
+    const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+    return totalRating / reviews.length;
+  }
+
+  async addResponseToReview(reviewId: number, response: string): Promise<Review | undefined> {
+    const review = this.reviews.get(reviewId);
+    if (!review) {
+      return undefined;
+    }
+    
+    const updatedReview = {
+      ...review,
+      response,
+      responseDate: new Date()
+    };
+    
+    this.reviews.set(reviewId, updatedReview);
+    return updatedReview;
+  }
+
+  async updateAdvisorRating(advisorId: number): Promise<User | undefined> {
+    const advisor = await this.getAdvisorById(advisorId);
+    if (!advisor) {
+      return undefined;
+    }
+    
+    const reviews = await this.getReviewsByAdvisor(advisorId);
+    const reviewCount = reviews.length;
+    let rating = 0;
+    
+    if (reviewCount > 0) {
+      const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+      rating = Math.round((totalRating / reviewCount) * 10) / 10; // Round to one decimal place
+    }
+    
+    const updatedAdvisor = {
+      ...advisor,
+      rating,
+      reviewCount
+    };
+    
+    this.users.set(advisorId, updatedAdvisor);
+    return updatedAdvisor;
   }
 }
 

@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { getAngelaResponse, startAdvisorMatchingFlow } from "./openai";
 import { z } from "zod";
-import { insertUserSchema, insertSessionSchema, insertMessageSchema } from "@shared/schema";
+import { insertUserSchema, insertSessionSchema, insertMessageSchema, insertReviewSchema } from "@shared/schema";
 import Stripe from "stripe";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -420,6 +420,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error processing webhook:", error);
       res.status(500).json({ message: "Failed to process webhook" });
+    }
+  });
+
+  // Review routes
+  // Create a review for a session
+  app.post("/api/reviews", async (req: Request, res: Response) => {
+    try {
+      const reviewData = insertReviewSchema.parse(req.body);
+      
+      // Check if session exists
+      const session = await storage.getSessionById(reviewData.sessionId);
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      
+      // Check if user is the one who booked the session
+      if (session.userId !== reviewData.userId) {
+        return res.status(403).json({ message: "You can only review sessions you booked" });
+      }
+      
+      // Check if review already exists for this session
+      const existingReview = await storage.getReviewBySession(reviewData.sessionId);
+      if (existingReview) {
+        return res.status(400).json({ message: "You have already reviewed this session" });
+      }
+      
+      const review = await storage.createReview(reviewData);
+      res.status(201).json(review);
+    } catch (error) {
+      console.error("Error creating review:", error);
+      res.status(400).json({ message: "Failed to create review" });
+    }
+  });
+
+  // Get reviews for an advisor
+  app.get("/api/advisors/:advisorId/reviews", async (req: Request, res: Response) => {
+    try {
+      const advisorId = parseInt(req.params.advisorId);
+      
+      // Check if advisor exists
+      const advisor = await storage.getAdvisorById(advisorId);
+      if (!advisor) {
+        return res.status(404).json({ message: "Advisor not found" });
+      }
+      
+      const reviews = await storage.getReviewsByAdvisor(advisorId);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching advisor reviews:", error);
+      res.status(500).json({ message: "Failed to fetch advisor reviews" });
+    }
+  });
+
+  // Get a review by ID
+  app.get("/api/reviews/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const review = await storage.getReviewById(id);
+      
+      if (!review) {
+        return res.status(404).json({ message: "Review not found" });
+      }
+      
+      res.json(review);
+    } catch (error) {
+      console.error("Error fetching review:", error);
+      res.status(500).json({ message: "Failed to fetch review" });
+    }
+  });
+
+  // Advisor: Add response to a review
+  app.post("/api/reviews/:id/response", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { response, advisorId } = req.body;
+      
+      if (!response || !advisorId) {
+        return res.status(400).json({ message: "Response and advisorId are required" });
+      }
+      
+      // Get the review
+      const review = await storage.getReviewById(id);
+      if (!review) {
+        return res.status(404).json({ message: "Review not found" });
+      }
+      
+      // Check if the review is for this advisor
+      if (review.advisorId !== advisorId) {
+        return res.status(403).json({ message: "You can only respond to reviews for your profile" });
+      }
+      
+      // Check if response already exists
+      if (review.response) {
+        return res.status(400).json({ message: "You have already responded to this review" });
+      }
+      
+      const updatedReview = await storage.addResponseToReview(id, response);
+      res.json(updatedReview);
+    } catch (error) {
+      console.error("Error adding review response:", error);
+      res.status(500).json({ message: "Failed to add review response" });
+    }
+  });
+
+  // Get reviews by user
+  app.get("/api/users/:userId/reviews", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      // Check if user exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const reviews = await storage.getReviewsByUser(userId);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching user reviews:", error);
+      res.status(500).json({ message: "Failed to fetch user reviews" });
     }
   });
 
