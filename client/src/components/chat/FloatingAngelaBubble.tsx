@@ -3,6 +3,7 @@ import { motion, AnimatePresence, useMotionValue, useDragControls } from 'framer
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import AngelaChatWidget from './AngelaChatWidget';
+import angelaLogoUrl from '../../assets/angela-logo.svg';
 
 interface FloatingAngelaBubbleProps {
   userId: number;
@@ -218,7 +219,11 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
                 ease: "easeInOut"
               }}
             >
-              <i className={`fas fa-praying-hands ${iconSize} mb-1`}></i>
+              <img 
+                src={angelaLogoUrl} 
+                alt="Angela AI Logo" 
+                className={`${isHomePage ? 'h-24 w-24' : 'h-12 w-12'} mb-1 filter brightness-0 invert`} 
+              />
               <span className={`font-semibold ${isHomePage ? 'text-xl' : 'text-xs'}`}>Angela AI</span>
             </motion.div>
 
