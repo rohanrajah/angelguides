@@ -3,7 +3,13 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { getAngelaResponse, startAdvisorMatchingFlow } from "./openai";
 import { z } from "zod";
-import { insertUserSchema, insertSessionSchema, insertMessageSchema, insertReviewSchema } from "@shared/schema";
+import { 
+  insertUserSchema, 
+  insertSessionSchema, 
+  insertMessageSchema, 
+  insertReviewSchema,
+  TransactionType 
+} from "@shared/schema";
 import Stripe from "stripe";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -145,6 +151,180 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error updating session status:", error);
       res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Start a session
+  app.post("/api/sessions/:id/start", async (req: Request, res: Response) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+      const session = await storage.getSessionById(sessionId);
+      
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      
+      if (session.status !== "scheduled") {
+        return res.status(400).json({ message: "Session cannot be started" });
+      }
+      
+      const startedSession = await storage.startSession(sessionId);
+      res.status(200).json(startedSession);
+    } catch (error: any) {
+      console.error("Error starting session:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // End a session and process payment
+  app.post("/api/sessions/:id/end", async (req: Request, res: Response) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+      const session = await storage.getSessionById(sessionId);
+      
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      
+      if (session.status !== "in_progress") {
+        return res.status(400).json({ message: "Session is not in progress" });
+      }
+      
+      const endedSession = await storage.endSession(sessionId);
+      res.status(200).json(endedSession);
+    } catch (error: any) {
+      console.error("Error ending session:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // Advisor earnings and payout endpoints
+  app.get("/api/advisors/:advisorId/earnings", async (req: Request, res: Response) => {
+    try {
+      const advisorId = parseInt(req.params.advisorId);
+      const advisor = await storage.getAdvisorById(advisorId);
+      
+      if (!advisor) {
+        return res.status(404).json({ message: "Advisor not found" });
+      }
+      
+      const earningsBalance = await storage.getAdvisorEarningsBalance(advisorId);
+      const totalEarnings = await storage.getTotalAdvisorEarnings(advisorId);
+      const transactions = await storage.getTransactionsByAdvisor(advisorId);
+      const completedSessions = (await storage.getSessionsByAdvisor(advisorId))
+        .filter(session => session.status === "completed");
+      
+      res.status(200).json({
+        earningsBalance,
+        totalEarnings,
+        pendingPayout: advisor.pendingPayout,
+        transactions,
+        completedSessions
+      });
+    } catch (error: any) {
+      console.error("Error fetching advisor earnings:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // Request a payout
+  app.post("/api/advisors/:advisorId/request-payout", async (req: Request, res: Response) => {
+    try {
+      const advisorId = parseInt(req.params.advisorId);
+      const advisor = await storage.getAdvisorById(advisorId);
+      
+      if (!advisor) {
+        return res.status(404).json({ message: "Advisor not found" });
+      }
+      
+      if (advisor.pendingPayout) {
+        return res.status(400).json({ message: "Payout already requested" });
+      }
+      
+      const earningsBalance = await storage.getAdvisorEarningsBalance(advisorId);
+      if (earningsBalance <= 0) {
+        return res.status(400).json({ message: "No earnings available for payout" });
+      }
+      
+      const updatedAdvisor = await storage.setPendingPayout(advisorId, true);
+      
+      // Create a transaction record for the payout request
+      await storage.createTransaction({
+        type: 'advisor_payout',
+        userId: advisorId,
+        amount: earningsBalance,
+        description: `Payout request for $${(earningsBalance / 100).toFixed(2)}`,
+        paymentStatus: 'pending'
+      });
+      
+      res.status(200).json({
+        message: "Payout requested successfully",
+        pendingPayout: true,
+        amount: earningsBalance
+      });
+    } catch (error: any) {
+      console.error("Error requesting payout:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // Admin: Complete a payout request
+  app.post("/api/advisors/:advisorId/complete-payout", async (req: Request, res: Response) => {
+    try {
+      const advisorId = parseInt(req.params.advisorId);
+      const advisor = await storage.getAdvisorById(advisorId);
+      
+      if (!advisor) {
+        return res.status(404).json({ message: "Advisor not found" });
+      }
+      
+      if (!advisor.pendingPayout) {
+        return res.status(400).json({ message: "No pending payout" });
+      }
+      
+      const earningsBalance = await storage.getAdvisorEarningsBalance(advisorId);
+      
+      // Deduct from advisor's earnings balance
+      await storage.deductAdvisorEarnings(advisorId, earningsBalance);
+      
+      // Update the pending payout flag
+      await storage.setPendingPayout(advisorId, false);
+      
+      // Create a transaction record for the completed payout
+      await storage.createTransaction({
+        type: 'advisor_payout',
+        userId: advisorId,
+        amount: earningsBalance,
+        description: `Completed payout of $${(earningsBalance / 100).toFixed(2)}`,
+        paymentStatus: 'completed'
+      });
+      
+      res.status(200).json({
+        message: "Payout completed successfully",
+        amount: earningsBalance
+      });
+    } catch (error: any) {
+      console.error("Error completing payout:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // User transaction history
+  app.get("/api/users/:userId/transactions", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const transactions = await storage.getTransactionsByUser(userId);
+      
+      res.status(200).json(transactions);
+    } catch (error: any) {
+      console.error("Error fetching transactions:", error);
+      res.status(500).json({ message: error.message });
     }
   });
 
@@ -434,6 +614,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Add to user's balance
           await storage.addUserBalance(userId, amount);
+          
+          // Create transaction record
+          await storage.createTransaction({
+            type: TransactionType.USER_TOPUP,
+            userId,
+            amount,
+            description: `Account top-up of $${(amount / 100).toFixed(2)}`,
+            paymentStatus: 'completed',
+            paymentReference: paymentIntent.id
+          });
           
           console.log(`Successfully topped up user ${userId} with ${amount} cents`);
         }

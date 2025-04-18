@@ -375,6 +375,83 @@ export class MemStorage implements IStorage {
     }
     return undefined;
   }
+  
+  async updateStripeConnectId(userId: number, stripeConnectId: string): Promise<User | undefined> {
+    const user = this.users.get(userId);
+    if (user) {
+      const updatedUser = { ...user, stripeConnectId };
+      this.users.set(userId, updatedUser);
+      return updatedUser;
+    }
+    return undefined;
+  }
+  
+  // Advisor earnings methods
+  async addAdvisorEarnings(advisorId: number, amount: number): Promise<User | undefined> {
+    const advisor = this.users.get(advisorId);
+    if (!advisor || !advisor.isAdvisor) {
+      throw new Error('User is not an advisor');
+    }
+    
+    const currentEarningsBalance = advisor.earningsBalance || 0;
+    const currentTotalEarnings = advisor.totalEarnings || 0;
+    
+    const updatedAdvisor = { 
+      ...advisor, 
+      earningsBalance: currentEarningsBalance + amount,
+      totalEarnings: currentTotalEarnings + amount
+    };
+    
+    this.users.set(advisorId, updatedAdvisor);
+    return updatedAdvisor;
+  }
+  
+  async deductAdvisorEarnings(advisorId: number, amount: number): Promise<User | undefined> {
+    const advisor = this.users.get(advisorId);
+    if (!advisor || !advisor.isAdvisor) {
+      throw new Error('User is not an advisor');
+    }
+    
+    const currentEarningsBalance = advisor.earningsBalance || 0;
+    if (currentEarningsBalance < amount) {
+      throw new Error('Insufficient earnings balance');
+    }
+    
+    const updatedAdvisor = { 
+      ...advisor, 
+      earningsBalance: currentEarningsBalance - amount
+    };
+    
+    this.users.set(advisorId, updatedAdvisor);
+    return updatedAdvisor;
+  }
+  
+  async getAdvisorEarningsBalance(advisorId: number): Promise<number> {
+    const advisor = this.users.get(advisorId);
+    if (!advisor || !advisor.isAdvisor) {
+      throw new Error('User is not an advisor');
+    }
+    return advisor.earningsBalance || 0;
+  }
+  
+  async getTotalAdvisorEarnings(advisorId: number): Promise<number> {
+    const advisor = this.users.get(advisorId);
+    if (!advisor || !advisor.isAdvisor) {
+      throw new Error('User is not an advisor');
+    }
+    return advisor.totalEarnings || 0;
+  }
+  
+  async setPendingPayout(advisorId: number, isPending: boolean): Promise<User | undefined> {
+    const advisor = this.users.get(advisorId);
+    if (!advisor || !advisor.isAdvisor) {
+      throw new Error('User is not an advisor');
+    }
+    
+    const updatedAdvisor = { ...advisor, pendingPayout: isPending };
+    this.users.set(advisorId, updatedAdvisor);
+    return updatedAdvisor;
+  }
 
   // Specialty methods
   async getAllSpecialties(): Promise<Specialty[]> {
@@ -488,6 +565,85 @@ export class MemStorage implements IStorage {
     if (!session) return undefined;
     
     const updatedSession = { ...session, status };
+    this.sessions.set(sessionId, updatedSession);
+    
+    return updatedSession;
+  }
+  
+  async startSession(sessionId: number): Promise<Session | undefined> {
+    const session = this.sessions.get(sessionId);
+    if (!session) return undefined;
+    
+    const updatedSession = { 
+      ...session, 
+      status: "in_progress",
+      actualStartTime: new Date() 
+    };
+    this.sessions.set(sessionId, updatedSession);
+    
+    return updatedSession;
+  }
+  
+  async endSession(sessionId: number): Promise<Session | undefined> {
+    const session = this.sessions.get(sessionId);
+    if (!session) return undefined;
+    if (!session.actualStartTime) {
+      throw new Error('Session has not been started');
+    }
+    
+    const actualEndTime = new Date();
+    // Calculate duration in minutes, rounded up
+    const durationMs = actualEndTime.getTime() - session.actualStartTime.getTime();
+    const durationMinutes = Math.ceil(durationMs / (1000 * 60));
+    
+    // Calculate billed amount
+    const billedAmount = durationMinutes * session.ratePerMinute;
+    
+    const updatedSession = { 
+      ...session, 
+      status: "completed",
+      actualEndTime,
+      actualDuration: durationMinutes,
+      billedAmount
+    };
+    this.sessions.set(sessionId, updatedSession);
+    
+    // Deduct from client's balance and add to advisor's earnings
+    try {
+      // Create a transaction record for the session payment
+      await this.createTransaction({
+        type: TransactionType.SESSION_PAYMENT,
+        userId: session.userId,
+        advisorId: session.advisorId,
+        sessionId: session.id,
+        amount: billedAmount,
+        description: `Payment for ${durationMinutes} minute ${session.sessionType} session with ${(await this.getUser(session.advisorId))?.name}`,
+        paymentStatus: 'completed'
+      });
+      
+      // Deduct from client
+      await this.deductUserBalance(session.userId, billedAmount);
+      
+      // Add to advisor
+      await this.addAdvisorEarnings(session.advisorId, billedAmount);
+    } catch (error) {
+      // If there's an error with payment processing, update session status accordingly
+      updatedSession.status = "payment_failed";
+      this.sessions.set(sessionId, updatedSession);
+      throw error;
+    }
+    
+    return updatedSession;
+  }
+  
+  async markSessionPaid(sessionId: number): Promise<Session | undefined> {
+    const session = this.sessions.get(sessionId);
+    if (!session) return undefined;
+    if (session.status !== "completed") {
+      throw new Error('Cannot mark incomplete session as paid');
+    }
+    
+    const updatedSession = { ...session, isPaid: true };
     this.sessions.set(sessionId, updatedSession);
     
     return updatedSession;
@@ -659,6 +815,44 @@ export class MemStorage implements IStorage {
     
     this.users.set(advisorId, updatedAdvisor);
     return updatedAdvisor;
+  }
+
+  // Transaction methods
+  async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
+    const id = this.transactionIdCounter++;
+    const newTransaction: Transaction = {
+      id,
+      type: transaction.type,
+      userId: transaction.userId,
+      advisorId: transaction.advisorId ?? null,
+      sessionId: transaction.sessionId ?? null,
+      amount: transaction.amount,
+      description: transaction.description,
+      timestamp: new Date(),
+      paymentStatus: transaction.paymentStatus || 'completed',
+      paymentReference: transaction.paymentReference ?? null
+    };
+    
+    this.transactions.set(id, newTransaction);
+    return newTransaction;
+  }
+  
+  async getTransactionsByUser(userId: number): Promise<Transaction[]> {
+    return Array.from(this.transactions.values())
+      .filter(transaction => transaction.userId === userId)
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()); // Newest first
+  }
+  
+  async getTransactionsByAdvisor(advisorId: number): Promise<Transaction[]> {
+    return Array.from(this.transactions.values())
+      .filter(transaction => transaction.advisorId === advisorId)
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()); // Newest first
+  }
+  
+  async getTransactionsBySession(sessionId: number): Promise<Transaction[]> {
+    return Array.from(this.transactions.values())
+      .filter(transaction => transaction.sessionId === sessionId)
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()); // Newest first
   }
 }
 
