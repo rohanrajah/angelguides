@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { User, Specialty, SpecialtyCategory } from '@shared/schema';
-import AdvisorCard from '@/components/advisor/AdvisorCard';
+import { AdvisorCard } from '@/components/advisor/AdvisorCard';
 import AdvisorFilters from '@/components/advisor/AdvisorFilters';
 import AdvisorCategoryBrowser from '@/components/advisor/AdvisorCategoryBrowser';
 import { motion } from 'framer-motion';
