@@ -280,12 +280,19 @@ const Advisors: React.FC = () => {
             </div>
           )
         ) : (
-          // If user is not searching, use the new category browser
-          <div className="bg-white rounded-lg p-6 border border-gray-200">
-            <AdvisorCategoryBrowser 
-              preselectedCategory={recommendedAdvisors.length > 0 ? SpecialtyCategory.DIVINATION : undefined}
-              recommendedAdvisors={recommendedAdvisors}
-            />
+          // If user is not searching, use the new category browser with heat map
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="col-span-1 lg:col-span-2">
+              <div className="bg-white rounded-lg p-6 border border-gray-200">
+                <AdvisorCategoryBrowser 
+                  preselectedCategory={recommendedAdvisors.length > 0 ? SpecialtyCategory.DIVINATION : undefined}
+                  recommendedAdvisors={recommendedAdvisors}
+                />
+              </div>
+            </div>
+            <div className="col-span-1">
+              <AvailabilityHeatMap />
+            </div>
           </div>
         )}
         
