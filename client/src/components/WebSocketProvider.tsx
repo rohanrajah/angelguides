@@ -1,11 +1,8 @@
-import { ReactNode, useEffect, createContext, useContext, useState } from 'react';
-import { connectWebSocket, disconnectWebSocket, sendMessage, socket } from '@/lib/websocket';
+import React, { createContext, useContext, useEffect, ReactNode } from 'react';
+import { connectWebSocket, disconnectWebSocket, sendMessage } from '@/lib/websocket';
 
 interface WebSocketContextType {
-  connected: boolean;
   sendMessage: (type: string, payload: any) => void;
-  userId?: number;
-  userType?: string;
 }
 
 interface WebSocketProviderProps {
@@ -14,71 +11,51 @@ interface WebSocketProviderProps {
   userType?: string;
 }
 
-// Create context with default values
+// Create a context for WebSocket
 const WebSocketContext = createContext<WebSocketContextType>({
-  connected: false,
   sendMessage: () => {},
 });
 
-export function useWebSocket() {
-  return useContext(WebSocketContext);
-}
-
-export function WebSocketProvider({ children, userId, userType }: WebSocketProviderProps) {
-  const [connected, setConnected] = useState<boolean>(
-    socket ? socket.readyState === WebSocket.OPEN : false
-  );
-
-  // Manage WebSocket connection
+export function WebSocketProvider({ children, userId, userType = 'user' }: WebSocketProviderProps) {
+  // Authenticate user on connection or userId change
   useEffect(() => {
-    // Handle connection status changes
-    const handleSocketOpen = () => setConnected(true);
-    const handleSocketClose = () => setConnected(false);
-    
-    // Initialize connection
-    connectWebSocket();
-    
-    // Add event listeners
-    if (socket) {
-      socket.addEventListener('open', handleSocketOpen);
-      socket.addEventListener('close', handleSocketClose);
-      
-      // Update initial state
-      setConnected(socket.readyState === WebSocket.OPEN);
+    if (userId) {
+      // Send authentication message
+      sendMessage('authenticate', { userId, userType });
+      console.log(`WebSocket authentication sent for user ${userId}, ${userType}`);
     }
-    
-    // Cleanup on unmount
-    return () => {
-      if (socket) {
-        socket.removeEventListener('open', handleSocketOpen);
-        socket.removeEventListener('close', handleSocketClose);
+  }, [userId, userType]);
+  
+  // Reconnect WebSocket on page focus
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        connectWebSocket();
+        
+        // Re-authenticate
+        if (userId) {
+          sendMessage('authenticate', { userId, userType });
+        }
       }
     };
-  }, []);
-
-  // Authenticate with the WebSocket server when user ID changes
-  useEffect(() => {
-    if (userId && userType && connected) {
-      try {
-        // Authenticate with WebSocket server
-        sendMessage('authenticate', {
-          userId,
-          userType
-        });
-        
-        console.log('WebSocket authentication sent for user', userId, userType);
-      } catch (error) {
-        console.error('Error in WebSocket authentication:', error);
-      }
-    }
-  }, [userId, userType, connected]);
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [userId, userType]);
   
-  // Context value
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      disconnectWebSocket();
+    };
+  }, []);
+  
+  // Create the context value
   const contextValue: WebSocketContextType = {
-    connected,
     sendMessage,
-    userId,
-    userType,
   };
   
   return (
@@ -86,4 +63,9 @@ export function WebSocketProvider({ children, userId, userType }: WebSocketProvi
       {children}
     </WebSocketContext.Provider>
   );
+}
+
+// Hook to use the WebSocket context
+export function useWebSocket() {
+  return useContext(WebSocketContext);
 }

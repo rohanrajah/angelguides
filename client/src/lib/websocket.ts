@@ -1,155 +1,155 @@
-// WebSocket connection manager
-export let socket: WebSocket | null = null;
-let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-const messageQueue: any[] = [];
-const messageHandlers: Map<string, Function[]> = new Map();
+// WebSocket connection handler for AngelGuides.ai
+// This handles the websocket connection, reconnection,
+// message sending, and subscription
 
-// Connect to the WebSocket server
+// Store the WebSocket connection
+let socket: WebSocket | null = null;
+
+// Connection status
+let isConnecting = false;
+
+// Message listeners
+type MessageListener = (payload: any) => void;
+const messageListeners = new Map<string, Set<MessageListener>>();
+
+// Create a WebSocket connection
 export function connectWebSocket() {
-  if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+  // Do not attempt to connect if already connecting or if connection exists
+  if (isConnecting || (socket && socket.readyState === WebSocket.OPEN)) {
     return;
   }
   
-  // Clean up any existing socket
-  if (socket) {
-    socket.onclose = null;
-    socket.onerror = null;
-    socket.onmessage = null;
-    socket.close();
-  }
+  isConnecting = true;
   
-  // Create WebSocket with the correct protocol and path
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  
-  // In Replit environment, we can use the host directly since Vite proxies to the server
-  // Make the WebSocket URL relative to ensure it connects to the same origin
-  const wsUrl = `${protocol}//${window.location.host}/ws`;
-  
-  console.log(`Connecting to WebSocket at ${wsUrl}`);
-  socket = new WebSocket(wsUrl);
-  
-  socket.onopen = () => {
-    console.log("WebSocket connection established");
+  try {
+    // Determine WebSocket protocol based on page protocol
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
     
-    // Process any queued messages
-    while (messageQueue.length > 0) {
-      const message = messageQueue.shift();
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify(message));
+    console.log(`Connecting to WebSocket at ${wsUrl}`);
+    socket = new WebSocket(wsUrl);
+    
+    // Set up connection handlers
+    socket.onopen = () => {
+      console.log("WebSocket connection established");
+      isConnecting = false;
+    };
+    
+    socket.onclose = (event) => {
+      console.log("WebSocket connection closed", event.code, event.reason);
+      isConnecting = false;
+      socket = null;
+      
+      // Auto-reconnect after a delay
+      setTimeout(() => {
+        console.log("Attempting to reconnect WebSocket...");
+        connectWebSocket();
+      }, 3000);
+    };
+    
+    socket.onerror = (error) => {
+      console.error("WebSocket error:", error);
+      isConnecting = false;
+    };
+    
+    // Handle incoming messages
+    socket.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        const { type, payload } = message;
+        
+        // Handle ping messages specially to maintain connection
+        if (type === 'ping') {
+          sendMessage('pong', {});
+          return;
+        }
+        
+        // Notify all listeners for this message type
+        if (messageListeners.has(type)) {
+          const listeners = messageListeners.get(type)!;
+          listeners.forEach(listener => {
+            try {
+              listener(payload);
+            } catch (err) {
+              console.error(`Error in listener for ${type}:`, err);
+            }
+          });
+        }
+      } catch (error) {
+        console.error("Error processing WebSocket message:", error);
       }
-    }
-  };
-  
-  socket.onclose = (event) => {
-    console.log("WebSocket connection closed", event.code, event.reason);
-    
-    // Attempt to reconnect unless this was a normal closure
-    if (event.code !== 1000) {
-      scheduleReconnect();
-    }
-  };
-  
-  socket.onerror = (error) => {
-    console.error("WebSocket error:", error);
-    socket?.close();
-  };
-  
-  socket.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      handleWebSocketMessage(data);
-    } catch (error) {
-      console.error("Error parsing WebSocket message:", error);
-    }
-  };
+    };
+  } catch (error) {
+    console.error("Failed to connect WebSocket:", error);
+    isConnecting = false;
+  }
 }
 
-// Close the WebSocket connection
+// Disconnect WebSocket
 export function disconnectWebSocket() {
-  if (reconnectTimer) {
-    clearTimeout(reconnectTimer);
-    reconnectTimer = null;
-  }
-  
   if (socket) {
-    socket.onclose = null; // Prevent reconnect
-    socket.close(1000, "Normal closure");
+    socket.close();
     socket = null;
   }
 }
 
-// Schedule reconnection attempt
-function scheduleReconnect() {
-  if (reconnectTimer) {
-    clearTimeout(reconnectTimer);
-  }
-  
-  reconnectTimer = setTimeout(() => {
-    console.log("Attempting to reconnect WebSocket...");
-    connectWebSocket();
-  }, 3000);
-}
-
 // Send a message through the WebSocket
 export function sendMessage(type: string, payload: any) {
-  const message = { type, payload };
-  
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify(message));
-  } else {
-    // Queue message to be sent when connection is established
-    messageQueue.push(message);
+  // Connect if not connected
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    connectWebSocket();
     
-    // Ensure connection is being attempted
-    if (!socket || socket.readyState === WebSocket.CLOSED) {
-      connectWebSocket();
+    // Queue the message to be sent when connection is established
+    if (socket) {
+      socket.addEventListener('open', () => {
+        sendMessage(type, payload);
+      }, { once: true });
     }
-  }
-}
-
-// Handle incoming WebSocket messages
-function handleWebSocketMessage(data: any) {
-  const { type, payload } = data;
-  
-  // Call all registered handlers for this message type
-  if (messageHandlers.has(type)) {
-    messageHandlers.get(type)?.forEach(handler => {
-      try {
-        handler(payload);
-      } catch (error) {
-        console.error(`Error in handler for message type "${type}":`, error);
-      }
-    });
-  }
-}
-
-// Register a handler for a specific message type
-export function onMessage(type: string, handler: Function) {
-  if (!messageHandlers.has(type)) {
-    messageHandlers.set(type, []);
+    
+    return;
   }
   
-  messageHandlers.get(type)?.push(handler);
+  // Send the message
+  const message = JSON.stringify({ type, payload });
+  socket.send(message);
+}
+
+// Subscribe to a specific message type
+export function onMessage(type: string, callback: MessageListener): () => void {
+  if (!messageListeners.has(type)) {
+    messageListeners.set(type, new Set());
+  }
+  
+  const listeners = messageListeners.get(type)!;
+  listeners.add(callback);
+  
+  // Make sure WebSocket is connected
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    connectWebSocket();
+  }
   
   // Return unsubscribe function
   return () => {
-    const handlers = messageHandlers.get(type);
-    if (handlers) {
-      const index = handlers.indexOf(handler);
-      if (index !== -1) {
-        handlers.splice(index, 1);
+    if (messageListeners.has(type)) {
+      const listeners = messageListeners.get(type)!;
+      listeners.delete(callback);
+      
+      // Clean up empty listener sets
+      if (listeners.size === 0) {
+        messageListeners.delete(type);
       }
     }
   };
 }
 
-// Auto-connect when this module is imported
+// Initialize connection on load
 if (typeof window !== 'undefined') {
-  // Only connect in browser environment
   connectWebSocket();
   
-  // Clean up on page unload
-  window.addEventListener('beforeunload', () => {
-    disconnectWebSocket();
+  // Reconnect on page focus
+  window.addEventListener('focus', () => {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      connectWebSocket();
+    }
   });
 }

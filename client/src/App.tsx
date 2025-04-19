@@ -25,6 +25,7 @@ import Transactions from "@/pages/transactions";
 import Dashboard from "@/pages/dashboard";
 import NotFound from "@/pages/not-found";
 import TestPage from "@/pages/test";
+import Availability from "@/pages/availability";
 import { useEffect, useState } from "react";
 import { User } from "@shared/schema";
 import { apiRequest } from "./lib/queryClient";
@@ -44,6 +45,7 @@ function Router() {
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/advisors" component={Advisors} />
       <Route path="/advisors/:id" component={AdvisorProfile} />
+      <Route path="/availability" component={Availability} />
       <Route path="/bookings" component={Bookings} />
       <Route path="/messages" component={Messages} />
       <Route path="/profile" component={Profile} />
