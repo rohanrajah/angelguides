@@ -32,15 +32,16 @@ export interface AdvisorRecommendation {
 // Check if a message is part of the advisor matching flow
 export function isMatchingQuestion(message: string): boolean {
   const patterns = [
-    /what (type of |kind of |)guidance are you seeking/i,
-    /what (specific |)challenges are you facing/i,
-    /what (spiritual |)practices (do you |have you |)follow/i,
-    /what are your spiritual goals/i,
-    /have you worked with (a |an |)advisor before/i,
-    /do you have a preference for/i,
-    /what qualities do you look for/i,
-    /would you prefer a male or female advisor/i,
-    /matching you with the right advisor/i
+    /what brings you here today/i,
+    /love, career, or something deeper/i,
+    /how do you usually make decisions/i,
+    /intuition, logic, or gut feeling/i,
+    /are you looking for long-term guidance or a quick insight/i,
+    /how open are you to spiritual tools/i,
+    /tarot, astrology, or energy healing/i,
+    /would you prefer a calm, assertive, or playful advisor/i,
+    /matching you with the right advisor/i,
+    /I'm here to help connect you with the perfect spiritual advisor/i
   ];
   
   return patterns.some(pattern => pattern.test(message));
@@ -83,11 +84,11 @@ export async function getNextMatchingQuestion(
       This is question ${currentQuestionNumber + 1} of 5.
       Based on the conversation so far, ask the next most relevant question from this list:
       
-      1. What type of spiritual guidance are you seeking right now? (e.g., clarity about the future, connecting with loved ones, career guidance)
-      2. What specific challenges or questions are you hoping to address with a spiritual advisor?
-      3. Do you have a preference for specific spiritual practices or traditions? (e.g., tarot, astrology, mediumship, energy healing)
-      4. What qualities do you look for in a spiritual advisor? (e.g., compassionate, direct, experienced)
-      5. Have you consulted with spiritual advisors before? If so, what was most helpful about that experience?
+      1. "What brings you here today — love, career, or something deeper?"
+      2. "How do you usually make decisions — intuition, logic, or gut feeling?"
+      3. "Are you looking for long-term guidance or a quick insight?"
+      4. "How open are you to spiritual tools — like tarot, astrology, or energy healing?"
+      5. "Would you prefer a calm, assertive, or playful advisor tone?"
       
       Keep your response conversational, warm, and brief. Acknowledge their previous answer before asking the next question.
       Respond in JSON format with: "message", "questionNumber", "totalQuestions", and "isMatchingQuestion": true.`
