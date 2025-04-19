@@ -4,6 +4,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { storage } from "./storage";
 import { getAngelaResponse, startAdvisorMatchingFlow } from "./openai";
 import { registerProfileRoutes } from "./routes-profile";
+import { registerAdminRoutes } from "./routes-admin";
 import { z } from "zod";
 import { 
   insertUserSchema, 
@@ -26,6 +27,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register profile-related routes
   registerProfileRoutes(app);
+  
+  // Register admin routes
+  registerAdminRoutes(app);
   
   // Get all advisors
   app.get("/api/advisors", async (req: Request, res: Response) => {
