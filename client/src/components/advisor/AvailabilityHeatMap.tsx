@@ -27,6 +27,7 @@ interface AdvisorStatusUpdate {
 }
 
 const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
 const hourLabels = [
   '12am', '1am', '2am', '3am', '4am', '5am', '6am', '7am', 
   '8am', '9am', '10am', '11am', '12pm', '1pm', '2pm', '3pm', 
@@ -46,7 +47,7 @@ export function AvailabilityHeatMap({ className }: AvailabilityHeatMapProps) {
     messageType: 'advisor_status_change',
     transformData: (payload) => payload
   });
-
+  
   // Update advisor count when WebSocket data changes
   useEffect(() => {
     if (statusUpdate && typeof statusUpdate.onlineAdvisorsCount === 'number') {
@@ -81,8 +82,6 @@ export function AvailabilityHeatMap({ className }: AvailabilityHeatMapProps) {
         }
       } catch (error) {
         console.error('Error fetching heat map data:', error);
-        // If API fails, generate sample data
-        generateSampleData();
       } finally {
         setLoading(false);
       }
@@ -90,51 +89,7 @@ export function AvailabilityHeatMap({ className }: AvailabilityHeatMapProps) {
 
     fetchHeatMapData();
   }, []);
-
-  // Generate sample data for development/demo
-  const generateSampleData = () => {
-    const sampleData: HeatMapData[] = [];
-    
-    days.forEach(day => {
-      for (let hour = 0; hour < 24; hour++) {
-        // Generate more realistic patterns - higher activity in evenings and weekends
-        let baseAdvisorCount = 2; // Base count
-        
-        // Evenings (5pm-10pm) have more advisors
-        if (hour >= 17 && hour <= 22) {
-          baseAdvisorCount += 5;
-        }
-        
-        // Morning/afternoon (9am-5pm) have moderate advisors
-        else if (hour >= 9 && hour <= 17) {
-          baseAdvisorCount += 3;
-        }
-        
-        // Weekend boost
-        if (day === 'Saturday' || day === 'Sunday') {
-          baseAdvisorCount += 2;
-        }
-        
-        // Add some randomness
-        const randomFactor = Math.floor(Math.random() * 3); 
-        const advisorCount = Math.max(0, baseAdvisorCount + randomFactor);
-        
-        // Calculate average wait time (inversely related to advisor count)
-        const averageWaitTime = advisorCount > 0 ? Math.round(30 / advisorCount) : 0;
-        
-        sampleData.push({
-          day,
-          hour,
-          advisorCount,
-          averageWaitTime
-        });
-      }
-    });
-    
-    setHeatMapData(sampleData);
-    calculateInsights(sampleData);
-  };
-
+  
   const calculateInsights = (data: HeatMapData[]) => {
     // Find most active day
     const dayTotals = days.map(day => ({
@@ -175,39 +130,36 @@ export function AvailabilityHeatMap({ className }: AvailabilityHeatMapProps) {
     if (count < 8) return 'bg-green-500';
     return 'bg-green-700';
   };
-
-  const getHeatMapTextClass = (count: number) => {
-    if (count < 5) return 'text-gray-800';
-    return 'text-white';
+  
+  // Get current day data for "Today" view
+  const getTodayData = () => {
+    const currentDay = days[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
+    return heatMapData.filter(item => item.day === currentDay);
   };
-
-  const getCurrentViewData = () => {
-    if (currentView === 'today') {
-      const today = days[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1]; // Adjust for Sunday
-      return heatMapData.filter(d => d.day === today);
-    }
-    return heatMapData;
+  
+  // Get wait time status
+  const getWaitTimeStatus = (waitTime: number) => {
+    if (waitTime === 0) return 'No advisors available';
+    if (waitTime < 5) return 'Immediate';
+    if (waitTime < 15) return 'Short wait';
+    return `${waitTime} min`;
   };
-
-  // Render loading skeleton
+  
   if (loading) {
     return (
       <Card className={className}>
         <CardHeader>
-          <Skeleton className="h-8 w-3/4" />
-          <Skeleton className="h-4 w-2/4" />
+          <Skeleton className="h-8 w-64 mb-2" />
+          <Skeleton className="h-4 w-full mb-6" />
+          <Skeleton className="h-12 w-full" />
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-64 w-full" />
-            <Skeleton className="h-16 w-full" />
-          </div>
+          <Skeleton className="h-64 w-full" />
         </CardContent>
       </Card>
     );
   }
-
+  
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -236,123 +188,142 @@ export function AvailabilityHeatMap({ className }: AvailabilityHeatMapProps) {
             </Tabs>
           </div>
         </CardHeader>
-
+        
         <CardContent>
-          <div className="space-y-4">
-            {/* Availability Insights */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div className="bg-purple-50 p-4 rounded-lg text-center">
-                <Users className="h-5 w-5 mx-auto mb-1 text-purple-600" />
-                <div className="text-sm text-purple-700">Online Now</div>
-                <div className="text-2xl font-bold text-purple-900">{currentAdvisorCount}</div>
-              </div>
-              
-              <div className="bg-purple-50 p-4 rounded-lg text-center">
-                <Calendar className="h-5 w-5 mx-auto mb-1 text-purple-600" />
-                <div className="text-sm text-purple-700">Most Active Day</div>
-                <div className="text-lg font-bold text-purple-900">{currentMostActiveDay}</div>
-              </div>
-              
-              <div className="bg-purple-50 p-4 rounded-lg text-center">
-                <Clock className="h-5 w-5 mx-auto mb-1 text-purple-600" />
-                <div className="text-sm text-purple-700">Peak Hours</div>
-                <div className="text-lg font-bold text-purple-900">{currentMostActiveTime}</div>
-              </div>
-            </div>
-
-            {/* Heat Map */}
-            <div className="overflow-x-auto pb-4">
-              <div className="min-w-max">
-                {currentView === 'week' ? (
-                  // Week view heat map
-                  <>
-                    {/* Day labels for week view */}
-                    <div className="flex">
-                      <div className="w-16"></div> {/* Empty cell for hour labels */}
-                      {days.map(day => (
-                        <div key={day} className="flex-1 text-center font-medium text-sm py-1">
-                          {day.substring(0, 3)}
-                        </div>
-                      ))}
-                    </div>
+          {currentView === 'week' ? (
+            <div className="overflow-x-auto">
+              <div className="grid grid-cols-[auto_repeat(7,1fr)] gap-1 min-w-[600px]">
+                {/* Time column */}
+                <div className="mt-6">
+                  {hourLabels.map((hour, idx) => (
+                    <div key={`hour-${idx}`} className="h-6 text-xs text-right pr-2 mb-1">{hour}</div>
+                  ))}
+                </div>
+                
+                {/* Day columns */}
+                {days.map((day, dayIdx) => (
+                  <div key={`day-${day}`} className="flex flex-col">
+                    <div className="h-6 text-xs font-medium text-center">{day}</div>
                     
-                    {/* Heat map grid for week view */}
-                    {hourLabels.map((hourLabel, hourIndex) => (
-                      <div key={hourLabel} className="flex h-8">
-                        <div className="w-16 text-xs flex items-center justify-end pr-2 text-gray-500">
-                          {hourLabel}
-                        </div>
-                        {days.map(day => {
-                          const cellData = heatMapData.find(d => d.day === day && d.hour === hourIndex);
-                          const count = cellData?.advisorCount || 0;
-                          return (
-                            <div 
-                              key={`${day}-${hourIndex}`} 
-                              className={`flex-1 border border-white flex items-center justify-center ${getHeatMapColorClass(count)} ${getHeatMapTextClass(count)}`}
-                            >
-                              {count > 0 && (
-                                <span className="text-xs font-medium">{count}</span>
-                              )}
+                    {hourLabels.map((_, hourIdx) => {
+                      const dataPoint = heatMapData.find(
+                        d => d.day === day && d.hour === hourIdx
+                      );
+                      
+                      // Check if this is the current day and hour
+                      const now = new Date();
+                      const isCurrentDay = day === days[now.getDay() === 0 ? 6 : now.getDay() - 1];
+                      const isCurrentHour = hourIdx === now.getHours();
+                      const isNow = isCurrentDay && isCurrentHour;
+                      
+                      return (
+                        <div
+                          key={`${day}-${hourIdx}`}
+                          className={`
+                            h-6 mb-1 rounded group relative cursor-help
+                            ${getHeatMapColorClass(dataPoint?.advisorCount || 0)}
+                            ${isNow ? 'ring-2 ring-offset-1 ring-primary' : ''}
+                          `}
+                        >
+                          {/* Tooltip */}
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white shadow-lg rounded-md p-2 text-xs w-36 z-10">
+                            <p className="font-medium">{day} @ {hourLabels[hourIdx]}</p>
+                            <div className="flex justify-between mt-1">
+                              <span>Advisors:</span>
+                              <span className="font-medium">{dataPoint?.advisorCount || 0}</span>
                             </div>
-                          );
-                        })}
-                      </div>
-                    ))}
-                  </>
-                ) : (
-                  // Today view
-                  <>
-                    <h3 className="text-lg font-medium mb-2">
-                      Today ({days[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1]})
-                    </h3>
-                    
-                    <div className="space-y-2">
-                      {hourLabels.map((hourLabel, hourIndex) => {
-                        const today = days[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
-                        const cellData = heatMapData.find(d => d.day === today && d.hour === hourIndex);
-                        const count = cellData?.advisorCount || 0;
-                        const waitTime = cellData?.averageWaitTime || 0;
-                        const isCurrentHour = new Date().getHours() === hourIndex;
-                        
-                        return (
-                          <div 
-                            key={hourIndex}
-                            className={`flex items-center p-2 rounded-md ${isCurrentHour ? 'border-2 border-purple-500' : ''}`}
-                          >
-                            <div className="w-16 text-sm">{hourLabel}</div>
-                            <div className="flex-1">
-                              <div className="h-6 relative">
-                                <div 
-                                  className={`absolute top-0 left-0 h-full ${getHeatMapColorClass(count)}`}
-                                  style={{ width: `${Math.min(100, count * 10)}%` }}
-                                ></div>
-                                <div className="absolute top-0 left-2 h-full flex items-center">
-                                  <span className={`text-xs font-medium ${getHeatMapTextClass(count)}`}>
-                                    {count} advisors {waitTime > 0 ? `• ~${waitTime}min wait` : ''}
-                                  </span>
-                                </div>
-                              </div>
+                            <div className="flex justify-between">
+                              <span>Wait:</span>
+                              <span className="font-medium">
+                                {getWaitTimeStatus(dataPoint?.averageWaitTime || 0)}
+                              </span>
                             </div>
-                            {isCurrentHour && (
-                              <div className="ml-2 text-xs bg-purple-100 text-purple-800 py-1 px-2 rounded">
-                                Current Hour
-                              </div>
-                            )}
                           </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
             </div>
-
-            <div className="text-xs text-gray-500 mt-4">
-              <p>
-                <span className="font-medium">Note:</span> This heat map shows historical advisor 
-                availability patterns and current online status. Actual availability may vary.
-              </p>
+          ) : (
+            // Today view
+            <div className="mt-2">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-sm font-medium">Today's Availability</h3>
+                <div className="text-xs text-muted-foreground">
+                  {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                {getTodayData().map((dataPoint) => {
+                  const now = new Date();
+                  const isCurrentHour = dataPoint.hour === now.getHours();
+                  const isPastHour = dataPoint.hour < now.getHours();
+                  
+                  // Skip past hours
+                  if (isPastHour) return null;
+                  
+                  return (
+                    <div 
+                      key={`today-${dataPoint.hour}`}
+                      className={`flex items-center p-3 rounded-lg ${
+                        isCurrentHour ? 'bg-primary/10' : 'bg-neutral-50'
+                      }`}
+                    >
+                      <div className="flex-shrink-0 w-12 text-center">
+                        <div className="text-sm font-medium">{hourLabels[dataPoint.hour]}</div>
+                      </div>
+                      
+                      <div className="ml-4 flex-grow">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center">
+                            <div className={`
+                              w-3 h-3 rounded-full mr-2
+                              ${getHeatMapColorClass(dataPoint.advisorCount)}
+                            `}></div>
+                            <span className="text-sm">{dataPoint.advisorCount} advisor{dataPoint.advisorCount !== 1 ? 's' : ''}</span>
+                          </div>
+                          
+                          <div className="text-xs text-muted-foreground">
+                            {getWaitTimeStatus(dataPoint.averageWaitTime || 0)}
+                          </div>
+                        </div>
+                        
+                        {isCurrentHour && (
+                          <div className="text-xs mt-1 flex items-center text-primary">
+                            <Clock className="h-3 w-3 mr-1" />
+                            <span>Current hour</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+          )}
+          
+          <div className="mt-6 flex justify-between items-center p-3 bg-neutral-50 rounded-lg">
+            <div className="flex items-center">
+              <Calendar className="h-4 w-4 mr-2 text-primary" />
+              <span className="text-sm">Most Active Day:</span>
+              <span className="ml-2 font-medium">{currentMostActiveDay}</span>
+            </div>
+            
+            <div className="flex items-center">
+              <Clock className="h-4 w-4 mr-2 text-primary" />
+              <span className="text-sm">Peak Time:</span>
+              <span className="ml-2 font-medium">{currentMostActiveTime}</span>
+            </div>
+          </div>
+          
+          <div className="text-xs text-gray-500 mt-4">
+            <p>
+              <span className="font-medium">Note:</span> This heat map shows historical advisor 
+              availability patterns and current online status. Actual availability may vary.
+            </p>
           </div>
         </CardContent>
       </Card>
