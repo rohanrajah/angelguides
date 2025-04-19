@@ -58,7 +58,7 @@ export function getMatchingQuestionNumber(conversationHistory: { role: string; c
 
 export async function startAdvisorMatchingFlow(): Promise<MatchingQuestionResponse> {
   return {
-    message: "I'm here to help connect you with the perfect spiritual advisor for your needs. To find your ideal match, I'll ask you a few questions to understand your spiritual journey better. What type of spiritual guidance are you seeking right now?",
+    message: "I'm here to help connect you with the perfect spiritual advisor for your needs. To find your ideal match, I'll ask you a few questions to understand your spiritual journey better. What brings you here today — love, career, or something deeper?",
     questionNumber: 1,
     totalQuestions: 5,
     isMatchingQuestion: true
