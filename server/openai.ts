@@ -32,16 +32,19 @@ export interface AdvisorRecommendation {
 // Check if a message is part of the advisor matching flow
 export function isMatchingQuestion(message: string): boolean {
   const patterns = [
-    /what brings you here today/i,
-    /love, career, or something deeper/i,
-    /how do you usually make decisions/i,
-    /intuition, logic, or gut feeling/i,
-    /are you looking for long-term guidance or a quick insight/i,
-    /how open are you to spiritual tools/i,
+    /help connect you with the perfect spiritual advisor/i,
+    /match you with someone who truly resonates/i,
+    /understand what brings you here/i,
+    /find your ideal match/i,
+    /perfect advisor for your needs/i,
+    /understand your spiritual journey/i,
+    /match you with the right advisor/i,
+    /love, career, or spiritual growth/i,
+    /decision-making style/i,
+    /spiritual tools/i,
     /tarot, astrology, or energy healing/i,
-    /would you prefer a calm, assertive, or playful advisor/i,
-    /matching you with the right advisor/i,
-    /I'm here to help connect you with the perfect spiritual advisor/i
+    /advisor communication style/i,
+    /long-term guidance or quick insights/i
   ];
   
   return patterns.some(pattern => pattern.test(message));
@@ -58,7 +61,7 @@ export function getMatchingQuestionNumber(conversationHistory: { role: string; c
 
 export async function startAdvisorMatchingFlow(): Promise<MatchingQuestionResponse> {
   return {
-    message: "I'm here to help connect you with the perfect spiritual advisor for your needs. To find your ideal match, I'll ask you a few questions to understand your spiritual journey better. What brings you here today — love, career, or something deeper?",
+    message: "I'm here to help connect you with the perfect spiritual advisor for your needs. I'd love to understand what brings you here today so I can match you with someone who truly resonates with your spiritual journey.",
     questionNumber: 1,
     totalQuestions: 5,
     isMatchingQuestion: true
@@ -82,13 +85,17 @@ export async function getNextMatchingQuestion(
       content: `You are Angela AI, the spiritual advisor matching assistant for Angel Guides.
       You're currently in the process of asking a user questions to match them with the perfect spiritual advisor.
       This is question ${currentQuestionNumber + 1} of 5.
-      Based on the conversation so far, ask the next most relevant question from this list:
+      You're having a natural, flowing conversation with the user to understand their needs for spiritual guidance.
       
-      1. "What brings you here today — love, career, or something deeper?"
-      2. "How do you usually make decisions — intuition, logic, or gut feeling?"
-      3. "Are you looking for long-term guidance or a quick insight?"
-      4. "How open are you to spiritual tools — like tarot, astrology, or energy healing?"
-      5. "Would you prefer a calm, assertive, or playful advisor tone?"
+      Based on the conversation so far, ask your next question in a conversational way, making sure to cover these 5 key areas (if not already addressed):
+      
+      1. Their primary reason for seeking guidance (love, career, spiritual growth, etc.)
+      2. Their decision-making style (intuition, logic, gut feeling, etc.)
+      3. Whether they want long-term guidance or quick insights
+      4. Their comfort with spiritual tools like tarot, astrology, or energy healing
+      5. What advisor communication style they prefer (calm, assertive, playful, etc.)
+      
+      Don't explicitly number your questions or make it feel like a survey. Have a natural conversation, responding to what they've shared before asking your next question.
       
       Keep your response conversational, warm, and brief. Acknowledge their previous answer before asking the next question.
       Respond in JSON format with: "message", "questionNumber", "totalQuestions", and "isMatchingQuestion": true.`
