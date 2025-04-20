@@ -15,6 +15,11 @@ import connectPg from "connect-pg-simple";
 import session from "express-session";
 import { pool } from "./db";
 
+// Interface for advisor with specialties list for AI recommendations
+export interface AdvisorWithSpecialties extends User {
+  specialtiesList?: Specialty[];
+}
+
 export interface IStorage {
   // User methods
   getUser(id: number): Promise<User | undefined>;
@@ -27,6 +32,7 @@ export interface IStorage {
   getAdvisorsBySpecialty(specialtyId: number): Promise<User[]>;
   updateUserStatus(id: number, online: boolean): Promise<User | undefined>;
   updateUser(id: number, data: Partial<User>): Promise<User | undefined>;
+  getAdvisorsWithSpecialties(limit?: number): Promise<AdvisorWithSpecialties[]>;
   
   // Account balance methods
   addUserBalance(userId: number, amount: number): Promise<User | undefined>; // amount in cents
@@ -598,6 +604,31 @@ export class MemStorage implements IStorage {
     // Return specialties with these IDs
     return Array.from(this.specialties.values())
       .filter(specialty => specialtyIds.includes(specialty.id));
+  }
+  
+  async getAdvisorsWithSpecialties(limit: number = 10): Promise<AdvisorWithSpecialties[]> {
+    // Get all advisors
+    const advisors = await this.getAdvisors();
+    
+    if (advisors.length === 0) {
+      return [];
+    }
+    
+    // Limit the number of advisors to avoid too many operations
+    const limitedAdvisors = advisors.slice(0, limit);
+    
+    // Fetch specialties for each advisor
+    const advisorsWithSpecialties: AdvisorWithSpecialties[] = [];
+    
+    for (const advisor of limitedAdvisors) {
+      const specialtiesList = await this.getAdvisorSpecialties(advisor.id);
+      advisorsWithSpecialties.push({
+        ...advisor,
+        specialtiesList
+      });
+    }
+    
+    return advisorsWithSpecialties;
   }
 
   // Session methods

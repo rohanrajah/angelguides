@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from 'ws';
 import { storage } from "./storage";
-import { getAngelaResponse, startAdvisorMatchingFlow, generateAdvisorRecommendations, AdvisorWithSpecialties } from "./openai";
+import { getAngelaResponse, startAdvisorMatchingFlow, generateAdvisorRecommendations } from "./openai";
 import { registerProfileRoutes } from "./routes-profile";
 import { registerAdminRoutes } from "./routes-admin";
 import { verifyPassword } from "./auth";
@@ -460,6 +460,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error processing Angela message:", error);
       res.status(500).json({ message: "Failed to process message" });
+    }
+  });
+  
+  // Generate advisor recommendations based on conversation history
+  app.get("/api/angela/:userId/recommendations", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      // Get conversation for this user
+      const conversation = await storage.getOrCreateConversation(userId);
+      
+      // Format conversation history for OpenAI
+      const conversationHistory = (conversation.messages as any[]).map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }));
+      
+      // Get all advisors with their specialties
+      const advisorsWithSpecialties = await storage.getAdvisorsWithSpecialties();
+      
+      // Generate recommendations using the advanced AI matching algorithm
+      const recommendations = await generateAdvisorRecommendations(
+        conversationHistory,
+        advisorsWithSpecialties
+      );
+      
+      res.json(recommendations);
+    } catch (error) {
+      console.error("Error generating advisor recommendations:", error);
+      res.status(500).json({ message: "Failed to generate advisor recommendations" });
     }
   });
 
