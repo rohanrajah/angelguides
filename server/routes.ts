@@ -499,37 +499,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const userId = req.user?.id || 5;  // Default to user ID 5 if not authenticated
     
     try {
-      // Due to the OpenAI rate limiting issue, we're using fallback responses
-      // In a production environment, this would use the OpenAI integration
-      let response = "";
+      // Get existing conversation if any
+      const conversation = await storage.getOrCreateConversation(userId);
       
-      // Fallback chat responses
-      if (message.toLowerCase().includes("hello") || message.toLowerCase().includes("hi")) {
-        response = "Hello! I'm Angela, your spiritual AI guide. How may I assist you on your journey today?";
-      } else if (message.toLowerCase().includes("help") || message.toLowerCase().includes("guidance")) {
-        response = "I'm here to provide spiritual guidance and connect you with advisors who can help you on your journey. What specific area are you seeking guidance in?";
-      } else if (message.toLowerCase().includes("love") || message.toLowerCase().includes("relationship")) {
-        response = "Relationships and love are profound aspects of our spiritual journey. Would you like me to help you find an advisor specialized in matters of the heart?";
-      } else if (message.toLowerCase().includes("career") || message.toLowerCase().includes("job") || message.toLowerCase().includes("work")) {
-        response = "Your career path is deeply connected to your spiritual purpose. I can help you explore this connection or find an advisor who specializes in career guidance.";
-      } else if (message.toLowerCase().includes("meditation") || message.toLowerCase().includes("mindfulness")) {
-        response = "Meditation is a powerful practice for spiritual growth. Would you like some simple techniques to try, or would you prefer to connect with a meditation expert?";
-      } else if (message.toLowerCase().includes("future") || message.toLowerCase().includes("predict")) {
-        response = "The future holds many possibilities that unfold based on your choices and energy. Would you like to explore potential paths with one of our intuitive advisors?";
-      } else if (message.toLowerCase().includes("tarot") || message.toLowerCase().includes("reading")) {
-        response = "Tarot readings can provide valuable insights. I can connect you with skilled readers who can interpret the cards for your specific situation.";
-      } else if (message.toLowerCase().includes("thank")) {
-        response = "You're very welcome! I'm always here whenever you need guidance or support on your spiritual journey.";
-      } else {
-        response = "I sense there's something specific on your mind. I'm here to listen and guide you. Would you like to explore this further with one of our specialized advisors?";
-      }
-      
-      // Save the message to the database
+      // Save the user message to the database first
       await storage.createAngelaMessage({
         userId: userId,
         content: message,
         role: "user"
       });
+      
+      // Generate response - first try OpenAI, fallback to rule-based responses
+      let response = "";
+      
+      try {
+        // Try to use OpenAI for a more natural response
+        const conversationHistory = (conversation.messages as any[]).map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }));
+        
+        // Add the current message to history
+        conversationHistory.push({
+          role: 'user',
+          content: message
+        });
+        
+        // Use a separate try-catch for OpenAI call
+        try {
+          // Attempt to get response from OpenAI
+          const openAIResponse = await getAngelaResponse(message, conversationHistory);
+          response = openAIResponse.message;
+        } catch (openAIError) {
+          console.log("OpenAI error, using fallback responses:", openAIError);
+          // If OpenAI fails, we'll use our fallback logic below
+          throw openAIError;
+        }
+      } catch (error) {
+        // Fallback chat responses if OpenAI fails
+        console.log("Using fallback response logic");
+        
+        if (message.toLowerCase().includes("hello") || message.toLowerCase().includes("hi")) {
+          response = "Hello! I'm Angela, your spiritual AI guide. How may I assist you on your journey today?";
+        } else if (message.toLowerCase().includes("help") || message.toLowerCase().includes("guidance")) {
+          response = "I'm here to provide spiritual guidance and connect you with advisors who can help you on your journey. What specific area are you seeking guidance in?";
+        } else if (message.toLowerCase().includes("love") || message.toLowerCase().includes("relationship")) {
+          response = "Relationships and love are profound aspects of our spiritual journey. Would you like me to help you find an advisor specialized in matters of the heart?";
+        } else if (message.toLowerCase().includes("career") || message.toLowerCase().includes("job") || message.toLowerCase().includes("work")) {
+          response = "Your career path is deeply connected to your spiritual purpose. I can help you explore this connection or find an advisor who specializes in career guidance.";
+        } else if (message.toLowerCase().includes("meditation") || message.toLowerCase().includes("mindfulness")) {
+          response = "Meditation is a powerful practice for spiritual growth. Would you like some simple techniques to try, or would you prefer to connect with a meditation expert?";
+        } else if (message.toLowerCase().includes("future") || message.toLowerCase().includes("predict")) {
+          response = "The future holds many possibilities that unfold based on your choices and energy. Would you like to explore potential paths with one of our intuitive advisors?";
+        } else if (message.toLowerCase().includes("tarot") || message.toLowerCase().includes("reading")) {
+          response = "Tarot readings can provide valuable insights. I can connect you with skilled readers who can interpret the cards for your specific situation.";
+        } else if (message.toLowerCase().includes("thank")) {
+          response = "You're very welcome! I'm always here whenever you need guidance or support on your spiritual journey.";
+        } else {
+          response = "I sense there's something specific on your mind. I'm here to listen and guide you. Would you like to explore this further with one of our specialized advisors?";
+        }
+      }
       
       // Save the response to the database
       await storage.createAngelaMessage({
@@ -542,7 +571,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: response });
     } catch (error) {
       console.error("Error in Angela chat:", error);
-      res.status(500).json({ message: "Failed to process chat message" });
+      // Provide a more helpful error message to the user
+      res.status(500).json({ 
+        message: "I'm here to assist you, but I'm experiencing a brief connection issue with my spiritual knowledge. Please try again in a moment." 
+      });
     }
   });
 
