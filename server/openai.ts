@@ -347,7 +347,7 @@ export async function generateAdvisorRecommendations(
     ];
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: ADVANCED_MODEL, // Use advanced model for final recommendations
       messages: messages as any[],
       response_format: { type: "json_object" },
       temperature: 0.7,
@@ -476,14 +476,28 @@ export async function getAngelaResponse(
       { role: "user" as any, content: userMessage }
     ];
 
-    // Get response from OpenAI
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: messages as any[],
-      response_format: { type: "json_object" },
-      temperature: 0.7,
-      max_tokens: 500
-    });
+    // Get response from OpenAI with automatic fallback
+    let response;
+    try {
+      // First try with primary model
+      response = await openai.chat.completions.create({
+        model: PRIMARY_MODEL, // Use cost-effective model for regular conversations
+        messages: messages as any[],
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+        max_tokens: 500
+      });
+    } catch (modelError) {
+      // If primary model fails, try fallback model
+      console.log(`[Angela] Primary model failed, trying fallback model: ${modelError.message}`);
+      response = await openai.chat.completions.create({
+        model: FALLBACK_MODEL, // Use fallback model
+        messages: messages as any[],
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+        max_tokens: 500
+      });
+    }
 
     // Parse the response
     const content = response.choices[0]?.message?.content || '{"message": "I apologize, but I\'m having trouble connecting to my spiritual guidance at the moment. Please try again."}';
@@ -495,15 +509,26 @@ export async function getAngelaResponse(
       console.error("Error getting Angela response:", error);
     }
     
+    // Different friendly fallback messages for different error types
+    const isMissingApiKey = !process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === "demo-api-key";
+    const isRateLimitError = error?.response?.status === 429;
+    
+    // Select appropriate fallback message based on error type
+    const fallbackMessage = isMissingApiKey
+      ? "I sense that my connection to the spiritual realm is incomplete. My abilities require a valid mystical conduit (API key) to channel the full wisdom you seek."
+      : isRateLimitError
+        ? "The cosmic energies are at capacity right now. My spiritual guides suggest we pause briefly before continuing our journey together."
+        : "I'm experiencing a momentary disconnect from the ethereal plane. The spiritual energies will realign shortly.";
+    
     return {
-      message: "I apologize, but I'm experiencing a connection issue with the spiritual realm right now. Please try again in a moment.",
+      message: fallbackMessage,
       emotionalTone: "supportive",
       detectedEmotion: "neutral",
       empathyLevel: 3,
       suggestions: [
-        "Try phrasing your question differently",
-        "Come back in a little while when our connection is stronger",
-        "Explore our advisor profiles directly"
+        "Try asking another question to reconnect our spiritual energies",
+        "Explore our advisor profiles to find a spiritual guide",
+        "Return in a few moments when the cosmic alignment is stronger"
       ]
     };
   }
