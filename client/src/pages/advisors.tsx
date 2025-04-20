@@ -7,6 +7,7 @@ import AdvisorCategoryBrowser from '@/components/advisor/AdvisorCategoryBrowser'
 import { AvailabilityHeatMap } from '@/components/advisor/AvailabilityHeatMap';
 import { motion } from 'framer-motion';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { useLocation } from 'wouter';
 
 const Advisors: React.FC = () => {
   const [activeSpecialty, setActiveSpecialty] = useState<number | null>(null);
@@ -14,10 +15,18 @@ const Advisors: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const advisorsPerPage = 9;
   const [recommendedAdvisors, setRecommendedAdvisors] = useState<number[]>([]);
+  const [location] = useLocation();
   
-  // Check for recommended advisors on mount
+  // Fetch all advisors
+  const { data: advisors = [], isLoading: advisorsLoading } = useQuery<User[]>({
+    queryKey: ['/api/advisors'],
+  });
+  
+  // Check for recommended advisors on mount and suggest random advisors if coming from intro
   useEffect(() => {
     const recommendedAdvisorsStr = localStorage.getItem('recommendedAdvisors');
+    const fromIntro = sessionStorage.getItem('fromIntroPage');
+    
     if (recommendedAdvisorsStr) {
       try {
         const advisorIds = JSON.parse(recommendedAdvisorsStr);
@@ -25,17 +34,19 @@ const Advisors: React.FC = () => {
       } catch (e) {
         console.error('Error parsing recommended advisors', e);
       }
+    } else if (fromIntro === 'true' && advisors.length > 0) {
+      // If coming from intro page and no recommendations yet, suggest 3 random advisors
+      const shuffled = [...advisors].sort(() => 0.5 - Math.random());
+      const randomThree = shuffled.slice(0, 3).map(advisor => advisor.id);
+      setRecommendedAdvisors(randomThree);
+      localStorage.setItem('recommendedAdvisors', JSON.stringify(randomThree));
+      sessionStorage.removeItem('fromIntroPage'); // Clear the flag
     }
-  }, []);
+  }, [advisors]);
   
   // Fetch all specialties
   const { data: specialties = [], isLoading: specialtiesLoading } = useQuery<Specialty[]>({
     queryKey: ['/api/specialties'],
-  });
-  
-  // Fetch all advisors
-  const { data: advisors = [], isLoading: advisorsLoading } = useQuery<User[]>({
-    queryKey: ['/api/advisors'],
   });
   
   // Filter advisors based on selected specialty and search query

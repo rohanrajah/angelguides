@@ -211,6 +211,9 @@ const WelcomePage: React.FC = () => {
       // Store recommended advisors in localStorage to use on advisors page
       localStorage.setItem('recommendedAdvisors', JSON.stringify(advisorIds));
       
+      // Set a flag to indicate we're coming from the intro page
+      sessionStorage.setItem('fromIntroPage', 'true');
+      
       // Redirect to advisors page with recommended advisors
       setTimeout(() => {
         setLocation("/advisors");
@@ -432,7 +435,9 @@ const WelcomePage: React.FC = () => {
         <button 
           onClick={() => {
             localStorage.setItem('hasSeenWelcome', 'true');
-            setLocation("/home");
+            // Set the flag to also get random advisors when skipping
+            sessionStorage.setItem('fromIntroPage', 'true');
+            setLocation("/advisors");
           }}
           className="px-4 py-2 text-white text-sm bg-white/10 hover:bg-white/20 rounded-full transition-colors duration-200 backdrop-blur-sm"
         >
