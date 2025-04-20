@@ -407,7 +407,7 @@ export default function AdvisorStatistics() {
             
             <div className="flex flex-col space-y-3 p-4 border rounded-lg">
               <div className="flex items-center">
-                <UsersIcon className="h-5 w-5 mr-2 text-blue-600" />
+                <Users2Icon className="h-5 w-5 mr-2 text-blue-600" />
                 <h3 className="font-medium">Client Insight</h3>
               </div>
               <p className="text-sm text-muted-foreground">

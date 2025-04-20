@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { 
   UserIcon,
@@ -97,22 +97,25 @@ export default function AdvisorSettings() {
   // Fetch advisor data
   const { data: advisor, isLoading } = useQuery({
     queryKey: [`/api/advisors/${user?.id}`],
-    enabled: !!user?.id && user?.userType === "ADVISOR",
-    onSuccess: (data) => {
-      // Populate form with existing data
+    enabled: !!user?.id && user?.userType === "ADVISOR"
+  });
+
+  // Update form when advisor data changes
+  useEffect(() => {
+    if (advisor) {
       setProfileForm({
-        name: data.name || "",
-        email: data.email || "",
-        phone: data.phone || "",
-        bio: data.bio || "",
-        location: data.location || "",
-        timezone: data.timezone || "America/New_York",
-        availability: data.availability || "",
-        languages: data.languages || "English",
-        website: data.website || ""
+        name: advisor.name || "",
+        email: advisor.email || "",
+        phone: advisor.phone || "",
+        bio: advisor.bio || "",
+        location: advisor.location || "",
+        timezone: advisor.timezone || "America/New_York",
+        availability: advisor.availability || "",
+        languages: advisor.languages || "English",
+        website: advisor.website || ""
       });
     }
-  });
+  }, [advisor]);
 
   // Update profile mutation
   const updateProfileMutation = useMutation({

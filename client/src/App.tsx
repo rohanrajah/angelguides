@@ -38,7 +38,7 @@ import AdvisorServices from "@/pages/advisor-services";
 import AdvisorSettings from "@/pages/advisor-settings";
 
 import { useEffect, useState } from "react";
-import { User, UserType } from "@shared/schema";
+import { User } from "@shared/schema";
 import { apiRequest } from "./lib/queryClient";
 
 function Router() {
@@ -51,7 +51,7 @@ function Router() {
   }, [location]);
   
   // Determine if the user is an advisor
-  const isAdvisor = user?.userType === UserType.ADVISOR;
+  const isAdvisor = user?.userType === "ADVISOR";
   
   return (
     <Switch>
