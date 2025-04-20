@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { getAngelaResponse, startAdvisorMatchingFlow } from "./openai";
 import { registerProfileRoutes } from "./routes-profile";
 import { registerAdminRoutes } from "./routes-admin";
+import { verifyPassword } from "./auth";
 import { z } from "zod";
 import { 
   insertUserSchema, 
@@ -496,7 +497,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Invalid credentials" });
       }
       
-      const { verifyPassword } = require('./auth');
       const isPasswordValid = await verifyPassword(password, user.password);
       
       if (!isPasswordValid) {
