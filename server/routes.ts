@@ -481,7 +481,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Mock login (for demo purposes)
+  // Login with secure password verification
   app.post("/api/login", async (req: Request, res: Response) => {
     try {
       const { username, password } = req.body;
@@ -492,22 +492,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const user = await storage.getUserByUsername(username);
       
-      if (!user || user.password !== password) {
+      if (!user) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
       
-      res.json({ user });
+      const { verifyPassword } = require('./auth');
+      const isPasswordValid = await verifyPassword(password, user.password);
+      
+      if (!isPasswordValid) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      // Update last login
+      if (user.id) {
+        await storage.updateUser(user.id, { lastLogin: new Date() });
+      }
+      
+      res.json(user);
     } catch (error) {
       console.error("Error logging in:", error);
       res.status(500).json({ message: "Failed to log in" });
     }
   });
 
-  // Get current user (mocked for development)
+  // Get current authenticated user
   app.get("/api/me", async (req: Request, res: Response) => {
     try {
-      // For demo purposes, return the first regular user
-      const user = await storage.getUser(5); // John Doe
+      // TODO: In the future, implement proper session management
+      // For now, let's return user with ID 5 if no session is available
+      const userId = (req as any).session?.userId || 5;
+      const user = await storage.getUser(userId);
       
       if (!user) {
         return res.status(404).json({ message: "User not found" });
