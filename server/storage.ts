@@ -213,7 +213,7 @@ export class MemStorage implements IStorage {
       {
         username: "elenapatel",
         password: "password123",
-        name: "Elena Patel",
+        name: "Elena Lovechild",
         email: "elena@angelguides.ai",
         phone: "555-234-5678",
         userType: UserType.ADVISOR,

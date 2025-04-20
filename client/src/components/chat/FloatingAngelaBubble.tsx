@@ -76,7 +76,7 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
       <div className="relative" onPointerDown={startDrag}>
         {/* Main Bubble */}
         <motion.button
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => navigate('/angela-chat')}
           className={`${bubbleSize} angela-bubble rounded-full bg-gradient-radial from-indigo-800 via-indigo-900 to-purple-950 text-white shadow-lg flex items-center justify-center cursor-grab active:cursor-grabbing relative overflow-hidden`}
           whileHover={{ scale: 1.08, boxShadow: "0 10px 25px rgba(120, 57, 213, 0.5)" }}
           whileTap={{ scale: 0.92 }}

@@ -15,7 +15,7 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
   const navItems = [
     { label: 'Dashboard', path: '/dashboard', icon: 'fa-home' },
     { label: 'Advisors', path: '/advisors', icon: 'fa-users' },
-    { label: 'Angela Chat', path: '/angela-chat', icon: 'fa-robot' },
+    { label: 'Angela AI', path: '/angela-chat', icon: 'fa-robot' },
     { label: 'Availability', path: '/availability', icon: 'fa-clock' },
     { label: 'Bookings', path: '/bookings', icon: 'fa-calendar-alt' },
     { label: 'Messages', path: '/messages', icon: 'fa-comments' },
