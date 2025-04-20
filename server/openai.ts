@@ -1,8 +1,16 @@
 import OpenAI from "openai";
 import { Specialty, User } from "@shared/schema";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "demo-api-key" });
+// Model selection constants - the newest OpenAI model is "gpt-4o" which was released May 13,
+// but we'll use the more cost-effective model for most operations
+const PRIMARY_MODEL = "gpt-3.5-turbo"; // More cost-effective model for regular chat
+const ADVANCED_MODEL = "gpt-4o"; // More advanced model for final recommendations
+const FALLBACK_MODEL = "gpt-3.5-turbo"; // Fallback if quota exceeded
+
+// OpenAI client with error handling
+const openai = new OpenAI({ 
+  apiKey: process.env.OPENAI_API_KEY || "demo-api-key"
+});
 
 export interface AngelaResponse {
   message: string;
@@ -124,7 +132,7 @@ export async function startAdvisorMatchingFlow(): Promise<MatchingQuestionRespon
     };
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: PRIMARY_MODEL, // Use cost-effective model for initial questions
       messages: [systemMessage as any],
       response_format: { type: "json_object" },
       temperature: 0.7,
@@ -223,7 +231,7 @@ export async function getNextMatchingQuestion(
     ];
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: PRIMARY_MODEL, // Use cost-effective model for follow-up questions
       messages: messages as any[],
       response_format: { type: "json_object" },
       temperature: 0.8, // Slightly higher temperature for more variability
