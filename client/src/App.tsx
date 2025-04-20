@@ -55,6 +55,7 @@ function Router() {
       <Route path="/topup" component={TopupPage} />
       <Route path="/transactions" component={Transactions} />
       <Route path="/test" component={TestPage} />
+      <Route path="/test-video" component={TestVideo} />
       <Route component={NotFound} />
     </Switch>
   );
