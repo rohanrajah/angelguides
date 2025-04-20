@@ -5,6 +5,28 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useLocation } from 'wouter';
 import { Skeleton } from '@/components/ui/skeleton';
+import { User, Specialty } from '@shared/schema';
+
+// Helper function to get specialty names by ID
+const specialtyNames: Record<number, string> = {
+  1: "Tarot Reading",
+  2: "Astrology",
+  3: "Medium",
+  4: "Dream Interpretation",
+  5: "Energy Healing",
+  6: "Spiritual Coaching",
+  7: "Chakra Balancing",
+  8: "Numerology",
+  9: "Psychic Reading",
+  10: "Past Life Reading",
+  11: "Crystal Healing",
+  12: "Angel Communication",
+  13: "Spiritual Guidance"
+};
+
+function getSpecialtyName(id: number): string {
+  return specialtyNames[id] || "Spiritual Practice";
+}
 
 interface TypedTextProps {
   text: string;
@@ -63,6 +85,7 @@ const AdvisorMatchingQuestionnaire: React.FC<Props> = ({ userId, onComplete }) =
   const [typingComplete, setTypingComplete] = useState(false);
   const [recommendation, setRecommendation] = useState<AdvisorRecommendation | null>(null);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [, setLocation] = useLocation();
 
   // Query to start the matching flow
   const { data, isLoading, error } = useQuery({
@@ -131,7 +154,7 @@ const AdvisorMatchingQuestionnaire: React.FC<Props> = ({ userId, onComplete }) =
   };
   
   // Fetch advisor data for the recommended advisors
-  const { data: advisorData = [] } = useQuery({
+  const { data: advisorData = [] } = useQuery<User[]>({
     queryKey: ['/api/advisors'],
     enabled: recommendation !== null && recommendation.recommendedAdvisors.length > 0,
   });
@@ -197,7 +220,7 @@ const AdvisorMatchingQuestionnaire: React.FC<Props> = ({ userId, onComplete }) =
               {/* Display up to 3 advisor cards directly */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                 {recommendation.recommendedAdvisors.slice(0, 3).map(advisorId => {
-                  const advisor = advisorData.find(a => a.id === advisorId);
+                  const advisor = advisorData.find((a: User) => a.id === advisorId);
                   if (!advisor) return null;
                   
                   return (
@@ -223,10 +246,11 @@ const AdvisorMatchingQuestionnaire: React.FC<Props> = ({ userId, onComplete }) =
                         </p>
                         
                         <div className="flex flex-wrap gap-1 mb-3">
-                          {advisor.specialtiesList ? (
-                            advisor.specialtiesList.slice(0, 3).map(specialty => (
-                              <span key={specialty.id} className="text-xs bg-purple-500/20 text-purple-200 px-2 py-1 rounded-full">
-                                {specialty.name}
+                          {advisor.specialties && Array.isArray(advisor.specialties) && advisor.specialties.length > 0 ? (
+                            // Use the first 3 specialty IDs
+                            advisor.specialties.slice(0, 3).map((specialtyId: number) => (
+                              <span key={specialtyId} className="text-xs bg-purple-500/20 text-purple-200 px-2 py-1 rounded-full">
+                                {getSpecialtyName(specialtyId)}
                               </span>
                             ))
                           ) : (
@@ -238,7 +262,7 @@ const AdvisorMatchingQuestionnaire: React.FC<Props> = ({ userId, onComplete }) =
                         
                         <button 
                           className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-2 rounded-md mt-2 font-medium"
-                          onClick={() => window.location.href = `/advisors/${advisor.id}`}
+                          onClick={() => setLocation(`/advisors/${advisor.id}`)}
                         >
                           View Profile
                         </button>
