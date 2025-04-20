@@ -3,6 +3,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
+import { useLocation } from 'wouter';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface TypedTextProps {
@@ -128,6 +129,12 @@ const AdvisorMatchingQuestionnaire: React.FC<Props> = ({ userId, onComplete }) =
   const handleTypingComplete = () => {
     setTypingComplete(true);
   };
+  
+  // Fetch advisor data for the recommended advisors
+  const { data: advisorData = [] } = useQuery({
+    queryKey: ['/api/advisors'],
+    enabled: recommendation !== null && recommendation.recommendedAdvisors.length > 0,
+  });
 
   if (isLoading) {
     return (
@@ -187,7 +194,61 @@ const AdvisorMatchingQuestionnaire: React.FC<Props> = ({ userId, onComplete }) =
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5 }}
             >
-              <h4 className="text-lg text-purple-300 font-medium mb-2">Suggested Topics:</h4>
+              {/* Display up to 3 advisor cards directly */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                {recommendation.recommendedAdvisors.slice(0, 3).map(advisorId => {
+                  const advisor = advisorData.find(a => a.id === advisorId);
+                  if (!advisor) return null;
+                  
+                  return (
+                    <div key={advisorId} className="bg-white/10 backdrop-blur-md rounded-lg overflow-hidden border border-purple-500/30 hover:border-purple-500/70 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/20 cursor-pointer">
+                      <div className="p-4">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-500 rounded-full flex items-center justify-center text-white text-xl font-bold">
+                            {advisor.name.charAt(0)}
+                          </div>
+                          <div>
+                            <h3 className="text-white font-medium">{advisor.name}</h3>
+                            <div className="flex items-center text-yellow-300 text-sm">
+                              {Array.from({ length: 5 }).map((_, i) => (
+                                <span key={i}>★</span>
+                              ))}
+                              <span className="ml-1 text-white/80">{advisor.rating || "5.0"}</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <p className="text-white/80 text-sm mb-3 line-clamp-2">
+                          {advisor.bio || "Spiritual advisor specializing in guidance and intuitive readings."}
+                        </p>
+                        
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {advisor.specialtiesList ? (
+                            advisor.specialtiesList.slice(0, 3).map(specialty => (
+                              <span key={specialty.id} className="text-xs bg-purple-500/20 text-purple-200 px-2 py-1 rounded-full">
+                                {specialty.name}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs bg-purple-500/20 text-purple-200 px-2 py-1 rounded-full">
+                              Spiritual Guidance
+                            </span>
+                          )}
+                        </div>
+                        
+                        <button 
+                          className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-2 rounded-md mt-2 font-medium"
+                          onClick={() => window.location.href = `/advisors/${advisor.id}`}
+                        >
+                          View Profile
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              <h4 className="text-lg text-purple-300 font-medium mb-2">Suggested Next Steps:</h4>
               <ul className="list-disc pl-5 mb-6 space-y-1">
                 {recommendation.suggestions && recommendation.suggestions.map((suggestion, index) => (
                   <li key={index} className="text-white/80">{suggestion}</li>
