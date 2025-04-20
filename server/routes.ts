@@ -516,6 +516,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (user.id) {
         console.log(`Updating last login for user: ${user.id}`);
         await storage.updateUser(user.id, { lastLogin: new Date() });
+        
+        // Set user ID in session for authentication
+        if ((req as any).session) {
+          (req as any).session.userId = user.id;
+          console.log(`Set session.userId to ${user.id}`);
+        }
       }
       
       console.log(`Login successful for user: ${user.username}`);
@@ -529,19 +535,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get current authenticated user
   app.get("/api/me", async (req: Request, res: Response) => {
     try {
-      // TODO: In the future, implement proper session management
-      // For now, let's return user with ID 5 if no session is available
-      const userId = (req as any).session?.userId || 5;
-      const user = await storage.getUser(userId);
+      // First check for proper session authentication
+      if ((req as any).session?.userId) {
+        const userId = (req as any).session.userId;
+        console.log(`Getting authenticated user from session: ${userId}`);
+        
+        const user = await storage.getUser(userId);
+        if (user) {
+          console.log(`Found authenticated user: ${user.username}`);
+          return res.json(user);
+        }
+      }
       
-      if (!user) {
+      // If no valid session, fallback to demo user during development
+      const fallbackUserId = 5; // elenap2 account for demo
+      console.log(`No valid session, using fallback user ID: ${fallbackUserId}`);
+      
+      const fallbackUser = await storage.getUser(fallbackUserId);
+      if (!fallbackUser) {
         return res.status(404).json({ message: "User not found" });
       }
       
-      res.json(user);
+      res.json(fallbackUser);
     } catch (error) {
       console.error("Error fetching current user:", error);
       res.status(500).json({ message: "Failed to fetch current user" });
+    }
+  });
+  
+  // Logout user
+  app.post("/api/logout", async (req: Request, res: Response) => {
+    try {
+      // Check if there's a session to clear
+      if ((req as any).session) {
+        const userId = (req as any).session.userId;
+        
+        if (userId) {
+          console.log(`Logging out user: ${userId}`);
+          
+          // Destroy the session
+          (req as any).session.destroy((err: any) => {
+            if (err) {
+              console.error("Error destroying session:", err);
+              return res.status(500).json({ message: "Failed to log out" });
+            }
+            
+            res.clearCookie('connect.sid');
+            return res.status(200).json({ message: "Logged out successfully" });
+          });
+        } else {
+          // No user in session
+          console.log("No user in session to log out");
+          res.status(200).json({ message: "No active session" });
+        }
+      } else {
+        // No session exists
+        console.log("No session exists");
+        res.status(200).json({ message: "No active session" });
+      }
+    } catch (error) {
+      console.error("Error logging out:", error);
+      res.status(500).json({ message: "Failed to log out" });
     }
   });
 
