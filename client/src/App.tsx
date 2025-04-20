@@ -9,6 +9,7 @@ import FloatingAngelaBubble from "@/components/chat/FloatingAngelaBubble";
 import AngelaOnboarding from "@/components/onboarding/AngelaOnboarding";
 import AngelaGuidedTour from "@/components/onboarding/AngelaGuidedTour";
 import { WebSocketProvider } from "@/components/WebSocketProvider";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
 
 // Pages
 import Home from "@/pages/home";
@@ -27,17 +28,30 @@ import NotFound from "@/pages/not-found";
 import TestPage from "@/pages/test";
 import TestVideo from "@/pages/test-video";
 import Availability from "@/pages/availability";
+
+// Advisor Dashboard Pages
+import AdvisorDashboard from "@/pages/advisor-dashboard";
+import AdvisorOrdersHistory from "@/pages/advisor-orders-history";
+import AdvisorWithdrawals from "@/pages/advisor-withdrawals";
+import AdvisorStatistics from "@/pages/advisor-statistics";
+import AdvisorServices from "@/pages/advisor-services";
+import AdvisorSettings from "@/pages/advisor-settings";
+
 import { useEffect, useState } from "react";
-import { User } from "@shared/schema";
+import { User, UserType } from "@shared/schema";
 import { apiRequest } from "./lib/queryClient";
 
 function Router() {
   const [location] = useLocation();
+  const { user } = useAuth();
   
   // Scroll to top on route change
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location]);
+  
+  // Determine if the user is an advisor
+  const isAdvisor = user?.userType === UserType.ADVISOR;
   
   return (
     <Switch>
@@ -56,14 +70,21 @@ function Router() {
       <Route path="/transactions" component={Transactions} />
       <Route path="/test" component={TestPage} />
       <Route path="/test-video" component={TestVideo} />
+
+      {/* Advisor Dashboard Routes */}
+      <Route path="/advisor-dashboard" component={AdvisorDashboard} />
+      <Route path="/advisor-orders" component={AdvisorOrdersHistory} />
+      <Route path="/advisor-withdrawals" component={AdvisorWithdrawals} />
+      <Route path="/advisor-statistics" component={AdvisorStatistics} />
+      <Route path="/advisor-services" component={AdvisorServices} />
+      <Route path="/advisor-settings" component={AdvisorSettings} />
+      
       <Route component={NotFound} />
     </Switch>
   );
 }
 
 function App() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
   const [, setLocation] = useLocation();
   const [location] = useLocation();
   const [seenWelcome, setSeenWelcome] = useState<boolean>(false);
@@ -88,44 +109,13 @@ function App() {
   
   // Check if user has completed onboarding
   useEffect(() => {
-    if (!isWelcomePage && !loading) {
+    if (!isWelcomePage) {
       const hasCompletedOnboarding = localStorage.getItem('angelaOnboardingComplete') === 'true';
       if (!hasCompletedOnboarding) {
         setShowOnboarding(true);
       }
     }
-  }, [isWelcomePage, loading]);
-
-  useEffect(() => {
-    const fetchCurrentUser = async () => {
-      try {
-        const response = await apiRequest('GET', '/api/me');
-        const user = await response.json();
-        setCurrentUser(user);
-      } catch (error) {
-        console.error('Error fetching current user:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCurrentUser();
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center bg-neutral-lightest">
-        <div className="animate-pulse flex flex-col items-center">
-          <div className="h-12 w-12 text-primary">
-            <i className="fas fa-spa text-4xl"></i>
-          </div>
-          <p className="mt-4 text-neutral-dark font-heading text-lg">
-            Connecting to the spiritual realm...
-          </p>
-        </div>
-      </div>
-    );
-  }
+  }, [isWelcomePage]);
 
   // Tour steps for the guided tour
   const tourSteps = [
@@ -163,35 +153,81 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <WebSocketProvider 
-        userId={currentUser?.id} 
-        userType={currentUser?.userType}
-      >
-        <div className={`min-h-screen flex flex-col ${isWelcomePage ? 'bg-transparent' : 'bg-neutral-lightest'}`}>
-          {!isWelcomePage && <Header user={currentUser} />}
-          <main className="flex-grow main-content">
-            <Router />
-          </main>
-          {!isWelcomePage && <Footer />}
-          {/* Angela AI bubble appears on all pages */}
-          <FloatingAngelaBubble userId={currentUser?.id || 5} />
-          
-          {/* Angela AI Onboarding Modal */}
-          {showOnboarding && !isWelcomePage && (
-            <AngelaOnboarding onComplete={handleOnboardingComplete} />
-          )}
-          
-          {/* Angela AI Guided Tour */}
-          {showGuidedTour && !isWelcomePage && (
-            <AngelaGuidedTour 
-              steps={tourSteps} 
-              isActive={showGuidedTour}
-              onComplete={handleGuidedTourComplete} 
-            />
-          )}
-        </div>
-      </WebSocketProvider>
+      <AuthProvider>
+        <AppWithAuth 
+          isWelcomePage={isWelcomePage}
+          showOnboarding={showOnboarding}
+          showGuidedTour={showGuidedTour}
+          tourSteps={tourSteps}
+          onOnboardingComplete={handleOnboardingComplete}
+          onGuidedTourComplete={handleGuidedTourComplete}
+        />
+      </AuthProvider>
     </QueryClientProvider>
+  );
+}
+
+function AppWithAuth({ 
+  isWelcomePage, 
+  showOnboarding, 
+  showGuidedTour, 
+  tourSteps, 
+  onOnboardingComplete, 
+  onGuidedTourComplete 
+}: { 
+  isWelcomePage: boolean, 
+  showOnboarding: boolean,
+  showGuidedTour: boolean,
+  tourSteps: any[],
+  onOnboardingComplete: () => void,
+  onGuidedTourComplete: () => void
+}) {
+  const { user, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-neutral-lightest">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="h-12 w-12 text-primary">
+            <i className="fas fa-spa text-4xl"></i>
+          </div>
+          <p className="mt-4 text-neutral-dark font-heading text-lg">
+            Connecting to the spiritual realm...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <WebSocketProvider 
+      userId={user?.id} 
+      userType={user?.userType}
+    >
+      <div className={`min-h-screen flex flex-col ${isWelcomePage ? 'bg-transparent' : 'bg-neutral-lightest'}`}>
+        {!isWelcomePage && <Header user={user} />}
+        <main className="flex-grow main-content">
+          <Router />
+        </main>
+        {!isWelcomePage && <Footer />}
+        {/* Angela AI bubble appears on all pages */}
+        <FloatingAngelaBubble userId={user?.id || 5} />
+        
+        {/* Angela AI Onboarding Modal */}
+        {showOnboarding && !isWelcomePage && (
+          <AngelaOnboarding onComplete={onOnboardingComplete} />
+        )}
+        
+        {/* Angela AI Guided Tour */}
+        {showGuidedTour && !isWelcomePage && (
+          <AngelaGuidedTour 
+            steps={tourSteps} 
+            isActive={showGuidedTour}
+            onComplete={onGuidedTourComplete} 
+          />
+        )}
+      </div>
+    </WebSocketProvider>
   );
 }
 
