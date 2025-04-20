@@ -127,8 +127,14 @@ export async function startAdvisorMatchingFlow(): Promise<MatchingQuestionRespon
     } else {
       throw new Error("Empty response from OpenAI");
     }
-  } catch (error) {
-    console.error("Error starting matching flow:", error);
+  } catch (error: any) {
+    if (error?.response?.status === 429) {
+      console.error("OpenAI API rate limit exceeded. Using fallback for first matching question.");
+    } else {
+      console.error("Error starting matching flow:", error);
+    }
+    
+    console.log("[Angela] Using fallback for first matching question");
     // Return the first fallback question
     return fallbackQuestions[0];
   }
@@ -216,8 +222,13 @@ export async function getNextMatchingQuestion(
 
     const content = response.choices[0]?.message?.content || '{"message": "I appreciate you sharing that with me. To help find the perfect advisor for your journey, I\'d love to understand a bit more about how you typically approach important decisions in your life. Do you tend to follow your intuition, analyze all the options, or perhaps a combination of both?", "questionNumber": 1, "totalQuestions": 5, "isMatchingQuestion": true}';
     return JSON.parse(content) as MatchingQuestionResponse;
-  } catch (error) {
-    console.error("Error getting next matching question:", error);
+  } catch (error: any) {
+    if (error?.response?.status === 429) {
+      console.error("OpenAI API rate limit exceeded. Using fallback question.");
+    } else {
+      console.error("Error getting next matching question:", error);
+    }
+    
     // Return the appropriate fallback question based on the current question number
     return fallbackQuestions[currentQuestionNumber] || {
       message: "Thank you for sharing that. As we continue to find the right advisor for you, I'm curious - how do you typically connect with spiritual guidance in your life? Have you worked with tools like tarot, meditation, or perhaps another practice that resonates with you?",
@@ -327,11 +338,24 @@ export async function generateAdvisorRecommendations(
 
     const content = response.choices[0]?.message?.content || '{"message": "Based on our conversation, I recommend connecting with Elena Patel, who specializes in tarot readings with a compassionate approach, and Sophia Rodriguez, who is an empathetic medium focused on connecting with loved ones. They both seem well-aligned with your spiritual needs.", "recommendedAdvisors": [5, 7], "suggestions": ["Browse Elena\'s profile to see her availability", "Read reviews from Sophia\'s past clients", "Book a short initial session to see if there\'s a connection"]}';
     return JSON.parse(content) as AdvisorRecommendation;
-  } catch (error) {
-    console.error("Error generating advisor recommendations:", error);
+  } catch (error: any) {
+    if (error?.response?.status === 429) {
+      console.error("OpenAI API rate limit exceeded. Using fallback advisor recommendations.");
+    } else {
+      console.error("Error generating advisor recommendations:", error);
+    }
+    
+    // Use advisors provided from database if available, otherwise use fallback
+    const defaultAdvisorIds = [5, 7, 4];
+    const recommendedIds = advisors && advisors.length >= 3 
+      ? advisors.slice(0, 3).map(advisor => advisor.id) 
+      : defaultAdvisorIds;
+    
+    console.log(`[Angela] Using fallback recommendation for advisors: ${recommendedIds.join(', ')}`);
+    
     return {
       message: "Based on our conversation, I have three excellent recommendations for you. Elena Patel specializes in tarot readings with a compassionate, intuitive approach that can help illuminate your path forward. Sophia Rodriguez is a gifted medium who creates a warm, empathetic space for spiritual connection. And Michael Chen offers insightful astrological guidance to understand the cosmic influences in your life. Each of these advisors brings unique strengths that align well with the questions you've shared.",
-      recommendedAdvisors: [5, 7, 4],
+      recommendedAdvisors: recommendedIds,
       suggestions: [
         "Browse each advisor's full profile to see their detailed specialties and approach",
         "Read recent reviews to see how they've helped others with similar concerns",
@@ -352,6 +376,7 @@ export async function getAngelaResponse(
     
     if (lastAssistantMessage && isMatchingQuestion(lastAssistantMessage.content)) {
       const currentQuestionNumber = getMatchingQuestionNumber(conversationHistory);
+      console.log(`[Angela] Continuing advisor matching flow. Question #${currentQuestionNumber} of 5.`);
       return await getNextMatchingQuestion(userMessage, conversationHistory, currentQuestionNumber);
     }
     
@@ -365,6 +390,7 @@ export async function getAngelaResponse(
     ];
     
     if (matchingKeywords.some(keyword => userMessage.toLowerCase().includes(keyword))) {
+      console.log(`[Angela] Starting new advisor matching flow.`);
       return await startAdvisorMatchingFlow();
     }
     
@@ -444,10 +470,23 @@ export async function getAngelaResponse(
     // Parse the response
     const content = response.choices[0]?.message?.content || '{"message": "I apologize, but I\'m having trouble connecting to my spiritual guidance at the moment. Please try again."}';
     return JSON.parse(content) as AngelaResponse;
-  } catch (error) {
-    console.error("Error getting Angela response:", error);
+  } catch (error: any) {
+    if (error?.response?.status === 429) {
+      console.error("OpenAI API rate limit exceeded. Using fallback response.");
+    } else {
+      console.error("Error getting Angela response:", error);
+    }
+    
     return {
-      message: "I apologize, but I'm experiencing a connection issue with the spiritual realm right now. Please try again in a moment."
+      message: "I apologize, but I'm experiencing a connection issue with the spiritual realm right now. Please try again in a moment.",
+      emotionalTone: "supportive",
+      detectedEmotion: "neutral",
+      empathyLevel: 3,
+      suggestions: [
+        "Try phrasing your question differently",
+        "Come back in a little while when our connection is stronger",
+        "Explore our advisor profiles directly"
+      ]
     };
   }
 }
