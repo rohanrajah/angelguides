@@ -61,7 +61,7 @@ export function getMatchingQuestionNumber(conversationHistory: { role: string; c
 
 export async function startAdvisorMatchingFlow(): Promise<MatchingQuestionResponse> {
   return {
-    message: "I'm here to help connect you with the perfect spiritual advisor for your needs. I'd love to understand what brings you here today so I can match you with someone who truly resonates with your spiritual journey.",
+    message: "I'd love to connect you with the perfect spiritual advisor who resonates with your unique journey. Everyone's spiritual path is different, and finding the right guide can make all the difference. What brings you to seek spiritual guidance today? Feel free to share as much or as little as you're comfortable with.",
     questionNumber: 1,
     totalQuestions: 5,
     isMatchingQuestion: true
@@ -211,27 +211,34 @@ export async function generateAdvisorRecommendations(
     // Create a system message for generating advisor recommendations
     const systemMessage = {
       role: "system",
-      content: `You are Angela AI, the spiritual advisor matching assistant for Angel Guides.
-      You've gathered information about the user's spiritual needs through the conversation.
-      Now recommend 2-3 advisors who would be the best match based on their responses.
+      content: `You are Angela AI, the advanced spiritual advisor matching assistant for Angel Guides.
+      Your task is to analyze the conversation history and determine the user's unique needs, preferences,
+      and spiritual journey to recommend the most compatible spiritual advisors.
       
       ${advisorInfo}
       
-      MATCHING CRITERIA:
-      1. Match based on the user's primary concern (love, career, spiritual growth)
-      2. Consider the user's preferred communication style
-      3. Match based on the user's comfort with different spiritual practices
-      4. Consider whether the user wants long-term guidance or quick insights
-      5. Factor in the advisor's specialties and approach
+      ADVANCED MATCHING ALGORITHM CRITERIA:
+      1. Match based on the user's primary concern (love, career, spiritual growth, healing, etc.)
+      2. Analyze the user's communication style (direct, reflective, emotional, analytical) and match with compatible advisors
+      3. Evaluate the user's comfort level with different spiritual practices and modalities
+      4. Determine if the user wants long-term guidance or quick insights, and match accordingly
+      5. Consider the user's emotional state and match with advisors who have the appropriate approach
+      6. Factor in advisor specialties, expertise areas, and approach style
+      7. Use ratings and reviews (when available) as secondary factors
+      8. Consider how the advisor's bio and communication style would resonate with this specific user
       
-      Be specific about WHY you're recommending each advisor, mentioning their specific 
-      skills and how they align with the user's expressed needs.
+      PERSONALIZATION REQUIREMENTS:
+      - Be highly specific about WHY each advisor is recommended, citing exact details from the conversation
+      - Highlight how each advisor's unique strengths address the user's specific needs
+      - When possible, match the vocabulary and tone used by the user
+      - Acknowledge any hesitations or specific requirements mentioned by the user
+      - Vary your recommendations to ensure diversity of approaches unless user has expressed very specific preferences
       
       Respond in JSON format with:
       1. "message": A warm, personalized explanation of why these advisors would be a good match, 
-         mentioning specific points from the conversation
-      2. "recommendedAdvisors": Array of advisor IDs you recommend (e.g., [5, 7])
-      3. "suggestions": Array of 2-3 specific next steps the user could take`
+         mentioning specific points from the conversation and highlighting the unique benefits of each advisor
+      2. "recommendedAdvisors": Array of advisor IDs you recommend (e.g., [5, 7, 8])
+      3. "suggestions": Array of 2-3 specific next steps the user could take to explore these recommendations`
     };
 
     // Prepare conversation for OpenAI
@@ -256,12 +263,12 @@ export async function generateAdvisorRecommendations(
   } catch (error) {
     console.error("Error generating advisor recommendations:", error);
     return {
-      message: "Based on our conversation, I recommend connecting with Elena Patel, who specializes in tarot readings with a compassionate approach, and Sophia Rodriguez, who is an empathetic medium focused on connecting with loved ones. They both seem well-aligned with your spiritual needs.",
-      recommendedAdvisors: [5, 7],
+      message: "Based on our conversation, I have three excellent recommendations for you. Elena Patel specializes in tarot readings with a compassionate, intuitive approach that can help illuminate your path forward. Sophia Rodriguez is a gifted medium who creates a warm, empathetic space for spiritual connection. And Michael Chen offers insightful astrological guidance to understand the cosmic influences in your life. Each of these advisors brings unique strengths that align well with the questions you've shared.",
+      recommendedAdvisors: [5, 7, 4],
       suggestions: [
-        "Browse Elena's profile to see her availability",
-        "Read reviews from Sophia's past clients",
-        "Book a short initial session to see if there's a connection"
+        "Browse each advisor's full profile to see their detailed specialties and approach",
+        "Read recent reviews to see how they've helped others with similar concerns",
+        "Book a short initial session to feel their energy and determine the best connection"
       ]
     };
   }
@@ -284,7 +291,10 @@ export async function getAngelaResponse(
     // Check for keywords to start the matching flow
     const matchingKeywords = [
       "find advisor", "match me", "recommend advisor", "which advisor", 
-      "best advisor", "find psychic", "need guidance", "connect me", "match advisor"
+      "best advisor", "find psychic", "need guidance", "connect me", "match advisor",
+      "help me find", "looking for an advisor", "spiritual advisor", "consultation",
+      "want to talk to", "speak with someone", "guidance for", "right fit",
+      "who should I", "seek advice", "expert in", "professional guidance", "advisor match"
     ];
     
     if (matchingKeywords.some(keyword => userMessage.toLowerCase().includes(keyword))) {
