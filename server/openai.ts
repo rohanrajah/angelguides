@@ -1,11 +1,15 @@
 import OpenAI from "openai";
 import { Specialty, User } from "@shared/schema";
+import { callPerplexityAPI } from "./perplexity";
 
 // Model selection constants - the newest OpenAI model is "gpt-4o" which was released May 13,
 // but we'll use the more cost-effective model for most operations
 const PRIMARY_MODEL = "gpt-3.5-turbo"; // More cost-effective model for regular chat
 const ADVANCED_MODEL = "gpt-4o"; // More advanced model for final recommendations
 const FALLBACK_MODEL = "gpt-3.5-turbo"; // Fallback if quota exceeded
+
+// Flag to enable Perplexity AI as a secondary provider if OpenAI fails
+const USE_PERPLEXITY_FALLBACK = true;
 
 // OpenAI client with error handling
 const openai = new OpenAI({ 
@@ -476,59 +480,98 @@ export async function getAngelaResponse(
       { role: "user" as any, content: userMessage }
     ];
 
-    // Get response from OpenAI with automatic fallback
-    let response;
+    // Try to get a response from OpenAI
     try {
       // First try with primary model
-      response = await openai.chat.completions.create({
+      const response = await openai.chat.completions.create({
         model: PRIMARY_MODEL, // Use cost-effective model for regular conversations
         messages: messages as any[],
         response_format: { type: "json_object" },
         temperature: 0.7,
         max_tokens: 500
       });
-    } catch (modelError) {
-      // If primary model fails, try fallback model
-      console.log(`[Angela] Primary model failed, trying fallback model: ${modelError.message}`);
-      response = await openai.chat.completions.create({
-        model: FALLBACK_MODEL, // Use fallback model
-        messages: messages as any[],
-        response_format: { type: "json_object" },
-        temperature: 0.7,
-        max_tokens: 500
-      });
-    }
 
-    // Parse the response
-    const content = response.choices[0]?.message?.content || '{"message": "I apologize, but I\'m having trouble connecting to my spiritual guidance at the moment. Please try again."}';
-    return JSON.parse(content) as AngelaResponse;
-  } catch (error: any) {
-    if (error?.response?.status === 429) {
-      console.error("OpenAI API rate limit exceeded. Using fallback response.");
-    } else {
-      console.error("Error getting Angela response:", error);
+      // Parse the OpenAI response
+      const content = response.choices[0]?.message?.content;
+      if (content) {
+        return JSON.parse(content) as AngelaResponse;
+      }
+      throw new Error("Empty response from OpenAI");
+    } 
+    catch (openaiError: any) {
+      // Log the OpenAI error
+      console.log(`[Angela] OpenAI error: ${openaiError.message}`);
+      
+      // Try using Perplexity as fallback if enabled and PERPLEXITY_API_KEY is set
+      if (USE_PERPLEXITY_FALLBACK && process.env.PERPLEXITY_API_KEY) {
+        try {
+          console.log('[Angela] Trying Perplexity API as fallback');
+          
+          // Format messages for Perplexity
+          const perplexityMessages = messages.map(msg => ({
+            role: msg.role === 'user' ? 'user' : 'assistant',
+            content: msg.content
+          }));
+          
+          // Add system message if not already present
+          if (!perplexityMessages.some(m => m.role === 'system')) {
+            perplexityMessages.unshift({
+              role: 'system',
+              content: 'You are Angela AI, a spiritual advisor assistant. Always respond in valid JSON format with fields: message, suggestions (array), emotionalTone, detectedEmotion, and empathyLevel (number 1-5).'
+            });
+          }
+          
+          // Call Perplexity API
+          const perplexityResponse = await callPerplexityAPI(
+            perplexityMessages as any,
+            { format: 'json' }
+          );
+          
+          // Parse the Perplexity response
+          return JSON.parse(perplexityResponse) as AngelaResponse;
+        } 
+        catch (perplexityError: any) {
+          console.error('[Angela] Perplexity fallback failed:', perplexityError);
+          // If Perplexity fails, continue to the static fallback
+        }
+      }
+      
+      // If all else fails, use a static fallback response
+      // Different friendly fallback messages for different error types
+      const isMissingApiKey = !process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === "demo-api-key";
+      const isRateLimitError = openaiError?.response?.status === 429;
+      
+      // Select appropriate fallback message based on error type
+      const fallbackMessage = isMissingApiKey
+        ? "I sense that my connection to the spiritual realm is incomplete. My abilities require a valid mystical conduit (API key) to channel the full wisdom you seek."
+        : isRateLimitError
+          ? "The cosmic energies are at capacity right now. My spiritual guides suggest we pause briefly before continuing our journey together."
+          : "I'm experiencing a momentary disconnect from the ethereal plane. The spiritual energies will realign shortly.";
+      
+      return {
+        message: fallbackMessage,
+        emotionalTone: "supportive",
+        detectedEmotion: "neutral",
+        empathyLevel: 3,
+        suggestions: [
+          "Try asking another question to reconnect our spiritual energies",
+          "Explore our advisor profiles to find a spiritual guide",
+          "Return in a few moments when the cosmic alignment is stronger"
+        ]
+      };
     }
-    
-    // Different friendly fallback messages for different error types
-    const isMissingApiKey = !process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === "demo-api-key";
-    const isRateLimitError = error?.response?.status === 429;
-    
-    // Select appropriate fallback message based on error type
-    const fallbackMessage = isMissingApiKey
-      ? "I sense that my connection to the spiritual realm is incomplete. My abilities require a valid mystical conduit (API key) to channel the full wisdom you seek."
-      : isRateLimitError
-        ? "The cosmic energies are at capacity right now. My spiritual guides suggest we pause briefly before continuing our journey together."
-        : "I'm experiencing a momentary disconnect from the ethereal plane. The spiritual energies will realign shortly.";
+  } catch (error: any) {
+    console.error("Unexpected error in getAngelaResponse:", error);
     
     return {
-      message: fallbackMessage,
+      message: "The connection between our realms seems unstable. Let's try to reconnect in a moment when the spiritual channels are clearer.",
       emotionalTone: "supportive",
       detectedEmotion: "neutral",
       empathyLevel: 3,
       suggestions: [
-        "Try asking another question to reconnect our spiritual energies",
+        "Try rephrasing your question in a different way",
         "Explore our advisor profiles to find a spiritual guide",
-        "Return in a few moments when the cosmic alignment is stronger"
+        "Take a moment to reflect and return when you feel ready"
       ]
     };
   }
