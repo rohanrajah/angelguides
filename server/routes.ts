@@ -487,17 +487,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { username, password } = req.body;
       
+      console.log(`Login attempt for username: ${username}`);
+      
       if (!username || !password) {
+        console.log("Missing username or password");
         return res.status(400).json({ message: "Username and password are required" });
       }
       
       const user = await storage.getUserByUsername(username);
       
       if (!user) {
+        console.log(`User not found: ${username}`);
         return res.status(401).json({ message: "Invalid credentials" });
       }
       
+      console.log(`Found user: ${user.username}, id: ${user.id}, userType: ${user.userType}`);
+      console.log(`Stored password format: ${user.password.substring(0, 20)}...`);
+      
       const isPasswordValid = await verifyPassword(password, user.password);
+      
+      console.log(`Password validation result: ${isPasswordValid}`);
       
       if (!isPasswordValid) {
         return res.status(401).json({ message: "Invalid credentials" });
@@ -505,9 +514,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update last login
       if (user.id) {
+        console.log(`Updating last login for user: ${user.id}`);
         await storage.updateUser(user.id, { lastLogin: new Date() });
       }
       
+      console.log(`Login successful for user: ${user.username}`);
       res.json(user);
     } catch (error) {
       console.error("Error logging in:", error);
