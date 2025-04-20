@@ -1496,6 +1496,25 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updatedConversation;
   }
+  
+  async createAngelaMessage(message: { userId: number, content: string, role: string }): Promise<ChatMessage> {
+    // Get or create a conversation for this user
+    const conversation = await this.getOrCreateConversation(message.userId);
+    
+    // Create a new message
+    const newMessage: ChatMessage = {
+      id: Date.now(), // Use timestamp as ID
+      content: message.content,
+      role: message.role as 'system' | 'user' | 'assistant',
+      timestamp: new Date()
+    };
+    
+    // Add message to conversation
+    const updatedMessages = [...conversation.messages, newMessage];
+    await this.updateConversation(conversation.id, updatedMessages);
+    
+    return newMessage;
+  }
 
   // Review methods
   async createReview(review: InsertReview): Promise<Review> {
