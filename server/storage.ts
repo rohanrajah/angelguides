@@ -270,6 +270,26 @@ export class MemStorage implements IStorage {
       profileCompleted: false
     });
     
+    // Create admin user
+    this.createUser({
+      username: "rchitnis",
+      password: "password123",
+      name: "Rohan Chitnis",
+      email: "rohan@angelguides.ai",
+      phone: "555-987-6543",
+      userType: UserType.ADMIN,
+      isAdvisor: false,
+      avatar: "https://images.unsplash.com/photo-1603415526960-f7e0328c63b1?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
+      bio: "Platform administrator with expertise in spiritual guidance platforms.",
+      introVideo: null,
+      specialties: [],
+      chatRate: 0,
+      audioRate: 0,
+      videoRate: 0,
+      availability: "",
+      profileCompleted: true
+    });
+    
     // Assign specialties to advisors
     this.assignSpecialtyToAdvisor({ advisorId: 1, specialtyId: 1 }); // Sarah - Tarot
     this.assignSpecialtyToAdvisor({ advisorId: 1, specialtyId: 4 }); // Sarah - Energy Healing

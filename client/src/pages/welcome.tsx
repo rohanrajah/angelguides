@@ -5,6 +5,9 @@ import angelaConsciousImage from '@/assets/angela-conscious.jpg';
 import angelaWelcomeAudio from '@/assets/audio/angela-welcome.mp3';
 // FloatingAngelaBubble is now rendered in App.tsx for all pages
 import AdvisorMatchingQuestionnaire from '@/components/advisor/AdvisorMatchingQuestionnaire';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { apiRequest } from "@/lib/queryClient";
 
 // Typing animation for text
 const TypedText: React.FC<{
@@ -41,6 +44,79 @@ const TypedText: React.FC<{
   }, [currentIndex, text, delay, onComplete, onCharacterTyped]);
   
   return <span>{displayedText}</span>;
+};
+
+// Login form component
+const LoginForm: React.FC = () => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [, setLocation] = useLocation();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    
+    try {
+      const response = await apiRequest('POST', '/api/login', { username, password });
+      const data = await response.json();
+      
+      if (response.ok) {
+        setLocation('/dashboard');
+      } else {
+        setError(data.message || 'Login failed');
+      }
+    } catch (err) {
+      setError('An error occurred. Please try again.');
+      console.error('Login error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="absolute top-4 right-4 z-50 bg-black/50 backdrop-blur-md p-4 rounded-xl border border-purple-500/30 shadow-lg w-80">
+      <h3 className="text-white text-xl font-bold mb-4">Login</h3>
+      <form onSubmit={handleLogin} className="space-y-3">
+        <div>
+          <Input
+            type="text"
+            placeholder="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="bg-white/10 border-purple-400/30 text-white placeholder:text-gray-400"
+            autoComplete="username"
+          />
+        </div>
+        <div>
+          <Input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="bg-white/10 border-purple-400/30 text-white placeholder:text-gray-400"
+            autoComplete="current-password"
+          />
+        </div>
+        {error && <div className="text-red-400 text-sm">{error}</div>}
+        <div className="flex justify-between items-center">
+          <Button 
+            type="submit" 
+            disabled={loading}
+            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+          >
+            {loading ? 'Logging in...' : 'Login'}
+          </Button>
+          <div className="text-sm text-gray-300">
+            <span>Test users:<br/></span>
+            <span className="text-blue-300">rchitnis / password123</span>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
 };
 
 const WelcomePage: React.FC = () => {
@@ -144,6 +220,9 @@ const WelcomePage: React.FC = () => {
 
   return (
     <div className="relative w-full h-screen bg-gradient-to-b from-indigo-950 to-black overflow-hidden">
+      {/* Login Form */}
+      <LoginForm />
+      
       {/* Animated particles background */}
       <div className="absolute inset-0 opacity-30">
         {Array.from({ length: 30 }).map((_, i) => (
