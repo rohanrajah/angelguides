@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from 'ws';
 import { storage } from "./storage";
-import { getAngelaResponse, startAdvisorMatchingFlow } from "./openai";
+import { getAngelaResponse, startAdvisorMatchingFlow, generateAdvisorRecommendations, AdvisorWithSpecialties } from "./openai";
 import { registerProfileRoutes } from "./routes-profile";
 import { registerAdminRoutes } from "./routes-admin";
 import { verifyPassword } from "./auth";

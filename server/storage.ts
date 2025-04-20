@@ -1227,6 +1227,31 @@ export class DatabaseStorage implements IStorage {
       inArray(specialties.id, specialtyIds.map(s => s.specialtyId))
     );
   }
+  
+  async getAdvisorsWithSpecialties(limit: number = 10): Promise<AdvisorWithSpecialties[]> {
+    // Get advisors
+    const advisors = await this.getAdvisors();
+    
+    if (advisors.length === 0) {
+      return [];
+    }
+    
+    // Limit the number of advisors to avoid too many DB calls
+    const limitedAdvisors = advisors.slice(0, limit);
+    
+    // Fetch specialties for each advisor
+    const advisorsWithSpecialties: AdvisorWithSpecialties[] = [];
+    
+    for (const advisor of limitedAdvisors) {
+      const specialtiesList = await this.getAdvisorSpecialties(advisor.id);
+      advisorsWithSpecialties.push({
+        ...advisor,
+        specialtiesList
+      });
+    }
+    
+    return advisorsWithSpecialties;
+  }
 
   // Session methods
   async createSession(session: InsertSession): Promise<Session> {
