@@ -68,9 +68,18 @@ const WelcomePage: React.FC = () => {
   }, [animationState]);
 
   useEffect(() => {
-    // Skip intro animation and go straight to advisor matching
+    // Sequence of intro animations
     const initialAnimation = setTimeout(() => {
-      setAnimationState('matchingQuestionnaire');
+      setAnimationState('fadeIn');
+      
+      // Start speaking animation after a slight delay
+      setTimeout(() => {
+        setAnimationState('speaking');
+        // Play welcome audio if needed
+        if (audioRef.current) {
+          audioRef.current.play().catch(err => console.log("Audio playback prevented:", err));
+        }
+      }, 1000);
     }, 500);
     
     return () => clearTimeout(initialAnimation);
