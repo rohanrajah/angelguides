@@ -59,13 +59,79 @@ export function getMatchingQuestionNumber(conversationHistory: { role: string; c
   return assistantMessages.length;
 }
 
-export async function startAdvisorMatchingFlow(): Promise<MatchingQuestionResponse> {
-  return {
+// Predefined fallback questions for when OpenAI is unavailable
+const fallbackQuestions = [
+  {
     message: "I'd love to connect you with the perfect spiritual advisor who resonates with your unique journey. Everyone's spiritual path is different, and finding the right guide can make all the difference. What brings you to seek spiritual guidance today? Feel free to share as much or as little as you're comfortable with.",
     questionNumber: 1,
     totalQuestions: 5,
     isMatchingQuestion: true
-  };
+  },
+  {
+    message: "Thank you for sharing that. To help find the perfect match, I'm curious about how you typically approach important decisions in your life. Do you tend to follow your intuition, analyze all the options, or perhaps a combination of both?",
+    questionNumber: 2,
+    totalQuestions: 5,
+    isMatchingQuestion: true
+  },
+  {
+    message: "I appreciate your thoughtful response. Are you looking for guidance on a specific immediate concern, or are you more interested in ongoing support for your spiritual journey and development?",
+    questionNumber: 3, 
+    totalQuestions: 5,
+    isMatchingQuestion: true
+  },
+  {
+    message: "Thank you for sharing that. How do you feel about different spiritual tools and practices like tarot, astrology, energy healing, or meditation? Are there any you're particularly drawn to or curious about?",
+    questionNumber: 4,
+    totalQuestions: 5,
+    isMatchingQuestion: true
+  },
+  {
+    message: "We're almost done finding your perfect match. Finally, what kind of communication style do you connect with best? Do you prefer someone who is direct and straightforward, warm and nurturing, or perhaps analytical and detailed?",
+    questionNumber: 5,
+    totalQuestions: 5,
+    isMatchingQuestion: true
+  }
+];
+
+export async function startAdvisorMatchingFlow(): Promise<MatchingQuestionResponse> {
+  try {
+    // Try to get a personalized first question from OpenAI
+    const systemMessage = {
+      role: "system",
+      content: `You are Angela, an AI spiritual advisor matching assistant. 
+      Your task is to help match users with the right spiritual advisor.
+      Ask the user a question related to finding them the right spiritual advisor match.
+      This is question 1 of 5 in the advisor matching flow.
+
+      Please keep your response brief (1-2 sentences), clear, and conversational.
+      
+      Format your response as JSON with:
+      - 'message': Your question text (focus on one specific aspect of what they're looking for)
+      - 'questionNumber': 1
+      - 'totalQuestions': 5
+      - 'isMatchingQuestion': true
+      `
+    };
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [systemMessage as any],
+      response_format: { type: "json_object" },
+      temperature: 0.7,
+      max_tokens: 250
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (content) {
+      return JSON.parse(content) as MatchingQuestionResponse;
+    } else {
+      throw new Error("Empty response from OpenAI");
+    }
+  } catch (error) {
+    console.error("Error starting matching flow:", error);
+    // Return the first fallback question
+    return fallbackQuestions[0];
+  }
 }
 
 export async function getNextMatchingQuestion(
@@ -152,7 +218,8 @@ export async function getNextMatchingQuestion(
     return JSON.parse(content) as MatchingQuestionResponse;
   } catch (error) {
     console.error("Error getting next matching question:", error);
-    return {
+    // Return the appropriate fallback question based on the current question number
+    return fallbackQuestions[currentQuestionNumber] || {
       message: "Thank you for sharing that. As we continue to find the right advisor for you, I'm curious - how do you typically connect with spiritual guidance in your life? Have you worked with tools like tarot, meditation, or perhaps another practice that resonates with you?",
       questionNumber: currentQuestionNumber + 1,
       totalQuestions: 5,
