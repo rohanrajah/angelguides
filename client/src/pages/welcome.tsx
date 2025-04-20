@@ -339,8 +339,17 @@ const WelcomePage: React.FC = () => {
       {/* Hidden audio element for narration */}
       <audio ref={audioRef} src={angelaWelcomeAudio} preload="auto" />
       
-      {/* Skip button */}
-      <div className="absolute bottom-6 right-6">
+      {/* Skip and Reset buttons */}
+      <div className="absolute bottom-6 right-6 flex gap-2">
+        <button 
+          onClick={() => {
+            localStorage.removeItem('hasSeenWelcome');
+            window.location.reload();
+          }}
+          className="px-4 py-2 text-white text-sm bg-red-500/30 hover:bg-red-500/50 rounded-full transition-colors duration-200 backdrop-blur-sm"
+        >
+          Reset Progress
+        </button>
         <button 
           onClick={() => {
             localStorage.setItem('hasSeenWelcome', 'true');
