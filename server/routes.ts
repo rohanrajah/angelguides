@@ -663,7 +663,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // If no valid session, fallback to demo user during development
-      const fallbackUserId = 5; // elenap2 account for demo
+      const fallbackUserId = 5; // elenalovechild account for demo
       console.log(`No valid session, using fallback user ID: ${fallbackUserId}`);
       
       const fallbackUser = await storage.getUser(fallbackUserId);

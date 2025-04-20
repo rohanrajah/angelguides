@@ -211,7 +211,7 @@ export class MemStorage implements IStorage {
         profileCompleted: true
       },
       {
-        username: "elenapatel",
+        username: "elenalovechild",
         password: "password123",
         name: "Elena Lovechild",
         email: "elena@angelguides.ai",

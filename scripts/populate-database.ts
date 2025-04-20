@@ -73,7 +73,7 @@ async function populateDatabase() {
   console.log("Creating advisor users...");
   const advisorUsers: InsertUser[] = [];
   const advisorNames = [
-    "Sarah Johnson", "Michael Chen", "Elena Patel", "David Wilson", 
+    "Sarah Johnson", "Michael Chen", "Elena Lovechild", "David Wilson", 
     "Maria Rodriguez", "James Smith", "Aisha Kumar", "Thomas Brown",
     "Sophia Martinez", "John Williams", "Zara Ali", "Robert Thompson",
     "Emma Garcia", "Daniel Lee", "Olivia Clark", "William Davis",

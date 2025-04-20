@@ -290,7 +290,7 @@ export async function generateAdvisorRecommendations(
       // Fallback if no advisors are provided
       advisorInfo = `Available advisor IDs are: 4, 5, 6, 7, 8 (use these exact numbers)
       - Michael Chen (ID: 4): Astrology specialist with direct, analytical style
-      - Elena Patel (ID: 5): Tarot expert with compassionate approach
+      - Elena Lovechild (ID: 5): Tarot expert with compassionate approach
       - David Wilson (ID: 6): Energy healer and spiritual coach, practical guidance
       - Sophia Rodriguez (ID: 7): Medium with focus on connecting with loved ones, empathetic
       - James Kim (ID: 8): Intuitive reader specializing in life path and career guidance`;
@@ -346,7 +346,7 @@ export async function generateAdvisorRecommendations(
       max_tokens: 800
     });
 
-    const content = response.choices[0]?.message?.content || '{"message": "Based on our conversation, I recommend connecting with Elena Patel, who specializes in tarot readings with a compassionate approach, and Sophia Rodriguez, who is an empathetic medium focused on connecting with loved ones. They both seem well-aligned with your spiritual needs.", "recommendedAdvisors": [5, 7], "suggestions": ["Browse Elena\'s profile to see her availability", "Read reviews from Sophia\'s past clients", "Book a short initial session to see if there\'s a connection"]}';
+    const content = response.choices[0]?.message?.content || '{"message": "Based on our conversation, I recommend connecting with Elena Lovechild, who specializes in tarot readings with a compassionate approach, and Sophia Rodriguez, who is an empathetic medium focused on connecting with loved ones. They both seem well-aligned with your spiritual needs.", "recommendedAdvisors": [5, 7], "suggestions": ["Browse Elena\'s profile to see her availability", "Read reviews from Sophia\'s past clients", "Book a short initial session to see if there\'s a connection"]}';
     return JSON.parse(content) as AdvisorRecommendation;
   } catch (error: any) {
     if (error?.response?.status === 429) {
@@ -364,7 +364,7 @@ export async function generateAdvisorRecommendations(
     console.log(`[Angela] Using fallback recommendation for advisors: ${recommendedIds.join(', ')}`);
     
     return {
-      message: "Based on our conversation, I have three excellent recommendations for you. Elena Patel specializes in tarot readings with a compassionate, intuitive approach that can help illuminate your path forward. Sophia Rodriguez is a gifted medium who creates a warm, empathetic space for spiritual connection. And Michael Chen offers insightful astrological guidance to understand the cosmic influences in your life. Each of these advisors brings unique strengths that align well with the questions you've shared.",
+      message: "Based on our conversation, I have three excellent recommendations for you. Elena Lovechild specializes in tarot readings with a compassionate, intuitive approach that can help illuminate your path forward. Sophia Rodriguez is a gifted medium who creates a warm, empathetic space for spiritual connection. And Michael Chen offers insightful astrological guidance to understand the cosmic influences in your life. Each of these advisors brings unique strengths that align well with the questions you've shared.",
       recommendedAdvisors: recommendedIds,
       suggestions: [
         "Browse each advisor's full profile to see their detailed specialties and approach",
