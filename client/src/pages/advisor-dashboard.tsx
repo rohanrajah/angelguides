@@ -5,7 +5,7 @@ import {
   ArrowUpIcon, 
   ArrowDownIcon,
   DollarSignIcon,
-  UsersIcon,
+  Users2Icon,
   CalendarIcon,
   StarIcon,
   ClockIcon
@@ -123,7 +123,7 @@ export default function AdvisorDashboard() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center">
-                <UsersIcon className="h-5 w-5 mr-2 text-purple-600" />
+                <Users2Icon className="h-5 w-5 mr-2 text-purple-600" />
                 <span className="text-2xl font-bold">
                   {advisorData?.clientCount || 0}
                 </span>
