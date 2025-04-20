@@ -25,6 +25,7 @@ import Transactions from "@/pages/transactions";
 import Dashboard from "@/pages/dashboard";
 import NotFound from "@/pages/not-found";
 import TestPage from "@/pages/test";
+import TestVideo from "@/pages/test-video";
 import Availability from "@/pages/availability";
 import { useEffect, useState } from "react";
 import { User } from "@shared/schema";

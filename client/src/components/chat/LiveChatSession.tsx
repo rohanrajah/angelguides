@@ -17,6 +17,8 @@ import {
   X
 } from 'lucide-react';
 import { connectWebSocket, disconnectWebSocket, sendMessage, onMessage } from '@/lib/websocket';
+import { VideoCallContainer } from '@/components/chat/VideoCallContainer';
+import { AudioCallContainer } from '@/components/chat/AudioCallContainer';
 
 interface Message {
   id?: number;
@@ -304,67 +306,50 @@ export function LiveChatSession({
         )}
         
         {mode === 'audio' && (
-          <div className="h-[400px] bg-muted/10 flex flex-col items-center justify-center">
-            <Avatar className="h-32 w-32 mb-6">
-              <AvatarImage src={participantAvatar} />
-              <AvatarFallback className="text-4xl">
-                {participantName.substring(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <h3 className="text-xl font-medium mb-2">{participantName}</h3>
-            <p className="text-muted-foreground mb-8">
-              {isAudioOn ? 'Call in progress' : 'Starting call...'}
-            </p>
-            <div className="flex gap-4">
-              <Button 
-                variant="outline" 
-                size="lg" 
-                className="rounded-full h-14 w-14"
-                onClick={() => setIsAudioOn(!isAudioOn)}
-              >
-                {isAudioOn ? (
-                  <MicOff className="h-6 w-6" />
-                ) : (
-                  <Mic className="h-6 w-6" />
-                )}
-              </Button>
-            </div>
+          <div className="h-[500px]">
+            {isAudioOn ? (
+              <AudioCallContainer
+                sessionId={sessionId}
+                participantId={participantId}
+                participantName={participantName}
+                participantAvatar={participantAvatar}
+                isInitiator={true}
+                onEnd={() => {
+                  setIsAudioOn(false);
+                  setMode('chat');
+                }}
+              />
+            ) : (
+              <div className="h-full bg-muted/10 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mb-4 mx-auto"></div>
+                  <p className="text-lg">Starting audio call...</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
         
         {mode === 'video' && (
-          <div className="h-[400px] bg-muted/30 relative">
-            {/* Main video feed would go here */}
-            <div className="absolute top-4 right-4 bg-background rounded-lg shadow-lg h-36 w-48 border">
-              {/* Self video feed would go here */}
-            </div>
-            
-            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-4">
-              <Button
-                variant="outline"
-                size="lg"
-                className="rounded-full h-14 w-14 bg-background/80"
-                onClick={() => setIsAudioOn(!isAudioOn)}
-              >
-                {isAudioOn ? (
-                  <MicOff className="h-6 w-6" />
-                ) : (
-                  <Mic className="h-6 w-6" />
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="rounded-full h-14 w-14 bg-background/80"
-                onClick={() => setIsVideoOn(!isVideoOn)}
-              >
-                {isVideoOn ? (
-                  <CameraOff className="h-6 w-6" />
-                ) : (
-                  <Camera className="h-6 w-6" />
-                )}
-              </Button>
-            </div>
+          <div className="h-[500px]">
+            {isVideoOn ? (
+              <VideoCallContainer
+                sessionId={sessionId}
+                participantId={participantId}
+                isInitiator={true}
+                onEnd={() => {
+                  setIsVideoOn(false);
+                  setMode('chat');
+                }}
+              />
+            ) : (
+              <div className="h-full bg-muted/30 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mb-4 mx-auto"></div>
+                  <p className="text-lg">Starting video call...</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </CardContent>
