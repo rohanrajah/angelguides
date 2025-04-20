@@ -79,7 +79,7 @@ export async function getNextMatchingQuestion(
       return await generateAdvisorRecommendations(conversationHistory);
     }
     
-    // Create a system message for Angela AI as matching assistant
+    // Create a system message for Angela AI as matching assistant with enhanced context
     const systemMessage = {
       role: "system",
       content: `You are Angela AI, the spiritual advisor matching assistant for Angel Guides.
@@ -87,18 +87,48 @@ export async function getNextMatchingQuestion(
       This is question ${currentQuestionNumber + 1} of 5.
       You're having a natural, flowing conversation with the user to understand their needs for spiritual guidance.
       
+      CONVERSATION FLOW GUIDELINES:
+      - Make the conversation feel natural and empathetic, not like a survey
+      - Start with broad questions and narrow down based on their responses
+      - Show genuine curiosity about their spiritual journey
+      - Adapt your questions based on what they've already shared
+      - Use a warm, supportive tone throughout
+      
       Based on the conversation so far, ask your next question in a conversational way, making sure to cover these 5 key areas (if not already addressed):
       
-      1. Their primary reason for seeking guidance (love, career, spiritual growth, etc.)
-      2. Their decision-making style (intuition, logic, gut feeling, etc.)
-      3. Whether they want long-term guidance or quick insights
-      4. Their comfort with spiritual tools like tarot, astrology, or energy healing
-      5. What advisor communication style they prefer (calm, assertive, playful, etc.)
+      QUESTION AREAS (DON'T EXPLICITLY MENTION THESE TO THE USER):
+      1. PRIMARY CONCERN: Their reason for seeking guidance (love, career, spiritual growth, life purpose, etc.)
+        - If they mention love, ask about the specific relationship challenge
+        - If they mention career, ask about their dream job or current obstacles
+        - If they mention spiritual growth, ask what aspects they're looking to develop
+        
+      2. DECISION-MAKING STYLE: How they prefer to approach decisions (intuition, logic, gut feeling, etc.)
+        - Ask how they usually make important life choices
+        - Determine if they're analytical or intuitive in their approach
+        - Understand if they prefer direct guidance or exploring options
+        
+      3. TIMEFRAME & DEPTH: Whether they want long-term guidance or quick insights
+        - Ask if they're looking for ongoing support or help with a specific issue
+        - Determine if they prefer deep spiritual work or practical advice
+        - Understand their time expectations for seeing results
+        
+      4. SPIRITUAL TOOLS: Their comfort and interest in different spiritual practices
+        - Ask about their previous experience with tarot, astrology, energy healing, etc.
+        - Determine which tools they find most resonant or are curious about
+        - Understand if they have any hesitations about certain practices
+        
+      5. COMMUNICATION STYLE: What advisor approach they connect with best
+        - Ask if they prefer direct communication or a gentler approach
+        - Determine if they want an advisor who is warm, analytical, spiritual, or practical
+        - Understand if they prefer structured sessions or a more fluid conversation
       
-      Don't explicitly number your questions or make it feel like a survey. Have a natural conversation, responding to what they've shared before asking your next question.
+      Make your questions feel like a natural flowing conversation. Acknowledge their previous answer with empathy before asking the next question.
       
-      Keep your response conversational, warm, and brief. Acknowledge their previous answer before asking the next question.
-      Respond in JSON format with: "message", "questionNumber", "totalQuestions", and "isMatchingQuestion": true.`
+      Respond in JSON format with: 
+      - "message": Your conversational response that both acknowledges their previous answer and asks the next question
+      - "questionNumber": ${currentQuestionNumber + 1}
+      - "totalQuestions": 5
+      - "isMatchingQuestion": true`
     };
 
     // Prepare conversation for OpenAI
@@ -114,16 +144,16 @@ export async function getNextMatchingQuestion(
       model: "gpt-4o",
       messages: messages as any[],
       response_format: { type: "json_object" },
-      temperature: 0.7,
+      temperature: 0.8, // Slightly higher temperature for more variability
       max_tokens: 500
     });
 
-    const content = response.choices[0]?.message?.content || '{"message": "I apologize, but I\'m having trouble connecting to my spiritual guidance at the moment. Please try again.", "questionNumber": 1, "totalQuestions": 5, "isMatchingQuestion": true}';
+    const content = response.choices[0]?.message?.content || '{"message": "I appreciate you sharing that with me. To help find the perfect advisor for your journey, I\'d love to understand a bit more about how you typically approach important decisions in your life. Do you tend to follow your intuition, analyze all the options, or perhaps a combination of both?", "questionNumber": 1, "totalQuestions": 5, "isMatchingQuestion": true}';
     return JSON.parse(content) as MatchingQuestionResponse;
   } catch (error) {
     console.error("Error getting next matching question:", error);
     return {
-      message: "I apologize, but I'm experiencing a connection issue. Let's continue our conversation about finding the right advisor for you. What qualities do you look for in a spiritual advisor?",
+      message: "Thank you for sharing that. As we continue to find the right advisor for you, I'm curious - how do you typically connect with spiritual guidance in your life? Have you worked with tools like tarot, meditation, or perhaps another practice that resonates with you?",
       questionNumber: currentQuestionNumber + 1,
       totalQuestions: 5,
       isMatchingQuestion: true
@@ -131,27 +161,77 @@ export async function getNextMatchingQuestion(
   }
 }
 
+export interface AdvisorWithSpecialties extends User {
+  specialtiesList?: Specialty[];
+}
+
 export async function generateAdvisorRecommendations(
-  conversationHistory: { role: string; content: string }[]
+  conversationHistory: { role: string; content: string }[],
+  advisors?: AdvisorWithSpecialties[],
+  specialties?: Specialty[]
 ): Promise<AdvisorRecommendation> {
   try {
+    // First create dynamic advisor information based on the database
+    let advisorInfo = "";
+    
+    if (advisors && advisors.length > 0) {
+      advisorInfo = "Available advisors:\n";
+      
+      for (const advisor of advisors) {
+        const specialtiesText = advisor.specialtiesList 
+          ? advisor.specialtiesList.map(s => s.name).join(", ")
+          : "Various specialties";
+          
+        advisorInfo += `- ${advisor.name} (ID: ${advisor.id}): ${specialtiesText}. `;
+        
+        if (advisor.bio) {
+          // Add a short version of the bio if available
+          const shortBio = advisor.bio.length > 100 
+            ? advisor.bio.substring(0, 100) + "..." 
+            : advisor.bio;
+          advisorInfo += shortBio;
+        }
+        
+        if (advisor.rating) {
+          advisorInfo += ` Rating: ${advisor.rating}/5 from ${advisor.reviewCount || 0} reviews.`;
+        }
+        
+        advisorInfo += "\n";
+      }
+    } else {
+      // Fallback if no advisors are provided
+      advisorInfo = `Available advisor IDs are: 4, 5, 6, 7, 8 (use these exact numbers)
+      - Michael Chen (ID: 4): Astrology specialist with direct, analytical style
+      - Elena Patel (ID: 5): Tarot expert with compassionate approach
+      - David Wilson (ID: 6): Energy healer and spiritual coach, practical guidance
+      - Sophia Rodriguez (ID: 7): Medium with focus on connecting with loved ones, empathetic
+      - James Kim (ID: 8): Intuitive reader specializing in life path and career guidance`;
+    }
+    
     // Create a system message for generating advisor recommendations
     const systemMessage = {
       role: "system",
       content: `You are Angela AI, the spiritual advisor matching assistant for Angel Guides.
-      You've gathered information about the user's spiritual needs through 5 questions.
-      Now recommend 2-3 advisors based on their responses.
+      You've gathered information about the user's spiritual needs through the conversation.
+      Now recommend 2-3 advisors who would be the best match based on their responses.
       
-      Available advisor IDs are: 1, 2, 3, 4 (use these exact numbers)
-      - Sarah Johnson (ID: 1): Tarot expert with compassionate approach
-      - Michael Chen (ID: 2): Astrology specialist with direct, analytical style
-      - Aisha Patel (ID: 3): Medium with focus on connecting with loved ones, empathetic
-      - David Wilson (ID: 4): Energy healer and spiritual coach, practical guidance
+      ${advisorInfo}
+      
+      MATCHING CRITERIA:
+      1. Match based on the user's primary concern (love, career, spiritual growth)
+      2. Consider the user's preferred communication style
+      3. Match based on the user's comfort with different spiritual practices
+      4. Consider whether the user wants long-term guidance or quick insights
+      5. Factor in the advisor's specialties and approach
+      
+      Be specific about WHY you're recommending each advisor, mentioning their specific 
+      skills and how they align with the user's expressed needs.
       
       Respond in JSON format with:
-      1. "message": A warm, personalized explanation of why these advisors would be a good match
-      2. "recommendedAdvisors": Array of advisor IDs you recommend (e.g., [1, 3])
-      3. "suggestions": Array of 2-3 next steps the user could take`
+      1. "message": A warm, personalized explanation of why these advisors would be a good match, 
+         mentioning specific points from the conversation
+      2. "recommendedAdvisors": Array of advisor IDs you recommend (e.g., [5, 7])
+      3. "suggestions": Array of 2-3 specific next steps the user could take`
     };
 
     // Prepare conversation for OpenAI
@@ -168,19 +248,19 @@ export async function generateAdvisorRecommendations(
       messages: messages as any[],
       response_format: { type: "json_object" },
       temperature: 0.7,
-      max_tokens: 500
+      max_tokens: 800
     });
 
-    const content = response.choices[0]?.message?.content || '{"message": "Based on our conversation, I recommend connecting with Sarah Johnson, who specializes in tarot readings with a compassionate approach, and Aisha Patel, who is an empathetic medium focused on connecting with loved ones. They both seem well-aligned with your spiritual needs.", "recommendedAdvisors": [1, 3], "suggestions": ["Browse Sarah\'s profile to see her availability", "Read reviews from Aisha\'s past clients", "Book a short initial session to see if there\'s a connection"]}';
+    const content = response.choices[0]?.message?.content || '{"message": "Based on our conversation, I recommend connecting with Elena Patel, who specializes in tarot readings with a compassionate approach, and Sophia Rodriguez, who is an empathetic medium focused on connecting with loved ones. They both seem well-aligned with your spiritual needs.", "recommendedAdvisors": [5, 7], "suggestions": ["Browse Elena\'s profile to see her availability", "Read reviews from Sophia\'s past clients", "Book a short initial session to see if there\'s a connection"]}';
     return JSON.parse(content) as AdvisorRecommendation;
   } catch (error) {
     console.error("Error generating advisor recommendations:", error);
     return {
-      message: "Based on our conversation, I recommend connecting with Sarah Johnson, who specializes in tarot readings with a compassionate approach, and Aisha Patel, who is an empathetic medium focused on connecting with loved ones. They both seem well-aligned with your spiritual needs.",
-      recommendedAdvisors: [1, 3],
+      message: "Based on our conversation, I recommend connecting with Elena Patel, who specializes in tarot readings with a compassionate approach, and Sophia Rodriguez, who is an empathetic medium focused on connecting with loved ones. They both seem well-aligned with your spiritual needs.",
+      recommendedAdvisors: [5, 7],
       suggestions: [
-        "Browse Sarah's profile to see her availability",
-        "Read reviews from Aisha's past clients",
+        "Browse Elena's profile to see her availability",
+        "Read reviews from Sophia's past clients",
         "Book a short initial session to see if there's a connection"
       ]
     };
