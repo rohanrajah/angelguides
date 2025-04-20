@@ -9,6 +9,23 @@ import { motion } from 'framer-motion';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useLocation } from 'wouter';
 
+// Available specialty names for random assignment
+const specialtyNames = [
+  'Tarot Reading', 'Astrology', 'Mediumship', 'Clairvoyance', 'Spiritual Healing',
+  'Crystal Gazing', 'Numerology', 'Palmistry', 'Dream Analysis', 'Past Life Regression',
+  'Energy Healing', 'Chakra Balancing', 'Angel Reading', 'Psychic Counseling', 'Aura Reading'
+];
+
+// Function to get random specialty names for display
+function getRandomSpecialties(count: number) {
+  const shuffled = [...specialtyNames].sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, count).map((name, index) => ({
+    id: index + 1,
+    name,
+    icon: 'star'
+  }));
+}
+
 const Advisors: React.FC = () => {
   const [activeSpecialty, setActiveSpecialty] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -227,7 +244,7 @@ const Advisors: React.FC = () => {
                   <AdvisorCard 
                     key={advisor.id} 
                     advisor={advisor} 
-                    specialties={specialties.slice(0, 2)} // For demo, assign first two specialties
+                    specialties={getRandomSpecialties(Math.floor(Math.random() * 3) + 2)} // 2-4 random specialties
                     highlighted={recommendedAdvisors.includes(advisor.id)}
                   />
                 ))}

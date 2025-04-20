@@ -7,6 +7,34 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
 
+// Available specialty names for random assignment
+const specialtyNames = [
+  // Love & Relationships
+  'Soulmate Connections', 'Twin Flames', 'Healing After Breakup', 'Dating Success', 'Marriage Guidance',
+  // Career & Finance
+  'Career Path Clarity', 'Financial Abundance', 'Business Success', 'Wealth Attraction', 'Career Transitions',
+  // Spiritual Growth
+  'Meditation Practices', 'Energy Healing', 'Chakra Balancing', 'Spiritual Awakening', 'Past Life Regression',
+  // Health & Wellness
+  'Holistic Healing', 'Mind-Body Connection', 'Emotional Wellbeing', 'Stress Release', 'Energy Cleansing',
+  // Life Purpose
+  'Finding Your Path', 'Soul Mission', 'Life Direction', 'Personal Growth', 'Manifestation',
+  // Psychic Abilities
+  'Intuition Development', 'Clairvoyance', 'Mediumship', 'Remote Viewing', 'Psychic Protection',
+  // Astrology
+  'Natal Chart Reading', 'Compatibility', 'Transit Predictions', 'Planetary Influences', 'Moon Phases',
+  // Tarot
+  'Tarot Guidance', 'Major Arcana', 'Spreads Interpretation', 'Future Insights', 'Decision Making',
+  // Universal Connecting
+  'Spirit Guides Connection', 'Angel Communication', 'Higher Self Access', 'Divine Guidance', 'Ancestral Wisdom'
+];
+
+// Function to get a random specialty name based on ID
+function getRandomSpecialtyName(id: number): string {
+  // Ensure consistent naming for same ID
+  return specialtyNames[(id * 17) % specialtyNames.length];
+}
+
 const categoryLabels: Record<string, string> = {
   [SpecialtyCategory.DIVINATION]: 'Divination',
   [SpecialtyCategory.HEALING]: 'Healing',
