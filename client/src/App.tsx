@@ -28,6 +28,7 @@ import NotFound from "@/pages/not-found";
 import TestPage from "@/pages/test";
 import TestVideo from "@/pages/test-video";
 import Availability from "@/pages/availability";
+import AngelaChat from "@/pages/angela-chat";
 
 // Advisor Dashboard Pages
 import AdvisorDashboard from "@/pages/advisor-dashboard";
@@ -70,6 +71,7 @@ function Router() {
       <Route path="/transactions" component={Transactions} />
       <Route path="/test" component={TestPage} />
       <Route path="/test-video" component={TestVideo} />
+      <Route path="/angela-chat" component={AngelaChat} />
 
       {/* Advisor Dashboard Routes */}
       <Route path="/advisor-dashboard" component={AdvisorDashboard} />

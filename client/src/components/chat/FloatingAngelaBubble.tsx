@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useDragControls } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import AngelaChatWidget from './AngelaChatWidget';
 import angelaIconUrl from '../../assets/angela-icon.png';
 
@@ -11,6 +12,7 @@ interface FloatingAngelaBubbleProps {
 const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
+  const [, navigate] = useLocation();
   
   // Position values for dragging
   const x = useMotionValue(0);
@@ -57,6 +59,15 @@ const FloatingAngelaBubble: React.FC<FloatingAngelaBubbleProps> = ({ userId }) =
             exit={{ opacity: 0, scale: 0.8, y: 20 }}
             className="absolute bottom-full mb-4 right-0 w-80 md:w-96 shadow-2xl"
           >
+            <div className="bg-indigo-900/80 backdrop-blur-md p-3 text-white rounded-t-lg flex justify-between items-center">
+              <h3 className="font-medium">Angela AI Assistant</h3>
+              <button 
+                onClick={() => navigate('/angela-chat')} 
+                className="text-xs bg-indigo-600 hover:bg-indigo-700 px-2 py-1 rounded-md transition-colors"
+              >
+                Full Experience
+              </button>
+            </div>
             <AngelaChatWidget userId={userId} isFloating={true} />
           </motion.div>
         )}

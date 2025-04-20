@@ -34,6 +34,9 @@ export interface IStorage {
   updateUser(id: number, data: Partial<User>): Promise<User | undefined>;
   getAdvisorsWithSpecialties(limit?: number): Promise<AdvisorWithSpecialties[]>;
   
+  // Angela AI chat message methods
+  createAngelaMessage(message: { userId: number, content: string, role: string }): Promise<ChatMessage>;
+  
   // Account balance methods
   addUserBalance(userId: number, amount: number): Promise<User | undefined>; // amount in cents
   deductUserBalance(userId: number, amount: number): Promise<User | undefined>; // amount in cents

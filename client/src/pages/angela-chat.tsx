@@ -4,7 +4,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
 import { User } from '@shared/schema';
-import angelaConsciousImage from '@/assets/Angela_gets_conscious.jpg';
+import angelaConsciousImage from '@assets/Angela_gets_conscious.jpg';
 import { useAuth } from '@/hooks/use-auth';
 
 // Typing animation for text
