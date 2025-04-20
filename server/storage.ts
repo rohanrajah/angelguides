@@ -9,6 +9,11 @@ import {
   transactions, type Transaction, type InsertTransaction,
   SessionType, SpecialtyCategory, TransactionType, UserType
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, and, or, desc, asc, sql, gt, lt, gte, lte, not, isNull, inArray } from "drizzle-orm";
+import connectPg from "connect-pg-simple";
+import session from "express-session";
+import { pool } from "./db";
 
 export interface IStorage {
   // User methods
@@ -46,6 +51,9 @@ export interface IStorage {
   // Advisor Specialty methods
   assignSpecialtyToAdvisor(advisorSpecialty: InsertAdvisorSpecialty): Promise<AdvisorSpecialty>;
   getAdvisorSpecialties(advisorId: number): Promise<Specialty[]>;
+  
+  // Session store for authentication
+  sessionStore: session.Store;
   
   // Session methods
   createSession(session: InsertSession): Promise<Session>;
@@ -103,6 +111,8 @@ export class MemStorage implements IStorage {
   private conversationIdCounter: number;
   private reviewIdCounter: number;
   private transactionIdCounter: number;
+  
+  sessionStore: session.Store;
 
   constructor() {
     this.users = new Map();
@@ -122,6 +132,12 @@ export class MemStorage implements IStorage {
     this.conversationIdCounter = 1;
     this.reviewIdCounter = 1;
     this.transactionIdCounter = 1;
+    
+    // Initialize in-memory session store
+    const MemoryStore = require('memorystore')(session);
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000 // prune expired entries every 24h
+    });
     
     // Initialize with sample data
     this.initializeData();
@@ -944,4 +960,537 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export class DatabaseStorage implements IStorage {
+  sessionStore: session.Store;
+  
+  constructor() {
+    const PostgresSessionStore = connectPg(session);
+    this.sessionStore = new PostgresSessionStore({
+      pool,
+      createTableIfMissing: true,
+      tableName: 'sessions'
+    });
+  }
+
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    const [newUser] = await db.insert(users).values(user).returning();
+    return newUser;
+  }
+
+  async getAdvisors(): Promise<User[]> {
+    return db.select().from(users).where(eq(users.userType, UserType.ADVISOR));
+  }
+
+  async getAdvisorById(id: number): Promise<User | undefined> {
+    const [advisor] = await db.select().from(users).where(
+      and(
+        eq(users.id, id),
+        eq(users.userType, UserType.ADVISOR)
+      )
+    );
+    return advisor;
+  }
+
+  async getRegularUsers(): Promise<User[]> {
+    return db.select().from(users).where(eq(users.userType, UserType.USER));
+  }
+
+  async getAdminUsers(): Promise<User[]> {
+    return db.select().from(users).where(eq(users.userType, UserType.ADMIN));
+  }
+
+  async getAdvisorsBySpecialty(specialtyId: number): Promise<User[]> {
+    const advisorIds = await db.select({ advisorId: advisorSpecialties.advisorId })
+      .from(advisorSpecialties)
+      .where(eq(advisorSpecialties.specialtyId, specialtyId));
+    
+    if (advisorIds.length === 0) return [];
+    
+    return db.select().from(users).where(
+      and(
+        inArray(users.id, advisorIds.map(a => a.advisorId)),
+        eq(users.userType, UserType.ADVISOR)
+      )
+    );
+  }
+
+  async updateUserStatus(id: number, online: boolean): Promise<User | undefined> {
+    const [updatedUser] = await db.update(users)
+      .set({ online })
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser;
+  }
+
+  async updateUser(id: number, data: Partial<User>): Promise<User | undefined> {
+    const [updatedUser] = await db.update(users)
+      .set(data)
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser;
+  }
+
+  // Account balance methods
+  async addUserBalance(userId: number, amount: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user) return undefined;
+
+    const [updatedUser] = await db.update(users)
+      .set({ accountBalance: (user.accountBalance || 0) + amount })
+      .where(eq(users.id, userId))
+      .returning();
+    return updatedUser;
+  }
+
+  async deductUserBalance(userId: number, amount: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user || (user.accountBalance || 0) < amount) return undefined;
+
+    const [updatedUser] = await db.update(users)
+      .set({ accountBalance: (user.accountBalance || 0) - amount })
+      .where(eq(users.id, userId))
+      .returning();
+    return updatedUser;
+  }
+
+  async updateStripeCustomerId(userId: number, stripeCustomerId: string): Promise<User | undefined> {
+    const [updatedUser] = await db.update(users)
+      .set({ stripeCustomerId })
+      .where(eq(users.id, userId))
+      .returning();
+    return updatedUser;
+  }
+
+  async updateStripeConnectId(userId: number, stripeConnectId: string): Promise<User | undefined> {
+    const [updatedUser] = await db.update(users)
+      .set({ stripeConnectId })
+      .where(eq(users.id, userId))
+      .returning();
+    return updatedUser;
+  }
+
+  // Advisor earnings methods
+  async addAdvisorEarnings(advisorId: number, amount: number): Promise<User | undefined> {
+    const [advisor] = await db.select().from(users).where(
+      and(
+        eq(users.id, advisorId),
+        eq(users.userType, UserType.ADVISOR)
+      )
+    );
+    if (!advisor) return undefined;
+
+    const [updatedAdvisor] = await db.update(users)
+      .set({ 
+        earningsBalance: (advisor.earningsBalance || 0) + amount,
+        totalEarnings: (advisor.totalEarnings || 0) + amount
+      })
+      .where(eq(users.id, advisorId))
+      .returning();
+    return updatedAdvisor;
+  }
+
+  async deductAdvisorEarnings(advisorId: number, amount: number): Promise<User | undefined> {
+    const [advisor] = await db.select().from(users).where(
+      and(
+        eq(users.id, advisorId),
+        eq(users.userType, UserType.ADVISOR)
+      )
+    );
+    if (!advisor || (advisor.earningsBalance || 0) < amount) return undefined;
+
+    const [updatedAdvisor] = await db.update(users)
+      .set({ earningsBalance: (advisor.earningsBalance || 0) - amount })
+      .where(eq(users.id, advisorId))
+      .returning();
+    return updatedAdvisor;
+  }
+
+  async getAdvisorEarningsBalance(advisorId: number): Promise<number> {
+    const [advisor] = await db.select({ earningsBalance: users.earningsBalance })
+      .from(users)
+      .where(
+        and(
+          eq(users.id, advisorId),
+          eq(users.userType, UserType.ADVISOR)
+        )
+      );
+    return advisor?.earningsBalance || 0;
+  }
+
+  async getTotalAdvisorEarnings(advisorId: number): Promise<number> {
+    const [advisor] = await db.select({ totalEarnings: users.totalEarnings })
+      .from(users)
+      .where(
+        and(
+          eq(users.id, advisorId),
+          eq(users.userType, UserType.ADVISOR)
+        )
+      );
+    return advisor?.totalEarnings || 0;
+  }
+
+  async setPendingPayout(advisorId: number, isPending: boolean): Promise<User | undefined> {
+    const [updatedAdvisor] = await db.update(users)
+      .set({ pendingPayout: isPending })
+      .where(
+        and(
+          eq(users.id, advisorId),
+          eq(users.userType, UserType.ADVISOR)
+        )
+      )
+      .returning();
+    return updatedAdvisor;
+  }
+
+  // Specialty methods
+  async getAllSpecialties(): Promise<Specialty[]> {
+    return db.select().from(specialties);
+  }
+
+  async getSpecialty(id: number): Promise<Specialty | undefined> {
+    const [specialty] = await db.select().from(specialties).where(eq(specialties.id, id));
+    return specialty;
+  }
+
+  async createSpecialty(specialty: InsertSpecialty): Promise<Specialty> {
+    const [newSpecialty] = await db.insert(specialties).values(specialty).returning();
+    return newSpecialty;
+  }
+
+  async getSpecialtiesByCategory(category: string): Promise<Specialty[]> {
+    return db.select().from(specialties).where(eq(specialties.category, category));
+  }
+
+  async getAdvisorsByCategory(category: string): Promise<User[]> {
+    const specialtiesInCategory = await this.getSpecialtiesByCategory(category);
+    if (specialtiesInCategory.length === 0) return [];
+
+    const specialtyIds = specialtiesInCategory.map(s => s.id);
+    
+    const advisorIds = await db.select({ advisorId: advisorSpecialties.advisorId })
+      .from(advisorSpecialties)
+      .where(inArray(advisorSpecialties.specialtyId, specialtyIds));
+    
+    if (advisorIds.length === 0) return [];
+    
+    // Convert to Set and back to array to get unique advisorIds
+    const uniqueAdvisorIds = Array.from(new Set(advisorIds.map(a => a.advisorId)));
+    
+    return db.select().from(users).where(
+      and(
+        inArray(users.id, uniqueAdvisorIds),
+        eq(users.userType, UserType.ADVISOR)
+      )
+    );
+  }
+
+  // Advisor Specialty methods
+  async assignSpecialtyToAdvisor(advisorSpecialty: InsertAdvisorSpecialty): Promise<AdvisorSpecialty> {
+    const [newAdvisorSpecialty] = await db.insert(advisorSpecialties)
+      .values(advisorSpecialty)
+      .returning();
+    return newAdvisorSpecialty;
+  }
+
+  async getAdvisorSpecialties(advisorId: number): Promise<Specialty[]> {
+    const specialtyIds = await db.select({ specialtyId: advisorSpecialties.specialtyId })
+      .from(advisorSpecialties)
+      .where(eq(advisorSpecialties.advisorId, advisorId));
+    
+    if (specialtyIds.length === 0) return [];
+    
+    return db.select().from(specialties).where(
+      inArray(specialties.id, specialtyIds.map(s => s.specialtyId))
+    );
+  }
+
+  // Session methods
+  async createSession(session: InsertSession): Promise<Session> {
+    const [newSession] = await db.insert(sessions).values(session).returning();
+    return newSession;
+  }
+
+  async getSessionsByUser(userId: number): Promise<Session[]> {
+    return db.select().from(sessions).where(eq(sessions.userId, userId));
+  }
+
+  async getSessionsByAdvisor(advisorId: number): Promise<Session[]> {
+    return db.select().from(sessions).where(eq(sessions.advisorId, advisorId));
+  }
+
+  async getUpcomingSessionsByUser(userId: number): Promise<Session[]> {
+    const now = new Date();
+    return db.select().from(sessions).where(
+      and(
+        eq(sessions.userId, userId),
+        gt(sessions.startTime, now),
+        not(eq(sessions.status, "canceled"))
+      )
+    ).orderBy(asc(sessions.startTime));
+  }
+
+  async getSessionById(id: number): Promise<Session | undefined> {
+    const [session] = await db.select().from(sessions).where(eq(sessions.id, id));
+    return session;
+  }
+
+  async updateSessionStatus(sessionId: number, status: string, sessionType?: string): Promise<Session | undefined> {
+    const updateData: any = { status };
+    if (sessionType) updateData.sessionType = sessionType;
+
+    const [updatedSession] = await db.update(sessions)
+      .set(updateData)
+      .where(eq(sessions.id, sessionId))
+      .returning();
+    return updatedSession;
+  }
+
+  async updateSessionBilledAmount(sessionId: number, billedAmount: number): Promise<Session | undefined> {
+    const [updatedSession] = await db.update(sessions)
+      .set({ billedAmount })
+      .where(eq(sessions.id, sessionId))
+      .returning();
+    return updatedSession;
+  }
+
+  async startSession(sessionId: number): Promise<Session | undefined> {
+    const now = new Date();
+    const [updatedSession] = await db.update(sessions)
+      .set({ 
+        actualStartTime: now,
+        status: "in_progress"
+      })
+      .where(eq(sessions.id, sessionId))
+      .returning();
+    return updatedSession;
+  }
+
+  async endSession(sessionId: number): Promise<Session | undefined> {
+    const [session] = await db.select().from(sessions).where(eq(sessions.id, sessionId));
+    if (!session || !session.actualStartTime) return undefined;
+
+    const now = new Date();
+    const startTime = session.actualStartTime;
+    const durationMs = now.getTime() - startTime.getTime();
+    const durationMinutes = Math.ceil(durationMs / (1000 * 60));
+    const billedAmount = durationMinutes * session.ratePerMinute;
+
+    const [updatedSession] = await db.update(sessions)
+      .set({ 
+        actualEndTime: now,
+        actualDuration: durationMinutes,
+        billedAmount,
+        status: "completed"
+      })
+      .where(eq(sessions.id, sessionId))
+      .returning();
+    return updatedSession;
+  }
+
+  async markSessionPaid(sessionId: number): Promise<Session | undefined> {
+    const [updatedSession] = await db.update(sessions)
+      .set({ isPaid: true })
+      .where(eq(sessions.id, sessionId))
+      .returning();
+    return updatedSession;
+  }
+
+  // Transaction methods
+  async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
+    const [newTransaction] = await db.insert(transactions).values(transaction).returning();
+    return newTransaction;
+  }
+
+  async getTransactionsByUser(userId: number): Promise<Transaction[]> {
+    return db.select().from(transactions)
+      .where(eq(transactions.userId, userId))
+      .orderBy(desc(transactions.timestamp));
+  }
+
+  async getTransactionsByAdvisor(advisorId: number): Promise<Transaction[]> {
+    return db.select().from(transactions)
+      .where(
+        and(
+          eq(transactions.advisorId, advisorId),
+          not(isNull(transactions.advisorId))
+        )
+      )
+      .orderBy(desc(transactions.timestamp));
+  }
+
+  async getTransactionsBySession(sessionId: number): Promise<Transaction[]> {
+    return db.select().from(transactions)
+      .where(
+        and(
+          eq(transactions.sessionId, sessionId),
+          not(isNull(transactions.sessionId))
+        )
+      )
+      .orderBy(desc(transactions.timestamp));
+  }
+
+  // Message methods
+  async sendMessage(message: InsertMessage): Promise<Message> {
+    const [newMessage] = await db.insert(messages).values(message).returning();
+    return newMessage;
+  }
+
+  async getConversation(userId1: number, userId2: number): Promise<Message[]> {
+    return db.select().from(messages).where(
+      or(
+        and(
+          eq(messages.senderId, userId1),
+          eq(messages.receiverId, userId2)
+        ),
+        and(
+          eq(messages.senderId, userId2),
+          eq(messages.receiverId, userId1)
+        )
+      )
+    ).orderBy(asc(messages.timestamp));
+  }
+
+  async getUnreadMessageCount(userId: number): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` })
+      .from(messages)
+      .where(
+        and(
+          eq(messages.receiverId, userId),
+          eq(messages.read, false)
+        )
+      );
+    return result[0].count;
+  }
+
+  // AI Concierge methods
+  async getOrCreateConversation(userId: number): Promise<Conversation> {
+    const [existingConversation] = await db.select().from(conversations)
+      .where(eq(conversations.userId, userId));
+    
+    if (existingConversation) return existingConversation;
+
+    const welcomeMessage: ChatMessage = {
+      role: 'assistant',
+      content: 'Hello! I\'m Angela, your spiritual guide. How can I assist you today?',
+      timestamp: new Date()
+    };
+
+    const [newConversation] = await db.insert(conversations).values({
+      userId,
+      messages: [welcomeMessage],
+      lastUpdated: new Date()
+    }).returning();
+
+    return newConversation;
+  }
+
+  async updateConversation(id: number, messages: ChatMessage[]): Promise<Conversation> {
+    const [updatedConversation] = await db.update(conversations)
+      .set({ 
+        messages,
+        lastUpdated: new Date()
+      })
+      .where(eq(conversations.id, id))
+      .returning();
+    return updatedConversation;
+  }
+
+  // Review methods
+  async createReview(review: InsertReview): Promise<Review> {
+    const [newReview] = await db.insert(reviews).values(review).returning();
+    
+    // Update advisor rating
+    await this.updateAdvisorRating(review.advisorId);
+    
+    return newReview;
+  }
+
+  async getReviewById(id: number): Promise<Review | undefined> {
+    const [review] = await db.select().from(reviews).where(eq(reviews.id, id));
+    return review;
+  }
+
+  async getReviewsByUser(userId: number): Promise<Review[]> {
+    return db.select().from(reviews)
+      .where(eq(reviews.userId, userId))
+      .orderBy(desc(reviews.createdAt));
+  }
+
+  async getReviewsByAdvisor(advisorId: number): Promise<Review[]> {
+    return db.select().from(reviews)
+      .where(
+        and(
+          eq(reviews.advisorId, advisorId),
+          eq(reviews.isHidden, false)
+        )
+      )
+      .orderBy(desc(reviews.createdAt));
+  }
+
+  async getReviewBySession(sessionId: number): Promise<Review | undefined> {
+    const [review] = await db.select().from(reviews).where(eq(reviews.sessionId, sessionId));
+    return review;
+  }
+
+  async getAverageRatingForAdvisor(advisorId: number): Promise<number> {
+    const result = await db.select({ 
+      avgRating: sql<number>`avg(${reviews.rating})` 
+    })
+    .from(reviews)
+    .where(
+      and(
+        eq(reviews.advisorId, advisorId),
+        eq(reviews.isHidden, false)
+      )
+    );
+    
+    return result[0]?.avgRating || 0;
+  }
+
+  async addResponseToReview(reviewId: number, response: string): Promise<Review | undefined> {
+    const [updatedReview] = await db.update(reviews)
+      .set({ 
+        response,
+        responseDate: new Date()
+      })
+      .where(eq(reviews.id, reviewId))
+      .returning();
+    return updatedReview;
+  }
+
+  async updateAdvisorRating(advisorId: number): Promise<User | undefined> {
+    const avgRating = await this.getAverageRatingForAdvisor(advisorId);
+    const reviewCount = await db.select({ count: sql<number>`count(*)` })
+      .from(reviews)
+      .where(
+        and(
+          eq(reviews.advisorId, advisorId),
+          eq(reviews.isHidden, false)
+        )
+      );
+    
+    const [updatedAdvisor] = await db.update(users)
+      .set({ 
+        rating: Math.round(avgRating),
+        reviewCount: reviewCount[0].count
+      })
+      .where(eq(users.id, advisorId))
+      .returning();
+    
+    return updatedAdvisor;
+  }
+}
+
+// Export an instance of the storage implementation
+export const storage = new DatabaseStorage();
