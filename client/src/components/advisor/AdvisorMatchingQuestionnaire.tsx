@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { motion } from 'framer-motion';
@@ -354,7 +354,7 @@ const AdvisorMatchingQuestionnaire: React.FC<Props> = ({ userId, onComplete }) =
           </div>
           
           {/* Display conversational chat history */}
-          <div className="mb-6 space-y-6 max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-purple-500 scrollbar-track-transparent pr-2">
+          <div ref={chatContainerRef} className="mb-6 space-y-6 max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-purple-500 scrollbar-track-transparent pr-2">
             {chatHistory.map((chat, index) => (
               <div key={index} className={`flex items-start gap-3 ${chat.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
                 {chat.role === 'assistant' && (
