@@ -798,6 +798,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     userType: string;
     socket: WebSocket;
     isAlive: boolean;
+    activeCalls: Map<number, {
+      sessionId: number;
+      startTime: Date;
+      type: 'audio' | 'video';
+      targetUserId: number;
+      billingInterval?: NodeJS.Timeout;
+    }>;
   }
 
   const userConnections = new Map<number, UserConnection>();
@@ -824,7 +831,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 userId,
                 userType,
                 socket,
-                isAlive: true
+                isAlive: true,
+                activeCalls: new Map()
               });
               
               // Notify client of successful authentication
@@ -915,20 +923,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
             break;
             
           case 'signal_offer':
-          case 'signal_answer':
-          case 'signal_ice_candidate':
             if (!userId) break;
             
             const { target, signal, sessionId: signalSessionId } = data.payload;
             const targetConn = userConnections.get(target);
             
             if (targetConn) {
+              // Check if this is a call start (audio or video)
+              if (signal && signal.type && (signal.type === 'audio' || signal.type === 'video')) {
+                await startCall(userId, target, signalSessionId, signal.type);
+              }
+              
               targetConn.socket.send(JSON.stringify({
                 type: data.type,
                 payload: {
                   from: userId,
                   signal,
                   sessionId: signalSessionId
+                }
+              }));
+            }
+            break;
+            
+          case 'signal_answer':
+          case 'signal_ice_candidate':
+            if (!userId) break;
+            
+            const { target: targetId, signal: signalData, sessionId: signalSessionId2 } = data.payload;
+            const targetConn2 = userConnections.get(targetId);
+            
+            if (targetConn2) {
+              targetConn2.socket.send(JSON.stringify({
+                type: data.type,
+                payload: {
+                  from: userId,
+                  signal: signalData,
+                  sessionId: signalSessionId2
+                }
+              }));
+            }
+            break;
+            
+          case 'signal_end':
+            if (!userId) break;
+            
+            const { target: endCallTarget, sessionId: endCallSessionId } = data.payload;
+            const endCallTargetConn = userConnections.get(endCallTarget);
+            
+            // End the call billing if active
+            await endCall(userId, endCallTarget, endCallSessionId);
+            
+            // Forward the signal to the target
+            if (endCallTargetConn) {
+              endCallTargetConn.socket.send(JSON.stringify({
+                type: data.type,
+                payload: {
+                  from: userId,
+                  sessionId: endCallSessionId
                 }
               }));
             }
@@ -1070,6 +1121,274 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Start an audio or video call with billing
+  async function startCall(
+    initiatorId: number, 
+    targetId: number, 
+    sessionId: number, 
+    callType: 'audio' | 'video'
+  ) {
+    try {
+      // Get both user connections
+      const initiatorConn = userConnections.get(initiatorId);
+      const targetConn = userConnections.get(targetId);
+      
+      if (!initiatorConn || !targetConn) {
+        console.error(`Cannot start call: One or both users not connected`);
+        return;
+      }
+      
+      // Determine advisor and user
+      let advisorId: number;
+      let userId: number;
+      
+      if (initiatorConn.userType === 'advisor') {
+        advisorId = initiatorId;
+        userId = targetId;
+      } else if (targetConn.userType === 'advisor') {
+        advisorId = targetId;
+        userId = initiatorId;
+      } else {
+        console.error(`Cannot start call: No advisor in the call`);
+        return;
+      }
+      
+      // Get advisor data to get the rate
+      const advisor = await storage.getUser(advisorId);
+      if (!advisor) {
+        console.error(`Cannot start call: Advisor not found`);
+        return;
+      }
+      
+      // Get the appropriate rate based on call type
+      const ratePerMinute = callType === 'audio' 
+        ? advisor.audioRate || 100 // Default to $1/min if not set
+        : advisor.videoRate || 200; // Default to $2/min if not set
+      
+      // Get user data to check balance
+      const user = await storage.getUser(userId);
+      if (!user) {
+        console.error(`Cannot start call: User not found`);
+        return;
+      }
+      
+      // Check if user has sufficient balance (at least 5 minutes worth)
+      const minimumBalance = ratePerMinute * 5;
+      if ((user.accountBalance || 0) < minimumBalance) {
+        // Send insufficient funds notification
+        const userConn = userConnections.get(userId);
+        if (userConn) {
+          userConn.socket.send(JSON.stringify({
+            type: 'call_error',
+            payload: {
+              sessionId,
+              error: 'insufficient_funds',
+              message: `You need at least $${(minimumBalance / 100).toFixed(2)} balance to start a ${callType} call with this advisor.`
+            }
+          }));
+        }
+        return;
+      }
+      
+      // Get the session and update it if it exists
+      const session = await storage.getSessionById(sessionId);
+      if (session) {
+        // Update session type if needed
+        if (session.sessionType !== callType) {
+          await storage.updateSessionStatus(sessionId, session.status, callType);
+        }
+        
+        // Start the session
+        await storage.startSession(sessionId);
+      } else {
+        console.error(`Cannot start call: Session ${sessionId} not found`);
+        // Create a new session
+        await storage.createSession({
+          userId,
+          advisorId,
+          startTime: new Date(),
+          endTime: new Date(Date.now() + 3600000), // Default 1 hour from now
+          sessionType: callType,
+          ratePerMinute
+        });
+      }
+      
+      // Store call information and start billing
+      const callInfo = {
+        sessionId,
+        startTime: new Date(),
+        type: callType,
+        targetUserId: targetId
+      };
+      
+      // Start billing at 1-minute intervals
+      const billingInterval = setInterval(async () => {
+        await processCallBilling(initiatorId, targetId, sessionId, callType, ratePerMinute);
+      }, 60000); // Bill every minute
+      
+      // Store call info with both users
+      initiatorConn.activeCalls.set(sessionId, {...callInfo, billingInterval});
+      
+      // Let both users know the call is being billed
+      initiatorConn.socket.send(JSON.stringify({
+        type: 'call_billing_started',
+        payload: {
+          sessionId,
+          callType,
+          ratePerMinute
+        }
+      }));
+      
+      targetConn.socket.send(JSON.stringify({
+        type: 'call_billing_started',
+        payload: {
+          sessionId,
+          callType,
+          ratePerMinute
+        }
+      }));
+      
+      console.log(`Started ${callType} call billing for session ${sessionId} between user ${userId} and advisor ${advisorId}`);
+    } catch (error) {
+      console.error('Error starting call billing:', error);
+    }
+  }
+  
+  // Process billing for ongoing call
+  async function processCallBilling(
+    initiatorId: number, 
+    targetId: number, 
+    sessionId: number, 
+    callType: 'audio' | 'video',
+    ratePerMinute: number
+  ) {
+    try {
+      // Determine advisor and user
+      const initiatorConn = userConnections.get(initiatorId);
+      if (!initiatorConn) return;
+      
+      let advisorId: number;
+      let userId: number;
+      
+      if (initiatorConn.userType === 'advisor') {
+        advisorId = initiatorId;
+        userId = targetId;
+      } else {
+        advisorId = targetId;
+        userId = initiatorId;
+      }
+      
+      // Deduct from user's balance
+      const deductResult = await storage.deductUserBalance(userId, ratePerMinute);
+      
+      if (!deductResult) {
+        // User has insufficient funds, end the call
+        await endCall(initiatorId, targetId, sessionId);
+        
+        // Notify both parties
+        const senderConn = userConnections.get(initiatorId);
+        const receiverConn = userConnections.get(targetId);
+        
+        if (senderConn) {
+          senderConn.socket.send(JSON.stringify({
+            type: 'call_ended',
+            payload: {
+              sessionId,
+              reason: 'insufficient_funds'
+            }
+          }));
+        }
+        
+        if (receiverConn) {
+          receiverConn.socket.send(JSON.stringify({
+            type: 'call_ended',
+            payload: {
+              sessionId,
+              reason: 'insufficient_funds'
+            }
+          }));
+        }
+        
+        return;
+      }
+      
+      // Add to advisor's earnings
+      await storage.addAdvisorEarnings(advisorId, ratePerMinute);
+      
+      // Create a transaction record
+      await storage.createTransaction({
+        type: TransactionType.SESSION_PAYMENT,
+        userId,
+        advisorId,
+        sessionId,
+        amount: ratePerMinute,
+        description: `${callType.charAt(0).toUpperCase() + callType.slice(1)} call payment (1 minute)`,
+        paymentStatus: 'completed'
+      });
+      
+      // Update session billing amount
+      const session = await storage.getSessionById(sessionId);
+      if (session) {
+        const billedAmount = (session.billedAmount || 0) + ratePerMinute;
+        // Update the billed amount directly without ending the session
+        await storage.updateSessionBilledAmount(sessionId, billedAmount);
+      }
+      
+      // Notify both parties of the billing
+      const billingInitiatorConn = userConnections.get(initiatorId);
+      const billingTargetConn = userConnections.get(targetId);
+      
+      const billingUpdate = {
+        type: 'call_billing_update',
+        payload: {
+          sessionId,
+          ratePerMinute,
+          currentCharge: ratePerMinute,
+          totalBilled: session?.billedAmount || ratePerMinute
+        }
+      };
+      
+      if (billingInitiatorConn) {
+        billingInitiatorConn.socket.send(JSON.stringify(billingUpdate));
+      }
+      
+      if (billingTargetConn) {
+        billingTargetConn.socket.send(JSON.stringify(billingUpdate));
+      }
+    } catch (error) {
+      console.error('Error processing call billing:', error);
+    }
+  }
+  
+  // End an audio or video call and finalize billing
+  async function endCall(initiatorId: number, targetId: number, sessionId: number) {
+    try {
+      // Get both user connections
+      const initiatorConn = userConnections.get(initiatorId);
+      if (!initiatorConn || !initiatorConn.activeCalls.has(sessionId)) {
+        return;
+      }
+      
+      // Get call information
+      const callInfo = initiatorConn.activeCalls.get(sessionId)!;
+      
+      // Clear billing interval
+      if (callInfo.billingInterval) {
+        clearInterval(callInfo.billingInterval);
+      }
+      
+      // Remove call from tracking
+      initiatorConn.activeCalls.delete(sessionId);
+      
+      // Update session in database
+      await storage.endSession(sessionId);
+      
+      console.log(`Ended call for session ${sessionId}`);
+    } catch (error) {
+      console.error('Error ending call:', error);
+    }
+  }
+  
   // Helper function to broadcast advisor status changes
   function broadcastAdvisorStatus(advisorId: number, isOnline: boolean) {
     // Count online advisors

@@ -53,7 +53,8 @@ export interface IStorage {
   getSessionsByAdvisor(advisorId: number): Promise<Session[]>;
   getUpcomingSessionsByUser(userId: number): Promise<Session[]>;
   getSessionById(id: number): Promise<Session | undefined>;
-  updateSessionStatus(sessionId: number, status: string): Promise<Session | undefined>;
+  updateSessionStatus(sessionId: number, status: string, sessionType?: string): Promise<Session | undefined>;
+  updateSessionBilledAmount(sessionId: number, billedAmount: number): Promise<Session | undefined>;
   startSession(sessionId: number): Promise<Session | undefined>; // Set actualStartTime and status
   endSession(sessionId: number): Promise<Session | undefined>; // Set actualEndTime, actualDuration, and calculate billedAmount
   markSessionPaid(sessionId: number): Promise<Session | undefined>; // Mark session as paid to advisor
@@ -633,11 +634,25 @@ export class MemStorage implements IStorage {
       .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
   }
   
-  async updateSessionStatus(sessionId: number, status: string): Promise<Session | undefined> {
+  async updateSessionStatus(sessionId: number, status: string, sessionType?: string): Promise<Session | undefined> {
     const session = this.sessions.get(sessionId);
     if (!session) return undefined;
     
-    const updatedSession = { ...session, status };
+    const updatedSession = { 
+      ...session, 
+      status,
+      sessionType: sessionType || session.sessionType
+    };
+    this.sessions.set(sessionId, updatedSession);
+    
+    return updatedSession;
+  }
+  
+  async updateSessionBilledAmount(sessionId: number, billedAmount: number): Promise<Session | undefined> {
+    const session = this.sessions.get(sessionId);
+    if (!session) return undefined;
+    
+    const updatedSession = { ...session, billedAmount };
     this.sessions.set(sessionId, updatedSession);
     
     return updatedSession;
