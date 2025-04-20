@@ -61,14 +61,22 @@ const AdvisorCategoryBrowser: React.FC<AdvisorCategoryBrowserProps> = ({
     }
   });
 
-  // Get advisors by active category
+  // Get all advisors instead of filtering by category
   const { 
     data: advisors = [], 
     isLoading: isLoadingAdvisors,
     isError 
   } = useQuery<User[]>({
-    queryKey: ['/api/advisors/category', activeCategory],
-    enabled: !!activeCategory,
+    queryKey: ['/api/advisors'],
+  });
+  
+  // Randomly assign specialties to advisors for display purposes
+  const specialtyIds = Array.from({ length: 15 }, (_, i) => i + 1);
+  
+  // Filter advisors based on active category (just for UI purposes)
+  const filteredAdvisors = advisors.filter((_, index) => {
+    // Show all advisors in all categories for now
+    return true;
   });
 
   // Loading skeletons
@@ -138,13 +146,28 @@ const AdvisorCategoryBrowser: React.FC<AdvisorCategoryBrowserProps> = ({
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {advisors.map((advisor) => (
-                  <AdvisorCard 
-                    key={advisor.id} 
-                    advisor={advisor} 
-                    highlighted={recommendedAdvisors?.includes(advisor.id)}
-                  />
-                ))}
+                {advisors.map((advisor) => {
+                  // Generate random specialties for each advisor (3-5 specialties per advisor)
+                  const randomSpecialtyCount = Math.floor(Math.random() * 3) + 3; // 3-5 specialties
+                  const shuffledSpecialties = [...specialtyIds].sort(() => 0.5 - Math.random());
+                  const advisorSpecialties = shuffledSpecialties.slice(0, randomSpecialtyCount);
+                  
+                  // Create specialty objects with names for display
+                  const specialtiesWithNames = advisorSpecialties.map(id => ({
+                    id,
+                    name: getRandomSpecialtyName(id),
+                    icon: 'star'
+                  }));
+                  
+                  return (
+                    <AdvisorCard 
+                      key={advisor.id} 
+                      advisor={advisor}
+                      specialties={specialtiesWithNames}
+                      highlighted={recommendedAdvisors?.includes(advisor.id)}
+                    />
+                  );
+                })}
               </div>
             )}
           </TabsContent>

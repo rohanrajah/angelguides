@@ -17,6 +17,7 @@ interface AdvisorCardProps {
   advisor: User;
   specialties?: Array<{ id: number; name: string; icon: string }>;
   currentUserId?: number;
+  highlighted?: boolean;
 }
 
 const StarRating = ({ rating }: { rating: number }) => {
@@ -35,7 +36,7 @@ const StarRating = ({ rating }: { rating: number }) => {
   );
 };
 
-export function AdvisorCard({ advisor, specialties = [], currentUserId }: AdvisorCardProps) {
+export function AdvisorCard({ advisor, specialties = [], currentUserId, highlighted = false }: AdvisorCardProps) {
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
   const [sessionType, setSessionType] = useState<'chat' | 'audio' | 'video' | null>(null);
   const [isSessionActive, setIsSessionActive] = useState(false);
@@ -127,8 +128,17 @@ export function AdvisorCard({ advisor, specialties = [], currentUserId }: Adviso
   
   return (
     <>
-      <Card className="overflow-hidden transition-shadow hover:shadow-md">
+      <Card className={`overflow-hidden transition-shadow hover:shadow-md ${
+        highlighted ? 'border-2 border-blue-500 shadow-lg shadow-blue-500/20' : ''
+      }`}>
         <CardHeader className="pb-2">
+          {highlighted && (
+            <div className="absolute -top-1 -right-1 z-10">
+              <Badge className="bg-gradient-to-r from-blue-500 to-purple-500 text-white font-medium px-2 py-1 rounded-md shadow-lg">
+                Recommended for you
+              </Badge>
+            </div>
+          )}
           <div className="flex justify-between items-start">
             <div className="flex items-center space-x-3">
               <Avatar className="h-12 w-12">
