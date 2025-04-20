@@ -87,6 +87,18 @@ const AdvisorMatchingQuestionnaire: React.FC<Props> = ({ userId, onComplete }) =
   const [isCompleting, setIsCompleting] = useState(false);
   const [, setLocation] = useLocation();
 
+  // Array to store a more conversational display of the entire chat history
+  const [chatHistory, setChatHistory] = useState<{role: 'user' | 'assistant', message: string}[]>([]);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Auto-scroll to the bottom when chat history updates
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      // Smooth scroll to the bottom of the chat
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [chatHistory]);
+  
   // Query to start the matching flow
   const { data, isLoading, error } = useQuery({
     queryKey: ['/api/angela', userId, 'start-matching'],
@@ -103,6 +115,9 @@ const AdvisorMatchingQuestionnaire: React.FC<Props> = ({ userId, onComplete }) =
   // Mutation to send user responses and get the next question
   const messageMutation = useMutation({
     mutationFn: async (message: string) => {
+      // Add user's message to chat history immediately for a more responsive feel
+      setChatHistory(prev => [...prev, {role: 'user', message}]);
+      
       const response = await apiRequest(
         'POST', 
         `/api/angela/${userId}/message`, 
@@ -116,6 +131,9 @@ const AdvisorMatchingQuestionnaire: React.FC<Props> = ({ userId, onComplete }) =
         setRecommendation(data as AdvisorRecommendation);
         setCurrentQuestion(null);
         
+        // Add response to chat history
+        setChatHistory(prev => [...prev, {role: 'assistant', message: data.message}]);
+        
         // After showing recommendations for a moment, complete the flow
         setTimeout(() => {
           setIsCompleting(true);
@@ -125,8 +143,12 @@ const AdvisorMatchingQuestionnaire: React.FC<Props> = ({ userId, onComplete }) =
         }, 6000);
       } else {
         // We got the next question
-        setCurrentQuestion(data as MatchingQuestion);
+        const nextQuestion = data as MatchingQuestion;
+        setCurrentQuestion(nextQuestion);
         setTypingComplete(false);
+        
+        // Add response to chat history
+        setChatHistory(prev => [...prev, {role: 'assistant', message: nextQuestion.message}]);
       }
       setUserInput("");
     }
@@ -136,6 +158,8 @@ const AdvisorMatchingQuestionnaire: React.FC<Props> = ({ userId, onComplete }) =
     // Set the initial question from the query
     if (data && !currentQuestion) {
       setCurrentQuestion(data);
+      // Add the initial message to chat history
+      setChatHistory(prev => [...prev, {role: 'assistant', message: data.message}]);
     }
   }, [data, currentQuestion]);
 
@@ -204,12 +228,49 @@ const AdvisorMatchingQuestionnaire: React.FC<Props> = ({ userId, onComplete }) =
         </div>
       ) : recommendation ? (
         <div>
-          <h3 className="text-xl text-white font-semibold mb-4">Your Advisor Matches</h3>
-          <TypedText 
-            text={recommendation.message}
-            onComplete={handleTypingComplete}
-            className="text-white mb-6"
-          />
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl text-white font-semibold">
+              Your Advisor Matches
+            </h3>
+            <span className="text-sm text-white/70">
+              Conversation complete
+            </span>
+          </div>
+          
+          {/* Display conversational chat history including the recommendation */}
+          <div ref={chatContainerRef} className="mb-6 space-y-6 max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-purple-500 scrollbar-track-transparent pr-2">
+            {chatHistory.map((chat, index) => (
+              <div key={index} className={`flex items-start gap-3 ${chat.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
+                {chat.role === 'assistant' && (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs flex-shrink-0 overflow-hidden">
+                    <span>A</span>
+                  </div>
+                )}
+                
+                <div className={`max-w-[80%] rounded-lg p-3 ${
+                  chat.role === 'assistant' 
+                    ? 'bg-gradient-to-r from-purple-700/50 to-pink-700/50 text-white rounded-tl-none' 
+                    : 'bg-white/10 text-white rounded-tr-none'
+                }`}>
+                  {index === chatHistory.length - 1 && chat.role === 'assistant' ? (
+                    <TypedText 
+                      text={chat.message}
+                      onComplete={handleTypingComplete}
+                      className=""
+                    />
+                  ) : (
+                    <p>{chat.message}</p>
+                  )}
+                </div>
+                
+                {chat.role === 'user' && (
+                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white text-xs flex-shrink-0">
+                    <span>You</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
           
           {typingComplete && (
             <motion.div
@@ -292,13 +353,42 @@ const AdvisorMatchingQuestionnaire: React.FC<Props> = ({ userId, onComplete }) =
             </span>
           </div>
           
-          <TypedText 
-            text={currentQuestion.message}
-            onComplete={handleTypingComplete}
-            className="text-white mb-6"
-          />
+          {/* Display conversational chat history */}
+          <div className="mb-6 space-y-6 max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-purple-500 scrollbar-track-transparent pr-2">
+            {chatHistory.map((chat, index) => (
+              <div key={index} className={`flex items-start gap-3 ${chat.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
+                {chat.role === 'assistant' && (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs flex-shrink-0 overflow-hidden">
+                    <span>A</span>
+                  </div>
+                )}
+                
+                <div className={`max-w-[80%] rounded-lg p-3 ${
+                  chat.role === 'assistant' 
+                    ? 'bg-gradient-to-r from-purple-700/50 to-pink-700/50 text-white rounded-tl-none' 
+                    : 'bg-white/10 text-white rounded-tr-none'
+                }`}>
+                  {index === chatHistory.length - 1 && chat.role === 'assistant' && currentQuestion ? (
+                    <TypedText 
+                      text={chat.message}
+                      onComplete={handleTypingComplete}
+                      className=""
+                    />
+                  ) : (
+                    <p>{chat.message}</p>
+                  )}
+                </div>
+                
+                {chat.role === 'user' && (
+                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white text-xs flex-shrink-0">
+                    <span>You</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
           
-          <div className="mt-4">
+          <div className="mt-6">
             <div className="flex items-start gap-3">
               <textarea
                 className="w-full p-3 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"

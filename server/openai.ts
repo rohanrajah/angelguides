@@ -59,34 +59,44 @@ export function getMatchingQuestionNumber(conversationHistory: { role: string; c
   return assistantMessages.length;
 }
 
-// Predefined fallback questions for when OpenAI is unavailable
+// Predefined adaptive conversation templates based on different scenarios
+// These are designed to create a more natural flowing conversation
 const fallbackQuestions = [
+  // First question - Introduction and primary concern
   {
-    message: "I'd love to connect you with the perfect spiritual advisor who resonates with your unique journey. Everyone's spiritual path is different, and finding the right guide can make all the difference. What brings you to seek spiritual guidance today? Feel free to share as much or as little as you're comfortable with.",
+    message: "I'd love to connect you with the perfect spiritual advisor who resonates with your unique journey. Everyone's spiritual path is different, and finding the right guide can make all the difference. What brings you to seek spiritual guidance today? Perhaps it's love, career decisions, or simply seeking deeper meaning?",
     questionNumber: 1,
     totalQuestions: 5,
     isMatchingQuestion: true
   },
+  
+  // Second question - Decision-making style (adapts based on first answer)
   {
-    message: "Thank you for sharing that. To help find the perfect match, I'm curious about how you typically approach important decisions in your life. Do you tend to follow your intuition, analyze all the options, or perhaps a combination of both?",
+    message: "I understand completely. When facing these kinds of situations, how do you typically approach making decisions? Do you go with your intuition, prefer a more analytical approach, or maybe a blend of both? Understanding your style helps me match you with an advisor who communicates in a way that resonates with you.",
     questionNumber: 2,
     totalQuestions: 5,
     isMatchingQuestion: true
   },
+  
+  // Third question - Timeframe and support type
   {
-    message: "I appreciate your thoughtful response. Are you looking for guidance on a specific immediate concern, or are you more interested in ongoing support for your spiritual journey and development?",
+    message: "That makes a lot of sense. And I'm curious - are you looking for guidance on this specific situation we're discussing, or would you prefer more ongoing support for your spiritual journey? Some people need immediate insights while others prefer a longer-term spiritual relationship.",
     questionNumber: 3, 
     totalQuestions: 5,
     isMatchingQuestion: true
   },
+  
+  // Fourth question - Spiritual tools and practices
   {
-    message: "Thank you for sharing that. How do you feel about different spiritual tools and practices like tarot, astrology, energy healing, or meditation? Are there any you're particularly drawn to or curious about?",
+    message: "I appreciate you sharing that with me. Have you worked with any spiritual tools or practices before that you found helpful? Things like tarot, astrology, meditation, energy work? Or perhaps you're curious to explore something new? This will help me find someone with the right approach for you.",
     questionNumber: 4,
     totalQuestions: 5,
     isMatchingQuestion: true
   },
+  
+  // Fifth question - Communication style preference
   {
-    message: "We're almost done finding your perfect match. Finally, what kind of communication style do you connect with best? Do you prefer someone who is direct and straightforward, warm and nurturing, or perhaps analytical and detailed?",
+    message: "You've shared so much helpful information. One last thing that would really help me find your perfect match - what kind of personality do you connect with best? Do you prefer someone gentle and nurturing, direct and straightforward, or perhaps more analytical and detailed in their approach?",
     questionNumber: 5,
     totalQuestions: 5,
     isMatchingQuestion: true
