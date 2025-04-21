@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from 'ws';
 import { storage } from "./storage";
 import { getAngelaResponse, startAdvisorMatchingFlow, generateAdvisorRecommendations } from "./openai";
+import { callPerplexityAPI } from "./perplexity";
 import { registerProfileRoutes } from "./routes-profile";
 import { registerAdminRoutes } from "./routes-admin";
 import { verifyPassword } from "./auth";

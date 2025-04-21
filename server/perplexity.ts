@@ -86,7 +86,7 @@ export async function callPerplexityAPI(
     // Configure the API request
     const payload: PerplexityRequest = {
       model: options.model || DEFAULT_MODEL,
-      messages,
+      messages: [...messages], // Create a copy to avoid modifying the original
       temperature: options.temperature || 0.2,
       max_tokens: options.maxTokens || 500,
       top_p: 0.9,
@@ -97,12 +97,27 @@ export async function callPerplexityAPI(
       return_related_questions: false
     };
 
-    // If format is 'json', add a system message to request JSON output
-    if (options.format === 'json' && !messages.some(m => m.role === 'system')) {
-      messages.unshift({
-        role: 'system',
-        content: 'You must respond in valid JSON format. Ensure your response can be parsed by JSON.parse().'
-      });
+    // If format is 'json', ensure the system message includes JSON format instructions
+    if (options.format === 'json') {
+      // Create a deep copy of messages to avoid modifying the input array
+      const messagesForPayload = [...messages].map(msg => ({...msg}));
+      
+      // Look for an existing system message
+      const systemMessageIndex = messagesForPayload.findIndex(m => m.role === 'system');
+      
+      if (systemMessageIndex >= 0) {
+        // Append JSON format instructions to existing system message
+        messagesForPayload[systemMessageIndex].content += '\n\nYou must respond in valid JSON format only. Ensure your response can be parsed by JSON.parse() without any errors or additional text.';
+      } else {
+        // Add a new system message if none exists
+        messagesForPayload.unshift({
+          role: 'system',
+          content: 'You must respond in valid JSON format only. Ensure your response can be parsed by JSON.parse() without any errors or additional text.'
+        });
+      }
+      
+      // Replace the messages in the payload
+      payload.messages = messagesForPayload;
     }
 
     // Make the API call
@@ -119,12 +134,16 @@ export async function callPerplexityAPI(
 
     // Return the response content
     return response.data.choices[0].message.content;
-  } catch (error) {
+  } catch (err) {
+    const error = err as any; // Type assertion for error handling
     console.error('Error calling Perplexity API:', error);
+    
     if (error.response) {
       console.error('Perplexity API error response:', error.response.data);
     }
-    throw new Error(`Perplexity API call failed: ${error.message}`);
+    
+    const errorMessage = error.message || 'Unknown error';
+    throw new Error(`Perplexity API call failed: ${errorMessage}`);
   }
 }
 
