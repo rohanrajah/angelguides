@@ -97,11 +97,21 @@ export async function callPerplexityAPI(
       return_related_questions: false
     };
 
+    // Create a properly formatted message array for Perplexity API
+    // Perplexity requires the last message to be from the user
+    const messagesForPayload = [...messages].map(msg => ({...msg}));
+    
+    // Check if the last message is not a user message
+    if (messagesForPayload.length === 0 || messagesForPayload[messagesForPayload.length - 1].role !== 'user') {
+      // Add a default user message if needed
+      messagesForPayload.push({
+        role: 'user',
+        content: 'Please provide guidance.'
+      });
+    }
+    
     // If format is 'json', ensure the system message includes JSON format instructions
     if (options.format === 'json') {
-      // Create a deep copy of messages to avoid modifying the input array
-      const messagesForPayload = [...messages].map(msg => ({...msg}));
-      
       // Look for an existing system message
       const systemMessageIndex = messagesForPayload.findIndex(m => m.role === 'system');
       
@@ -115,10 +125,10 @@ export async function callPerplexityAPI(
           content: 'You must respond in valid JSON format only. Ensure your response can be parsed by JSON.parse() without any errors or additional text.'
         });
       }
-      
-      // Replace the messages in the payload
-      payload.messages = messagesForPayload;
     }
+    
+    // Replace the messages in the payload
+    payload.messages = messagesForPayload;
 
     // Make the API call
     const response = await axios.post<PerplexityResponse>(

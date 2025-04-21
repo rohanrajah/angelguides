@@ -33,6 +33,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register admin routes
   registerAdminRoutes(app);
   
+  // Test endpoint for Perplexity API
+  app.get('/api/test-perplexity', async (req: Request, res: Response) => {
+    try {
+      if (!process.env.PERPLEXITY_API_KEY) {
+        return res.status(400).json({ error: 'PERPLEXITY_API_KEY is not set' });
+      }
+      
+      console.log('[TEST] Testing Perplexity API...');
+      const response = await callPerplexityAPI([
+        { role: 'system', content: 'You are a helpful spiritual advisor.' },
+        { role: 'user', content: 'Tell me about the benefits of meditation for spiritual growth.' }
+      ]);
+      
+      console.log('[TEST] Perplexity API test successful');
+      res.json({ success: true, response });
+    } catch (error: any) {
+      console.error('[TEST] Perplexity API test failed:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: error.message,
+        details: error.response?.data || 'No additional details'
+      });
+    }
+  });
+  
   // Get all advisors
   app.get("/api/advisors", async (req: Request, res: Response) => {
     try {

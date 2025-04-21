@@ -136,7 +136,8 @@ export async function startAdvisorMatchingFlow(): Promise<MatchingQuestionRespon
         console.log('[Angela] Using Perplexity for first matching question');
         
         const perplexityMessages = [
-          { role: 'system', content: systemInstruction }
+          { role: 'system', content: systemInstruction },
+          { role: 'user', content: "Create the first matching question to help me find the right spiritual advisor." }
         ];
         
         const perplexityResponse = await callPerplexityAPI(
@@ -275,10 +276,18 @@ export async function getNextMatchingQuestion(
         console.log('[Angela] Using Perplexity for matching question', currentQuestionNumber + 1);
         
         // Format messages for Perplexity
-        const perplexityMessages = [
+        let perplexityMessages = [
           { role: 'system', content: systemInstruction },
           ...formattedConversation
         ];
+        
+        // Ensure the last message is from the user for Perplexity API
+        if (perplexityMessages.length === 0 || perplexityMessages[perplexityMessages.length - 1].role !== 'user') {
+          perplexityMessages.push({
+            role: 'user',
+            content: "Please ask me the next question to help find the right spiritual advisor."
+          });
+        }
         
         const perplexityResponse = await callPerplexityAPI(
           perplexityMessages as any,
@@ -467,10 +476,18 @@ export async function generateAdvisorRecommendations(
         console.log('[Angela] Using Perplexity for advisor recommendations');
         
         // Format messages for Perplexity
-        const perplexityMessages = [
+        let perplexityMessages = [
           { role: 'system', content: systemInstruction },
           ...relevantMessages
         ];
+        
+        // Ensure the last message is from the user for Perplexity API
+        if (perplexityMessages.length === 0 || perplexityMessages[perplexityMessages.length - 1].role !== 'user') {
+          perplexityMessages.push({
+            role: 'user',
+            content: "Based on our conversation, please recommend spiritual advisors that would be a good match for me."
+          });
+        }
         
         const perplexityResponse = await callPerplexityAPI(
           perplexityMessages as any,
