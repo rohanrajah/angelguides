@@ -135,6 +135,48 @@ export async function callPerplexityAPI(
     payload.messages.forEach((msg, i) => {
       console.log(`[${i}] Role: ${msg.role}, Content: ${msg.content.substring(0, 50)}...`);
     });
+    
+    // Extra check for alternating roles - system messages only at the beginning, 
+    // followed by alternating user and assistant roles ending with user
+    let expectedRole = 'user';
+    let problemFound = false;
+    let systemFound = false;
+    
+    for (let i = 0; i < payload.messages.length; i++) {
+      const msg = payload.messages[i];
+      
+      // System messages only allowed at the beginning
+      if (msg.role === 'system') {
+        if (i > 0 && systemFound) {
+          console.error(`ERROR: System message at position ${i} (not at beginning)`);
+          problemFound = true;
+        }
+        systemFound = true;
+        continue;
+      }
+      
+      // After system (if any), must alternate user/assistant starting with user
+      if (msg.role !== expectedRole) {
+        console.error(`ERROR: Expected role ${expectedRole} at position ${i}, but found ${msg.role}`);
+        problemFound = true;
+      }
+      
+      // Toggle expected role for next message
+      expectedRole = expectedRole === 'user' ? 'assistant' : 'user';
+    }
+    
+    // Must end with user message
+    if (payload.messages.length > 0 && 
+        payload.messages[payload.messages.length - 1].role !== 'user') {
+      console.error('ERROR: Last message is not from user');
+      problemFound = true;
+    }
+    
+    if (problemFound) {
+      console.error('WARNING: Message sequence likely violates Perplexity requirements');
+    } else {
+      console.log('Message sequence looks valid');
+    }
 
     // Make the API call
     const response = await axios.post<PerplexityResponse>(

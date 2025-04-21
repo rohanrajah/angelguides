@@ -275,19 +275,44 @@ export async function getNextMatchingQuestion(
       try {
         console.log('[Angela] Using Perplexity for matching question', currentQuestionNumber + 1);
         
-        // Format messages for Perplexity
-        let perplexityMessages = [
-          { role: 'system', content: systemInstruction },
-          ...formattedConversation
-        ];
+        // Format conversation history for Perplexity - ensuring alternating roles
+        let perplexityMessages = [];
         
-        // Ensure the last message is from the user for Perplexity API
-        if (perplexityMessages.length === 0 || perplexityMessages[perplexityMessages.length - 1].role !== 'user') {
+        // Add system message first
+        perplexityMessages.push({
+          role: 'system', 
+          content: systemInstruction
+        });
+        
+        // Ensure alternating roles in conversation history
+        let lastRole = null;
+        for (const msg of formattedConversation) {
+          // Skip system messages - they should only be at the beginning
+          if (msg.role === 'system') continue;
+          
+          const currentRole = msg.role === 'user' ? 'user' : 'assistant';
+          
+          // Skip consecutive messages with the same role
+          if (currentRole === lastRole) continue;
+          
+          perplexityMessages.push({
+            role: currentRole,
+            content: msg.content
+          });
+          
+          lastRole = currentRole;
+        }
+        
+        // Make sure we end with a user message
+        if (lastRole !== 'user' || perplexityMessages.length === 1) {  // Only system message
           perplexityMessages.push({
             role: 'user',
             content: "Please ask me the next question to help find the right spiritual advisor."
           });
         }
+        
+        console.log('[Angela] Formatted message history for matching question:', 
+          perplexityMessages.map(m => `${m.role}: ${m.content.substring(0, 30)}...`));
         
         const perplexityResponse = await callPerplexityAPI(
           perplexityMessages as any,
@@ -475,19 +500,44 @@ export async function generateAdvisorRecommendations(
       try {
         console.log('[Angela] Using Perplexity for advisor recommendations');
         
-        // Format messages for Perplexity
-        let perplexityMessages = [
-          { role: 'system', content: systemInstruction },
-          ...relevantMessages
-        ];
+        // Format conversation history for Perplexity - ensuring alternating roles
+        let perplexityMessages = [];
         
-        // Ensure the last message is from the user for Perplexity API
-        if (perplexityMessages.length === 0 || perplexityMessages[perplexityMessages.length - 1].role !== 'user') {
+        // Add system message first
+        perplexityMessages.push({
+          role: 'system', 
+          content: systemInstruction
+        });
+        
+        // Ensure alternating roles in conversation history
+        let lastRole = null;
+        for (const msg of relevantMessages) {
+          // Skip system messages - they should only be at the beginning
+          if (msg.role === 'system') continue;
+          
+          const currentRole = msg.role === 'user' ? 'user' : 'assistant';
+          
+          // Skip consecutive messages with the same role
+          if (currentRole === lastRole) continue;
+          
+          perplexityMessages.push({
+            role: currentRole,
+            content: msg.content
+          });
+          
+          lastRole = currentRole;
+        }
+        
+        // Make sure we end with a user message
+        if (lastRole !== 'user' || perplexityMessages.length === 1) {  // Only system message
           perplexityMessages.push({
             role: 'user',
             content: "Based on our conversation, please recommend spiritual advisors that would be a good match for me."
           });
         }
+        
+        console.log('[Angela] Formatted message history for advisor recommendations:', 
+          perplexityMessages.map(m => `${m.role}: ${m.content.substring(0, 30)}...`));
         
         const perplexityResponse = await callPerplexityAPI(
           perplexityMessages as any,
