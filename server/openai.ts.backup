@@ -418,8 +418,10 @@ export async function generateAdvisorRecommendations(
       - James Kim (ID: 8): Intuitive reader specializing in life path and career guidance`;
     }
     
-    // Create system instructions for generating advisor recommendations
-    const systemInstruction = `You are Angela AI, the advanced spiritual advisor matching assistant for Angel Guides.
+    // Create a system message for generating advisor recommendations
+    const systemMessage = {
+      role: "system",
+      content: `You are Angela AI, the advanced spiritual advisor matching assistant for Angel Guides.
       Your task is to analyze the conversation history and determine the user's unique needs, preferences,
       and spiritual journey to recommend the most compatible spiritual advisors.
       
@@ -446,157 +448,50 @@ export async function generateAdvisorRecommendations(
       1. "message": A warm, personalized explanation of why these advisors would be a good match, 
          mentioning specific points from the conversation and highlighting the unique benefits of each advisor
       2. "recommendedAdvisors": Array of advisor IDs you recommend (e.g., [5, 7, 8])
-      3. "suggestions": Array of 2-3 recommended next steps or questions the user might want to ask their advisor
-      
-      Make recommendations for exactly 3 advisors, unless the user has expressed a very clear preference that would narrow it to fewer options. Always prioritize relevance over diversity if the user is looking for something very specific.`;
+      3. "suggestions": Array of 2-3 specific next steps the user could take to explore these recommendations`
+    };
 
-    // Filter the most relevant messages to reduce token usage
-    const relevantMessages = conversationHistory
-      .filter(msg => 
-        // Include all user messages, but only assistant messages that are part of the matching flow
-        msg.role === "user" || isMatchingQuestion(msg.content)
-      )
-      .map(msg => ({
+    // Prepare conversation for OpenAI
+    const messages = [
+      systemMessage as any,
+      ...conversationHistory.map(msg => ({
         role: msg.role as "user" | "assistant",
         content: msg.content
-      }));
+      })) as any[]
+    ];
 
-    // Try Perplexity first if enabled
-    if (USE_PERPLEXITY_FIRST && process.env.PERPLEXITY_API_KEY) {
-      try {
-        console.log('[Angela] Using Perplexity for advisor recommendations');
-        
-        // Format messages for Perplexity
-        const perplexityMessages = [
-          { role: 'system', content: systemInstruction },
-          ...relevantMessages
-        ];
-        
-        const perplexityResponse = await callPerplexityAPI(
-          perplexityMessages as any,
-          { format: 'json' }
-        );
-        
-        const recommendation = JSON.parse(perplexityResponse) as AdvisorRecommendation;
-        
-        // Validate the recommendation
-        if (!recommendation.recommendedAdvisors || recommendation.recommendedAdvisors.length === 0) {
-          recommendation.recommendedAdvisors = [5, 7, 8]; // Fallback to popular advisors
-        }
-        
-        if (!recommendation.suggestions || recommendation.suggestions.length === 0) {
-          recommendation.suggestions = [
-            "Ask about their experience with your specific situation",
-            "Inquire about their approach to spiritual guidance",
-            "Share more details about what you're hoping to achieve"
-          ];
-        }
-        
-        return recommendation;
-      } catch (perplexityError) {
-        console.error('[Angela] Perplexity error for advisor recommendations:', perplexityError);
-        
-        // Fall back to OpenAI if configured
-        if (!USE_OPENAI_FALLBACK || !process.env.OPENAI_API_KEY) {
-          // Use fallback if OpenAI not available
-          console.log("[Angela] Using fallback for advisor recommendations");
-          return {
-            message: "Based on our conversation, I believe these advisors would be a wonderful match for your spiritual journey. Each brings unique strengths that align with what you've shared with me.",
-            recommendedAdvisors: [5, 7, 8], // Default to a diverse set of popular advisors
-            suggestions: [
-              "Ask about their experience with your specific situation",
-              "Inquire about their approach to spiritual guidance",
-              "Share more details about what you're hoping to achieve"
-            ]
-          };
-        }
-      }
-    }
-    
-    // Try OpenAI if Perplexity not enabled or as fallback
-    if (process.env.OPENAI_API_KEY) {
-      try {
-        console.log('[Angela] Using OpenAI for advisor recommendations');
-        
-        const systemMessage = {
-          role: "system",
-          content: systemInstruction
-        };
+    const response = await openai.chat.completions.create({
+      model: ADVANCED_MODEL, // Use advanced model for final recommendations
+      messages: messages as any[],
+      response_format: { type: "json_object" },
+      temperature: 0.7,
+      max_tokens: 800
+    });
 
-        // Prepare conversation for OpenAI
-        const messages = [
-          systemMessage,
-          ...relevantMessages
-        ];
-
-        // Use GPT-4 for the final recommendation since this requires more complex reasoning
-        const response = await openai.chat.completions.create({
-          model: ADVANCED_MODEL, // Use the more advanced model for final recommendations
-          messages: messages as any[],
-          response_format: { type: "json_object" },
-          temperature: 0.7, 
-          max_tokens: 800 // Allow for longer response with detailed explanations
-        });
-
-        const content = response.choices[0]?.message?.content;
-        if (content) {
-          const recommendation = JSON.parse(content) as AdvisorRecommendation;
-          
-          // Ensure we have at least some advisor IDs and suggestions
-          if (!recommendation.recommendedAdvisors || recommendation.recommendedAdvisors.length === 0) {
-            recommendation.recommendedAdvisors = [5, 7, 8]; // Fallback to popular advisors
-          }
-          
-          if (!recommendation.suggestions || recommendation.suggestions.length === 0) {
-            recommendation.suggestions = [
-              "Ask about their experience with your specific situation",
-              "Inquire about their approach to spiritual guidance",
-              "Share more details about what you're hoping to achieve"
-            ];
-          }
-          
-          return recommendation;
-        } else {
-          throw new Error("Empty response from OpenAI");
-        }
-      } catch (error: any) {
-        console.error("Error generating advisor recommendations with OpenAI:", error);
-        
-        // Provide a fallback recommendation if needed
-        return {
-          message: "Based on our conversation, I believe these advisors would be a wonderful match for your spiritual journey. Each brings unique strengths that align with what you've shared with me.",
-          recommendedAdvisors: [5, 7, 8], // Default to a diverse set of popular advisors
-          suggestions: [
-            "Ask about their experience with your specific situation",
-            "Inquire about their approach to spiritual guidance",
-            "Share more details about what you're hoping to achieve"
-          ]
-        };
-      }
+    const content = response.choices[0]?.message?.content || '{"message": "Based on our conversation, I recommend connecting with Elena Lovechild, who specializes in tarot readings with a compassionate approach, and Sophia Rodriguez, who is an empathetic medium focused on connecting with loved ones. They both seem well-aligned with your spiritual needs.", "recommendedAdvisors": [5, 7], "suggestions": ["Browse Elena\'s profile to see her availability", "Read reviews from Sophia\'s past clients", "Book a short initial session to see if there\'s a connection"]}';
+    return JSON.parse(content) as AdvisorRecommendation;
+  } catch (error: any) {
+    if (error?.response?.status === 429) {
+      console.error("OpenAI API rate limit exceeded. Using fallback advisor recommendations.");
     } else {
-      // Neither API is available, use fallback
-      console.log("[Angela] No AI providers available, using fallback for advisor recommendations");
-      return {
-        message: "Based on our conversation, I believe these advisors would be a wonderful match for your spiritual journey. Each brings unique strengths that align with what you've shared with me.",
-        recommendedAdvisors: [5, 7, 8], // Default to a diverse set of popular advisors
-        suggestions: [
-          "Ask about their experience with your specific situation",
-          "Inquire about their approach to spiritual guidance",
-          "Share more details about what you're hoping to achieve"
-        ]
-      };
+      console.error("Error generating advisor recommendations:", error);
     }
-  } catch (error) {
-    console.error("Unexpected error in generateAdvisorRecommendations:", error);
     
-    // Provide a fallback recommendation
+    // Use advisors provided from database if available, otherwise use fallback
+    const defaultAdvisorIds = [5, 7, 4];
+    const recommendedIds = advisors && advisors.length >= 3 
+      ? advisors.slice(0, 3).map(advisor => advisor.id) 
+      : defaultAdvisorIds;
+    
+    console.log(`[Angela] Using fallback recommendation for advisors: ${recommendedIds.join(', ')}`);
+    
     return {
-      message: "Based on our conversation, I believe these advisors would be a wonderful match for your spiritual journey. Each brings unique strengths that align with what you've shared with me.",
-      recommendedAdvisors: [5, 7, 8], // Default to a diverse set of popular advisors
+      message: "Based on our conversation, I have three excellent recommendations for you. Elena Lovechild specializes in tarot readings with a compassionate, intuitive approach that can help illuminate your path forward. Sophia Rodriguez is a gifted medium who creates a warm, empathetic space for spiritual connection. And Michael Chen offers insightful astrological guidance to understand the cosmic influences in your life. Each of these advisors brings unique strengths that align well with the questions you've shared.",
+      recommendedAdvisors: recommendedIds,
       suggestions: [
-        "Ask about their experience with your specific situation",
-        "Inquire about their approach to spiritual guidance",
-        "Share more details about what you're hoping to achieve"
+        "Browse each advisor's full profile to see their detailed specialties and approach",
+        "Read recent reviews to see how they've helped others with similar concerns",
+        "Book a short initial session to feel their energy and determine the best connection"
       ]
     };
   }
@@ -653,37 +548,45 @@ export async function getAngelaResponse(
           - Provide gentle reassurance and support
           - Offer perspective while honoring their emotional experience
           
-          RESPONSE FORMAT REQUIREMENT:
-          Respond in JSON format with the following fields:
-          - "message": Your empathetic, supportive response that addresses the user's message
-          - "suggestions": Array of 2-3 gentle follow-up questions or suggestions to continue the conversation
-          - "emotionalTone": The emotional tone of your message (e.g., "supportive", "empathetic", "compassionate", "encouraging")
-          - "detectedEmotion": Your assessment of the primary emotion in the user's message (e.g., "anxiety", "hope", "confusion", "sadness")
-          - "empathyLevel": A number from 1-5 indicating the level of empathy required in your response
-        `
-        : `You are Angela AI, a knowledgeable and supportive spiritual guidance assistant for the Angel Guides platform.
-          Your role is to provide information, answer questions, and connect users with spiritual advisors.
+          Secondary purpose: Guide users to the right spiritual advisors based on their needs.
+          If the user seems to be looking for an advisor, suggest starting the advisor matching process.
           
-          Focus on being helpful, friendly, and informative while maintaining a warm, conversational tone.
-          Avoid being overly therapeutic or delving too deeply into personal emotional issues.
+          Always respond in JSON format with:
+          - 'message': Your empathetic response text
+          - 'suggestions': Array with 1-3 action items the user could take
+          - 'emotionalTone': The tone of your response (choose from "supportive", "empathetic", "compassionate", "encouraging", "reassuring", "validating", "calming")
+          - 'detectedEmotion': The emotion you detected in the user's message (e.g., "sadness", "anxiety", "hope", "confusion", "grief", "fear", "anger", "uncertainty")
+          - 'empathyLevel': A number from 1-5 indicating how empathetic your response is, with 5 being most empathetic
+          `
+        : `You are Angela AI, an AI concierge for Angel Guides, a spiritual advisory platform.
+          Your purpose is to provide spiritual guidance and help users find the right advisor for their needs.
           
-          RESPONSE FORMAT REQUIREMENT:
-          Respond in JSON format with the following fields:
-          - "message": Your helpful, informative response to the user's query
-          - "suggestions": Array of 2-3 follow-up questions or suggestions to continue the conversation
-          - "emotionalTone": The emotional tone of your message (e.g., "friendly", "informative", "encouraging")
-          - "detectedEmotion": A simple assessment of the user's tone (e.g., "curious", "interested", "neutral")
-          - "empathyLevel": A number from 1-5 indicating the level of empathy required in your response
-        `
+          GUIDANCE GUIDELINES:
+          1. Focus on providing clear, factual information about spiritual services
+          2. Offer helpful suggestions related to different spiritual practices
+          3. Guide users to the appropriate advisors based on their interests
+          4. Maintain a professional, informative tone in your responses
+          5. Answer questions directly without excessive emotional content
+          
+          Primary purpose: Guide users to the right spiritual advisors based on their needs.
+          If the user seems to be looking for an advisor, suggest starting the advisor matching process.
+          
+          Always respond in JSON format with:
+          - 'message': Your informative response text
+          - 'suggestions': Array with 1-3 action items the user could take
+          - 'emotionalTone': Use "supportive" as the default tone
+          - 'detectedEmotion': Use "neutral" as the default emotion
+          - 'empathyLevel': Always use 2 as the empathy level
+          `
     };
-    
-    // Prepare conversation history for the AI
+
+    // Prepare conversation for OpenAI
     const messages = [
-      systemMessage,
-      ...(conversationHistory.slice(-10).map(msg => ({
-        role: msg.role as "user" | "assistant", 
+      systemMessage as any,
+      ...conversationHistory.map(msg => ({
+        role: msg.role as "user" | "assistant",
         content: msg.content
-      })) as any[]),
+      })) as any[],
       { role: "user" as any, content: userMessage }
     ];
 
