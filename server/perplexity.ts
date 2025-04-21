@@ -142,8 +142,26 @@ export async function callPerplexityAPI(
       }
     );
 
-    // Return the response content
-    return response.data.choices[0].message.content;
+    // Get the raw response content
+    let rawContent = response.data.choices[0].message.content;
+    
+    // If format is 'json', clean the potential code blocks
+    if (options.format === 'json') {
+      // Remove markdown code block syntax if present
+      if (rawContent.includes('```json')) {
+        rawContent = rawContent.replace(/```json\s*|\s*```/g, '');
+      } else if (rawContent.includes('```')) {
+        rawContent = rawContent.replace(/```\s*|\s*```/g, '');
+      }
+      
+      // Trim any leading/trailing whitespace
+      rawContent = rawContent.trim();
+      
+      console.log('Cleaned JSON response from Perplexity:', rawContent);
+    }
+    
+    // Return the processed response content
+    return rawContent;
   } catch (err) {
     const error = err as any; // Type assertion for error handling
     console.error('Error calling Perplexity API:', error);

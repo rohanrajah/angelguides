@@ -41,16 +41,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       console.log('[TEST] Testing Perplexity API...');
+      
+      // Force the content type to application/json
+      res.setHeader('Content-Type', 'application/json');
+      
       const response = await callPerplexityAPI([
         { role: 'system', content: 'You are a helpful spiritual advisor.' },
         { role: 'user', content: 'Tell me about the benefits of meditation for spiritual growth.' }
       ]);
       
       console.log('[TEST] Perplexity API test successful');
-      res.json({ success: true, response });
+      return res.json({ success: true, response });
     } catch (error: any) {
       console.error('[TEST] Perplexity API test failed:', error);
-      res.status(500).json({ 
+      
+      // Force the content type to application/json
+      res.setHeader('Content-Type', 'application/json');
+      
+      return res.status(500).json({ 
         success: false, 
         error: error.message,
         details: error.response?.data || 'No additional details'
