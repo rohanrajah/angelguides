@@ -179,9 +179,12 @@ export async function callPerplexityAPI(
           });
         }
         
-        // Add the current message
-        messagesForPayload.push(msg);
-        lastProcessedRole = msg.role;
+        // Add the current message (ensure it's typed correctly)
+        messagesForPayload.push({
+          role: msg.role as 'user' | 'assistant', 
+          content: msg.content
+        });
+        lastProcessedRole = msg.role as 'user' | 'assistant';
       }
       
       // Ensure the last message is from the user
@@ -259,19 +262,56 @@ export async function callPerplexityAPI(
     // Get the raw response content
     let rawContent = response.data.choices[0].message.content;
     
-    // If format is 'json', clean the potential code blocks
+    // If format is 'json', clean the potential code blocks and handle non-JSON responses
     if (options.format === 'json') {
-      // Remove markdown code block syntax if present
-      if (rawContent.includes('```json')) {
-        rawContent = rawContent.replace(/```json\s*|\s*```/g, '');
-      } else if (rawContent.includes('```')) {
-        rawContent = rawContent.replace(/```\s*|\s*```/g, '');
+      console.log('Raw JSON response from Perplexity:', rawContent);
+      
+      try {
+        // First try to parse it directly
+        JSON.parse(rawContent);
+      } catch (jsonError) {
+        // Couldn't parse directly, try to clean it up
+        
+        // Remove markdown code block syntax if present
+        if (rawContent.includes('```json')) {
+          rawContent = rawContent.replace(/```json\s*|\s*```/g, '');
+        } else if (rawContent.includes('```')) {
+          rawContent = rawContent.replace(/```\s*|\s*```/g, '');
+        }
+        
+        // Trim any leading/trailing whitespace
+        rawContent = rawContent.trim();
+        
+        // Check for Markdown/text formatting and attempt to convert to JSON
+        // Common pattern: Response starts with a heading like "###"
+        if (rawContent.startsWith('#')) {
+          console.log('Attempting to convert Markdown-formatted response to JSON');
+          
+          // Create a simple fallback JSON structure
+          const fallbackJson = {
+            message: rawContent.substring(0, 500), // First 500 chars
+            suggestions: [],
+            emotionalTone: "Supportive"
+          };
+          
+          rawContent = JSON.stringify(fallbackJson);
+        }
+        
+        // Validate the cleanup worked
+        try {
+          JSON.parse(rawContent);
+          console.log('Successfully cleaned and parsed JSON response');
+        } catch (secondError) {
+          console.error('Failed to parse JSON even after cleaning:', secondError);
+          // Final fallback - create a minimal valid JSON
+          rawContent = JSON.stringify({
+            message: "I apologize, but I'm having trouble processing your request at the moment. Could you please rephrase your question?",
+            emotionalTone: "Apologetic"
+          });
+        }
       }
       
-      // Trim any leading/trailing whitespace
-      rawContent = rawContent.trim();
-      
-      console.log('Cleaned JSON response from Perplexity:', rawContent);
+      console.log('Final cleaned JSON response from Perplexity:', rawContent);
     }
     
     // Return the processed response content
