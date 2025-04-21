@@ -818,19 +818,51 @@ export async function getAngelaResponse(
           try {
             console.log('[Angela] Falling back to Perplexity');
             
-            // Format messages for Perplexity
-            const perplexityMessages = messages.map(msg => ({
-              role: msg.role === 'user' ? 'user' : 'assistant',
-              content: msg.content
-            }));
+            // Format conversation history for Perplexity - ensuring alternating roles
+            let perplexityMessages = [];
             
-            // Add system message if not already present
-            if (!perplexityMessages.some(m => m.role === 'system')) {
-              perplexityMessages.unshift({
-                role: 'system',
-                content: 'You are Angela AI, a spiritual advisor assistant. Always respond in valid JSON format with fields: message, suggestions (array), emotionalTone, detectedEmotion, and empathyLevel (number 1-5).'
+            // Add system message first
+            perplexityMessages.push({
+              role: 'system',
+              content: 'You are Angela AI, a spiritual advisor assistant. Always respond in valid JSON format with fields: message, suggestions (array), emotionalTone, detectedEmotion, and empathyLevel (number 1-5).'
+            });
+            
+            // Ensure alternating roles in conversation history
+            let lastRole = null;
+            for (const msg of messages.slice(0, -1)) { // Process all but the last message
+              // Skip system messages - they should only be at the beginning
+              if (msg.role === 'system') continue;
+              
+              const currentRole = msg.role === 'user' ? 'user' : 'assistant';
+              
+              // Skip consecutive messages with the same role
+              if (currentRole === lastRole) continue;
+              
+              perplexityMessages.push({
+                role: currentRole,
+                content: msg.content
+              });
+              
+              lastRole = currentRole;
+            }
+            
+            // Always end with the user's message
+            const lastMessage = messages[messages.length - 1];
+            if (lastMessage.role !== 'user') {
+              console.log('[Angela] Warning: Last message is not from user. Adding default user message.');
+              perplexityMessages.push({
+                role: 'user',
+                content: 'Please provide spiritual guidance.'
+              });
+            } else {
+              perplexityMessages.push({
+                role: 'user',
+                content: lastMessage.content
               });
             }
+            
+            console.log('[Angela] Formatted message history for Perplexity (fallback):', 
+              perplexityMessages.map(m => `${m.role}: ${m.content.substring(0, 30)}...`));
             
             // Call Perplexity API
             const perplexityResponse = await callPerplexityAPI(

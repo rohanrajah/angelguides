@@ -129,6 +129,12 @@ export async function callPerplexityAPI(
     
     // Replace the messages in the payload
     payload.messages = messagesForPayload;
+    
+    // For debugging purposes, print the full message array
+    console.log('Perplexity API Messages:');
+    payload.messages.forEach((msg, i) => {
+      console.log(`[${i}] Role: ${msg.role}, Content: ${msg.content.substring(0, 50)}...`);
+    });
 
     // Make the API call
     const response = await axios.post<PerplexityResponse>(
