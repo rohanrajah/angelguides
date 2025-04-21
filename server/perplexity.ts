@@ -98,31 +98,97 @@ export async function callPerplexityAPI(
     };
 
     // Create a properly formatted message array for Perplexity API
-    // Perplexity requires the last message to be from the user
-    const messagesForPayload = [...messages].map(msg => ({...msg}));
+    // Extract any system message first
+    const systemMessage = messages.find(msg => msg.role === 'system');
+    let systemContent = '';
     
-    // Check if the last message is not a user message
-    if (messagesForPayload.length === 0 || messagesForPayload[messagesForPayload.length - 1].role !== 'user') {
-      // Add a default user message if needed
+    if (systemMessage) {
+      systemContent = systemMessage.content;
+      
+      // If format is 'json', ensure the system message includes JSON format instructions
+      if (options.format === 'json') {
+        systemContent += '\n\nYou must respond in valid JSON format only. Ensure your response can be parsed by JSON.parse() without any errors or additional text.';
+      }
+    } else if (options.format === 'json') {
+      // If no system message but JSON format is requested, create system message
+      systemContent = 'You must respond in valid JSON format only. Ensure your response can be parsed by JSON.parse() without any errors or additional text.';
+    }
+    
+    // Create a new messages array with properly alternating roles
+    const messagesForPayload: PerplexityMessage[] = [];
+    
+    // Add the system message if we have one
+    if (systemContent) {
+      messagesForPayload.push({
+        role: 'system',
+        content: systemContent
+      });
+    }
+    
+    // Filter out system messages and create alternating user/assistant pairs
+    const nonSystemMessages = messages
+      .filter(msg => msg.role !== 'system')
+      .map(msg => ({
+        role: msg.role === 'user' ? 'user' : 'assistant',
+        content: msg.content
+      }));
+    
+    // Perplexity requires:
+    // 1. First non-system message must be from user
+    // 2. Messages must alternate user/assistant
+    // 3. Last message must be from user
+    
+    if (nonSystemMessages.length === 0) {
+      // If no messages, add a default user message
       messagesForPayload.push({
         role: 'user',
         content: 'Please provide guidance.'
       });
-    }
-    
-    // If format is 'json', ensure the system message includes JSON format instructions
-    if (options.format === 'json') {
-      // Look for an existing system message
-      const systemMessageIndex = messagesForPayload.findIndex(m => m.role === 'system');
+    } else {
+      // Force the first message to be from the user by inserting if needed
+      if (nonSystemMessages[0].role !== 'user') {
+        messagesForPayload.push({
+          role: 'user',
+          content: 'Hello, I need guidance.'
+        });
+      }
       
-      if (systemMessageIndex >= 0) {
-        // Append JSON format instructions to existing system message
-        messagesForPayload[systemMessageIndex].content += '\n\nYou must respond in valid JSON format only. Ensure your response can be parsed by JSON.parse() without any errors or additional text.';
-      } else {
-        // Add a new system message if none exists
-        messagesForPayload.unshift({
-          role: 'system',
-          content: 'You must respond in valid JSON format only. Ensure your response can be parsed by JSON.parse() without any errors or additional text.'
+      // Add pairs of messages, ensuring proper alternation
+      let lastProcessedRole: 'user' | 'assistant' | null = null;
+      
+      for (const msg of nonSystemMessages) {
+        // Skip if same role as previous message (no consecutive same roles allowed)
+        if (lastProcessedRole === msg.role) continue;
+        
+        // If we need to ensure alternation and we have a gap, insert message
+        if (lastProcessedRole !== null && 
+            lastProcessedRole === 'user' && 
+            msg.role === 'user') {
+          // Insert an assistant message to maintain alternation
+          messagesForPayload.push({
+            role: 'assistant',
+            content: 'I understand. Please tell me more.'
+          });
+        } else if (lastProcessedRole !== null && 
+                   lastProcessedRole === 'assistant' && 
+                   msg.role === 'assistant') {
+          // Insert a user message to maintain alternation
+          messagesForPayload.push({
+            role: 'user',
+            content: 'Please continue.'
+          });
+        }
+        
+        // Add the current message
+        messagesForPayload.push(msg);
+        lastProcessedRole = msg.role;
+      }
+      
+      // Ensure the last message is from the user
+      if (lastProcessedRole === 'assistant') {
+        messagesForPayload.push({
+          role: 'user',
+          content: 'Please help me with this.'
         });
       }
     }
