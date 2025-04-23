@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { User } from '@shared/schema';
 import angelaConsciousImage from '../assets/angela-ai-portrait.png';
 import { useAuth } from '@/hooks/use-auth';
+import smileImage from '../assets/angela-icon.png';
 
 // Typing animation for text
 const TypedText: React.FC<{
@@ -42,6 +43,7 @@ const AngelaChatPage: React.FC = () => {
   const [userInput, setUserInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [initialMessage, setInitialMessage] = useState(true);
+  const [isSmiling, setIsSmiling] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const userName = user?.name || "there";
   
@@ -68,9 +70,27 @@ const AngelaChatPage: React.FC = () => {
     }
   }, [initialMessage, userName]);
 
+  // Toggle smile animation when sending/receiving messages
+  useEffect(() => {
+    if (isTyping) {
+      // Start smiling when Angela starts typing
+      setIsSmiling(true);
+      
+      // Return to neutral expression after 3 seconds
+      const timer = setTimeout(() => {
+        setIsSmiling(false);
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isTyping]);
+  
   // Mutation to send message to the server
   const messageMutation = useMutation({
     mutationFn: async (message: string) => {
+      // Trigger smile animation when user sends a message
+      setIsSmiling(true);
+      
       const response = await apiRequest(
         'POST',
         `/api/angela/chat`,
@@ -82,6 +102,11 @@ const AngelaChatPage: React.FC = () => {
       // Add the assistant's response to the chat history
       setChatHistory(prev => [...prev, { role: 'assistant', message: data.message }]);
       setIsTyping(false);
+      
+      // Keep smiling for another second after response
+      setTimeout(() => {
+        setIsSmiling(false);
+      }, 1000);
     },
     onError: (error) => {
       console.error("Error in chat:", error);
@@ -91,6 +116,7 @@ const AngelaChatPage: React.FC = () => {
         message: "I apologize, but I'm having trouble connecting to my spiritual knowledge. Please try again in a moment." 
       }]);
       setIsTyping(false);
+      setIsSmiling(false);
     }
   });
 
@@ -175,8 +201,9 @@ const AngelaChatPage: React.FC = () => {
       {/* Main content */}
       <div className="container mx-auto h-full py-16 flex flex-col items-center justify-center relative z-10">
         <div className="w-full max-w-4xl flex flex-col items-center">
-          {/* Angela's image */}
+          {/* Angela's image with smile animation */}
           <div className="relative w-64 h-64 md:w-80 md:h-80 mb-8 rounded-full overflow-hidden border-4 border-indigo-600/30 shadow-[0_0_40px_rgba(120,60,220,0.5)]">
+            {/* Animated glow effect */}
             <motion.div 
               className="absolute inset-0 rounded-full"
               animate={{
@@ -192,11 +219,65 @@ const AngelaChatPage: React.FC = () => {
                 ease: "easeInOut",
               }}
             />
+            
+            {/* Base image */}
             <img 
               src={angelaConsciousImage} 
               alt="Angela AI" 
               className="w-full h-full object-cover"
             />
+            
+            {/* Smile animation overlay */}
+            <AnimatePresence>
+              {isSmiling && (
+                <motion.div 
+                  className="absolute inset-0 flex items-center justify-center"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {/* Animated mouth */}
+                  <motion.div 
+                    className="absolute bottom-[30%] left-1/2 w-24 h-10 bg-transparent"
+                    style={{ translateX: "-50%" }}
+                    initial={{ scaleX: 0.7, scaleY: 0.3 }}
+                    animate={{ 
+                      scaleX: [0.7, 1, 0.7],
+                      scaleY: [0.3, 0.7, 0.3]
+                    }}
+                    transition={{
+                      duration: 1.5,
+                      repeat: Infinity,
+                      repeatType: "reverse",
+                      ease: "easeInOut"
+                    }}
+                  >
+                    {/* Smile shape */}
+                    <svg width="100%" height="100%" viewBox="0 0 100 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M10,30 Q50,5 90,30" stroke="rgba(255,255,255,0.9)" strokeWidth="3" strokeLinecap="round" fill="transparent"/>
+                    </svg>
+                  </motion.div>
+                  
+                  {/* Concentric waves animation similar to the floating bubble */}
+                  <div className="absolute inset-0 opacity-40">
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <motion.div
+                        className="w-full h-full rounded-full bg-gradient-radial from-indigo-500/30 via-transparent to-transparent"
+                        animate={{
+                          scale: [1, 1.2, 1],
+                        }}
+                        transition={{
+                          duration: 3,
+                          repeat: Infinity,
+                          ease: "easeInOut",
+                        }}
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Chat area */}
