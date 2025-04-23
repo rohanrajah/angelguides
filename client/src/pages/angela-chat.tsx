@@ -61,10 +61,18 @@ const AngelaChatPage: React.FC = () => {
       setIsTyping(true);
       const welcomeMessage = `How can I help you, ${userName}?`;
       
+      // Show initial smile animation when page loads
+      setIsSmiling(true);
+      
       // Add initial message with a slight delay to make it feel natural
       setTimeout(() => {
         setChatHistory([{ role: 'assistant', message: welcomeMessage }]);
       }, 1500);
+      
+      // Keep smiling for a bit longer than the typing animation
+      setTimeout(() => {
+        setIsSmiling(false);
+      }, 4000);
       
       setInitialMessage(false);
     }
@@ -259,11 +267,48 @@ const AngelaChatPage: React.FC = () => {
                     </svg>
                   </motion.div>
                   
+                  {/* Eye animations */}
+                  <div className="absolute w-full h-full pointer-events-none">
+                    {/* Left eye sparkle */}
+                    <motion.div 
+                      className="absolute w-3 h-3 rounded-full bg-white/80"
+                      style={{ top: '35%', left: '38%' }}
+                      animate={{
+                        opacity: [0.4, 0.8, 0.4],
+                        scale: [0.8, 1.2, 0.8]
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                      }}
+                    />
+                    
+                    {/* Right eye sparkle */}
+                    <motion.div 
+                      className="absolute w-3 h-3 rounded-full bg-white/80"
+                      style={{ top: '35%', right: '38%' }}
+                      animate={{
+                        opacity: [0.6, 1, 0.6],
+                        scale: [1, 1.3, 1]
+                      }}
+                      transition={{
+                        duration: 2.5,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                        delay: 0.5
+                      }}
+                    />
+                  </div>
+                  
                   {/* Concentric waves animation similar to the floating bubble */}
                   <div className="absolute inset-0 opacity-40">
                     <div className="absolute inset-0 flex items-center justify-center">
                       <motion.div
-                        className="w-full h-full rounded-full bg-gradient-radial from-indigo-500/30 via-transparent to-transparent"
+                        className="w-full h-full rounded-full"
+                        style={{
+                          background: "radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, rgba(255, 255, 255, 0) 60%)"
+                        }}
                         animate={{
                           scale: [1, 1.2, 1],
                         }}
