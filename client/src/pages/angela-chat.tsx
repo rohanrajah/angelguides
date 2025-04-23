@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { User } from '@shared/schema';
 import angelaConsciousImage from '../assets/angela-ai-portrait.png';
 import { useAuth } from '@/hooks/use-auth';
-import smileImage from '../assets/angela-icon.png';
+import angelaTalkingVideo from '../assets/videos/angela-talking.mp4';
 
 // Typing animation for text
 const TypedText: React.FC<{
@@ -44,7 +44,9 @@ const AngelaChatPage: React.FC = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [initialMessage, setInitialMessage] = useState(true);
   const [isSmiling, setIsSmiling] = useState(false);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const userName = user?.name || "there";
   
   // Scroll to bottom whenever chat history changes
@@ -92,6 +94,22 @@ const AngelaChatPage: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [isTyping]);
+  
+  // Manage video playback based on Angela's active state
+  useEffect(() => {
+    const isAngelaActive = isTyping || isSmiling;
+    setIsVideoPlaying(isAngelaActive);
+    
+    if (videoRef.current) {
+      if (isAngelaActive) {
+        videoRef.current.play().catch(error => {
+          console.error("Video playback error:", error);
+        });
+      } else {
+        videoRef.current.pause();
+      }
+    }
+  }, [isTyping, isSmiling]);
   
   // Mutation to send message to the server
   const messageMutation = useMutation({
@@ -209,11 +227,11 @@ const AngelaChatPage: React.FC = () => {
       {/* Main content */}
       <div className="container mx-auto h-full py-16 flex flex-col items-center justify-center relative z-10">
         <div className="w-full max-w-4xl flex flex-col items-center">
-          {/* Angela's image with smile animation */}
+          {/* Angela's video with talking animation */}
           <div className="relative w-64 h-64 md:w-80 md:h-80 mb-8 rounded-full overflow-hidden border-4 border-indigo-600/30 shadow-[0_0_40px_rgba(120,60,220,0.5)]">
             {/* Animated glow effect */}
             <motion.div 
-              className="absolute inset-0 rounded-full"
+              className="absolute inset-0 rounded-full z-10"
               animate={{
                 boxShadow: [
                   "0 0 40px rgba(120, 60, 220, 0.5)",
@@ -228,97 +246,64 @@ const AngelaChatPage: React.FC = () => {
               }}
             />
             
-            {/* Base image */}
-            <img 
-              src={angelaConsciousImage} 
-              alt="Angela AI" 
-              className="w-full h-full object-cover"
-            />
+            {/* Fallback image (shown when video is not playing) */}
+            {!isTyping && !isSmiling && (
+              <img 
+                src={angelaConsciousImage} 
+                alt="Angela AI" 
+                className="absolute inset-0 w-full h-full object-cover z-0"
+              />
+            )}
             
-            {/* Smile animation overlay */}
+            {/* Video element (shown when typing or smiling) */}
+            <motion.div
+              className="absolute inset-0 z-20"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: isTyping || isSmiling ? 1 : 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <video 
+                src={angelaTalkingVideo}
+                autoPlay={isTyping || isSmiling}
+                loop
+                muted
+                playsInline
+                preload="auto"
+                className="w-full h-full object-cover"
+                style={{ 
+                  display: isTyping || isSmiling ? 'block' : 'none',
+                  objectFit: 'cover',
+                  objectPosition: 'center'
+                }}
+                ref={videoRef}
+              />
+            </motion.div>
+            
+            {/* Concentric waves animation */}
             <AnimatePresence>
-              {isSmiling && (
-                <motion.div 
-                  className="absolute inset-0 flex items-center justify-center"
+              {(isTyping || isSmiling) && (
+                <motion.div
+                  className="absolute inset-0 opacity-40 z-30"
                   initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
+                  animate={{ opacity: 0.4 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
+                  transition={{ duration: 0.5 }}
                 >
-                  {/* Animated mouth */}
-                  <motion.div 
-                    className="absolute bottom-[30%] left-1/2 w-24 h-10 bg-transparent"
-                    style={{ translateX: "-50%" }}
-                    initial={{ scaleX: 0.7, scaleY: 0.3 }}
-                    animate={{ 
-                      scaleX: [0.7, 1, 0.7],
-                      scaleY: [0.3, 0.7, 0.3]
-                    }}
-                    transition={{
-                      duration: 1.5,
-                      repeat: Infinity,
-                      repeatType: "reverse",
-                      ease: "easeInOut"
-                    }}
-                  >
-                    {/* Smile shape */}
-                    <svg width="100%" height="100%" viewBox="0 0 100 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M10,30 Q50,5 90,30" stroke="rgba(255,255,255,0.9)" strokeWidth="3" strokeLinecap="round" fill="transparent"/>
-                    </svg>
-                  </motion.div>
-                  
-                  {/* Eye animations */}
-                  <div className="absolute w-full h-full pointer-events-none">
-                    {/* Left eye sparkle */}
-                    <motion.div 
-                      className="absolute w-3 h-3 rounded-full bg-white/80"
-                      style={{ top: '35%', left: '38%' }}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <motion.div
+                      className="w-full h-full rounded-full"
+                      style={{
+                        background: "radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, rgba(255, 255, 255, 0) 60%)"
+                      }}
                       animate={{
-                        opacity: [0.4, 0.8, 0.4],
-                        scale: [0.8, 1.2, 0.8]
+                        scale: [1, 1.2, 1],
                       }}
                       transition={{
-                        duration: 2,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                      }}
-                    />
-                    
-                    {/* Right eye sparkle */}
-                    <motion.div 
-                      className="absolute w-3 h-3 rounded-full bg-white/80"
-                      style={{ top: '35%', right: '38%' }}
-                      animate={{
-                        opacity: [0.6, 1, 0.6],
-                        scale: [1, 1.3, 1]
-                      }}
-                      transition={{
-                        duration: 2.5,
+                        duration: 3,
                         repeat: Infinity,
                         ease: "easeInOut",
-                        delay: 0.5
                       }}
                     />
-                  </div>
-                  
-                  {/* Concentric waves animation similar to the floating bubble */}
-                  <div className="absolute inset-0 opacity-40">
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <motion.div
-                        className="w-full h-full rounded-full"
-                        style={{
-                          background: "radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, rgba(255, 255, 255, 0) 60%)"
-                        }}
-                        animate={{
-                          scale: [1, 1.2, 1],
-                        }}
-                        transition={{
-                          duration: 3,
-                          repeat: Infinity,
-                          ease: "easeInOut",
-                        }}
-                      />
-                    </div>
                   </div>
                 </motion.div>
               )}
