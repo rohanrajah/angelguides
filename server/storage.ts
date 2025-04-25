@@ -35,6 +35,11 @@ export interface IStorage {
   getAdvisorsWithSpecialties(limit?: number): Promise<AdvisorWithSpecialties[]>;
   deleteUser(id: number): Promise<void>;
   
+  // Admin methods
+  getAllTransactions(): Promise<Transaction[]>;
+  getPendingPayouts(): Promise<any[]>; // Returns advisor payout requests
+  completeAdvisorPayout(advisorId: number): Promise<any>;
+  
   // Angela AI chat message methods
   createAngelaMessage(message: { userId: number, content: string, role: string }): Promise<ChatMessage>;
   
@@ -1032,6 +1037,78 @@ export class MemStorage implements IStorage {
       .filter(transaction => transaction.sessionId === sessionId)
       .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()); // Newest first
   }
+  
+  async getAllTransactions(): Promise<Transaction[]> {
+    return Array.from(this.transactions.values())
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()); // Newest first
+  }
+  
+  async getPendingPayouts(): Promise<any[]> {
+    const advisors = Array.from(this.users.values()).filter(u => 
+      u.userType === UserType.ADVISOR && 
+      u.isAdvisor && 
+      u.pendingPayout);
+      
+    return advisors.map(advisor => ({
+      id: advisor.id,
+      advisorId: advisor.id,
+      advisorName: advisor.name,
+      amount: advisor.earningsBalance || 0,
+      requestDate: new Date(), // Most recent request date
+      status: 'pending'
+    }));
+  }
+  
+  async completeAdvisorPayout(advisorId: number): Promise<any> {
+    const advisor = await this.getUser(advisorId);
+    if (!advisor) {
+      throw new Error('Advisor not found');
+    }
+    
+    // Get the payout amount from advisor's earnings balance
+    const payoutAmount = advisor.earningsBalance || 0;
+    
+    // Reset advisor earnings and pending status
+    await this.updateUser(advisorId, {
+      earningsBalance: 0,
+      pendingPayout: false
+    });
+    
+    // Create transaction record
+    const transaction = await this.createTransaction({
+      type: TransactionType.ADVISOR_PAYOUT,
+      userId: 0, // System
+      advisorId: advisorId,
+      amount: payoutAmount,
+      description: `Payout to ${advisor.name}`,
+      paymentStatus: 'completed',
+      paymentReference: `PAYOUT-${Date.now()}`
+    });
+    
+    return {
+      success: true,
+      advisorId,
+      amount: payoutAmount,
+      transaction
+    };
+  }
+  
+  async deleteUser(id: number): Promise<void> {
+    if (!this.users.has(id)) {
+      throw new Error('User not found');
+    }
+    
+    // Delete user and related data
+    this.users.delete(id);
+    
+    // Remove advisor specialties
+    const advisorSpecialtiesToRemove = Array.from(this.advisorSpecialties.values())
+      .filter(as => as.advisorId === id);
+      
+    for (const as of advisorSpecialtiesToRemove) {
+      this.advisorSpecialties.delete(as.id);
+    }
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1450,6 +1527,96 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(desc(transactions.timestamp));
+  }
+  
+  // Admin methods
+  async getAllTransactions(): Promise<Transaction[]> {
+    return db.select().from(transactions)
+      .orderBy(desc(transactions.timestamp));
+  }
+  
+  async getPendingPayouts(): Promise<any[]> {
+    const advisors = await db.select().from(users)
+      .where(
+        and(
+          eq(users.userType, UserType.ADVISOR),
+          eq(users.pendingPayout, true)
+        )
+      );
+      
+    return advisors.map(advisor => ({
+      id: advisor.id,
+      advisorId: advisor.id,
+      advisorName: advisor.name,
+      amount: advisor.earningsBalance || 0,
+      requestDate: new Date(), // Current date as request date
+      status: 'pending'
+    }));
+  }
+  
+  async completeAdvisorPayout(advisorId: number): Promise<any> {
+    const [advisor] = await db.select().from(users)
+      .where(
+        and(
+          eq(users.id, advisorId),
+          eq(users.userType, UserType.ADVISOR),
+          eq(users.pendingPayout, true)
+        )
+      );
+      
+    if (!advisor) {
+      throw new Error('Advisor not found or no pending payout');
+    }
+    
+    // Get the payout amount from advisor's earnings balance
+    const payoutAmount = advisor.earningsBalance || 0;
+    
+    // Reset advisor earnings and pending status
+    const [updatedAdvisor] = await db.update(users)
+      .set({ 
+        earningsBalance: 0,
+        pendingPayout: false 
+      })
+      .where(eq(users.id, advisorId))
+      .returning();
+    
+    // Create transaction record
+    const [transaction] = await db.insert(transactions)
+      .values({
+        type: TransactionType.ADVISOR_PAYOUT,
+        userId: 0, // System
+        advisorId: advisorId,
+        amount: payoutAmount,
+        description: `Payout to ${advisor.name}`,
+        paymentStatus: 'completed',
+        paymentReference: `PAYOUT-${Date.now()}`
+      })
+      .returning();
+    
+    return {
+      success: true,
+      advisorId,
+      amount: payoutAmount,
+      transaction
+    };
+  }
+  
+  async deleteUser(id: number): Promise<void> {
+    // First check if user exists
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    
+    if (!user) {
+      throw new Error('User not found');
+    }
+    
+    // Delete user's advisor specialties if any
+    if (user.userType === UserType.ADVISOR) {
+      await db.delete(advisorSpecialties)
+        .where(eq(advisorSpecialties.advisorId, id));
+    }
+    
+    // Delete the user
+    await db.delete(users).where(eq(users.id, id));
   }
 
   // Message methods
