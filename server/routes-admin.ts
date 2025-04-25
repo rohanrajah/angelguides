@@ -1,7 +1,7 @@
 import { Express, Response } from "express";
 import { storage } from "./storage";
 import { generateAllTestData } from "../scripts/generate-test-data.js";
-import { User } from "@shared/schema";
+import { User, UserType } from "@shared/schema";
 
 // Define custom Request type that includes user
 interface Request extends Express.Request {
@@ -22,7 +22,7 @@ export function registerAdminRoutes(app: Express) {
     try {
       const user = await storage.getUser(userId);
       
-      if (!user || user.userType !== 'admin') {
+      if (!user || user.userType !== UserType.ADMIN) {
         return res.status(403).json({ error: "Only administrators can access this resource" });
       }
       
