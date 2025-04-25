@@ -33,6 +33,16 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
   const isActive = (path: string) => {
     return location === path;
   };
+  
+  const handleLogout = async () => {
+    try {
+      await logoutMutation.mutateAsync();
+      // Redirect to home page after logout
+      setLocation('/');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
 
   return (
     <header className="border-b border-neutral-light sticky top-0 bg-white/90 backdrop-blur-sm z-30">
@@ -109,9 +119,15 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
                   Add Funds
                 </div>
               </Link>
-              <div onClick={() => {}} className="block px-4 py-2 text-sm text-neutral-dark hover:bg-neutral-lightest hover:text-primary cursor-pointer">Settings</div>
+              <div onClick={() => setLocation('/profile')} className="block px-4 py-2 text-sm text-neutral-dark hover:bg-neutral-lightest hover:text-primary cursor-pointer">Settings</div>
               <hr className="my-1 border-neutral-light" />
-              <div onClick={() => {}} className="block px-4 py-2 text-sm text-neutral-dark hover:bg-neutral-lightest hover:text-primary cursor-pointer">Sign out</div>
+              <div 
+                onClick={handleLogout} 
+                className="block px-4 py-2 text-sm text-red-500 hover:bg-red-50 cursor-pointer"
+              >
+                <i className="fas fa-sign-out-alt mr-2"></i>
+                Sign out
+              </div>
             </div>
           </div>
           
@@ -149,6 +165,18 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
                   </div>
                 </Link>
               ))}
+              
+              {/* Logout option for mobile menu */}
+              <div 
+                className="flex items-center px-2 py-2 rounded-md cursor-pointer text-red-500 hover:bg-red-50"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleLogout();
+                }}
+              >
+                <i className="fas fa-sign-out-alt w-6"></i>
+                <span>Sign out</span>
+              </div>
             </nav>
           </div>
         </motion.div>
