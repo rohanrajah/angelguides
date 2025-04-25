@@ -3,14 +3,16 @@ import { Link, useLocation } from 'wouter';
 import { User } from '@shared/schema';
 import { motion } from 'framer-motion';
 import logo3D from '../../assets/img/logo-3d.png';
+import { useAuth } from '@/hooks/use-auth';
 
 interface HeaderProps {
   user: User | null;
 }
 
 const Header: React.FC<HeaderProps> = ({ user }) => {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { logoutMutation } = useAuth();
 
   const navItems = [
     { label: 'Dashboard', path: '/dashboard', icon: 'fa-home' },
