@@ -53,6 +53,9 @@ const LoginForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [, setLocation] = useLocation();
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,7 +67,15 @@ const LoginForm: React.FC = () => {
       const data = await response.json();
       
       if (response.ok) {
-        setLocation('/dashboard');
+        // Set flag in localStorage to remember this user session
+        localStorage.setItem('hasSeenWelcome', 'true');
+        
+        // Check if user is admin to decide which page to go to
+        if (data.userType === 'ADMIN') {
+          setLocation('/dashboard');
+        } else {
+          setLocation('/dashboard');
+        }
       } else {
         setError(data.message || 'Login failed');
       }
@@ -76,10 +87,50 @@ const LoginForm: React.FC = () => {
     }
   };
 
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    
+    if (!username || !password || !email) {
+      setError('Please fill out all required fields');
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      const userData = {
+        username,
+        password,
+        email,
+        name: name || username,
+        userType: 'USER'
+      };
+      
+      const response = await apiRequest('POST', '/api/users', userData);
+      const data = await response.json();
+      
+      if (response.ok) {
+        localStorage.setItem('hasSeenWelcome', 'true');
+        setLocation('/dashboard');
+      } else {
+        setError(data.message || 'Registration failed');
+      }
+    } catch (err) {
+      setError('An error occurred. Please try again.');
+      console.error('Registration error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="absolute top-4 right-4 z-50 bg-black/50 backdrop-blur-md p-4 rounded-xl border border-purple-500/30 shadow-lg w-80">
-      <h3 className="text-white text-xl font-bold mb-4">Login</h3>
-      <form onSubmit={handleLogin} className="space-y-3">
+    <div className="absolute top-4 right-4 z-50 bg-black/60 backdrop-blur-md p-5 rounded-xl border border-purple-500/30 shadow-lg w-80">
+      <h3 className="text-white text-xl font-bold mb-4">
+        {isRegisterMode ? 'Create Account' : 'Login'}
+      </h3>
+      
+      <form onSubmit={isRegisterMode ? handleRegister : handleLogin} className="space-y-3">
         <div>
           <Input
             type="text"
@@ -88,8 +139,10 @@ const LoginForm: React.FC = () => {
             onChange={(e) => setUsername(e.target.value)}
             className="bg-white/10 border-purple-400/30 text-white placeholder:text-gray-400"
             autoComplete="username"
+            required
           />
         </div>
+        
         <div>
           <Input
             type="password"
@@ -97,21 +150,74 @@ const LoginForm: React.FC = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="bg-white/10 border-purple-400/30 text-white placeholder:text-gray-400"
-            autoComplete="current-password"
+            autoComplete={isRegisterMode ? "new-password" : "current-password"}
+            required
           />
         </div>
+        
+        {isRegisterMode && (
+          <>
+            <div>
+              <Input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="bg-white/10 border-purple-400/30 text-white placeholder:text-gray-400"
+                autoComplete="email"
+                required
+              />
+            </div>
+            <div>
+              <Input
+                type="text"
+                placeholder="Full Name (optional)"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="bg-white/10 border-purple-400/30 text-white placeholder:text-gray-400"
+                autoComplete="name"
+              />
+            </div>
+          </>
+        )}
+        
         {error && <div className="text-red-400 text-sm">{error}</div>}
+        
         <div className="flex justify-between items-center">
           <Button 
             type="submit" 
             disabled={loading}
             className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
           >
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? (isRegisterMode ? 'Creating...' : 'Logging in...') : 
+              (isRegisterMode ? 'Create Account' : 'Login')}
           </Button>
-          <div className="text-sm text-gray-300">
-            <span>Test users:<br/></span>
-            <span className="text-blue-300">rchitnis / password123</span>
+          
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setIsRegisterMode(!isRegisterMode)}
+            className="text-purple-300 hover:text-purple-200"
+          >
+            {isRegisterMode ? 'Login' : 'Register'}
+          </Button>
+        </div>
+        
+        <div className="text-sm text-gray-300 pt-2 border-t border-purple-500/20 mt-2">
+          <div className="font-medium text-purple-300">Test Accounts:</div>
+          <div className="grid grid-cols-2 gap-1 mt-1">
+            <div>
+              <span className="text-blue-300 block">User:</span>
+              <span className="text-gray-300 text-xs">elenalovc2</span>
+            </div>
+            <div>
+              <span className="text-blue-300 block">Admin:</span>
+              <span className="text-gray-300 text-xs">rohan555</span>
+            </div>
+            <div className="col-span-2 mt-1">
+              <span className="text-gray-400 text-xs">Password for all test accounts:</span>
+              <span className="text-gray-300 text-xs block">Trinity@1083</span>
+            </div>
           </div>
         </div>
       </form>
