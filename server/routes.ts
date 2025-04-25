@@ -6,7 +6,7 @@ import { getAngelaResponse, startAdvisorMatchingFlow, generateAdvisorRecommendat
 import { callPerplexityAPI } from "./perplexity";
 import { registerProfileRoutes } from "./routes-profile";
 import { registerAdminRoutes } from "./routes-admin";
-import { verifyPassword } from "./auth";
+import { verifyPassword, hashPassword } from "./auth";
 import { z } from "zod";
 import { 
   insertUserSchema, 
@@ -641,19 +641,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User registration
   app.post("/api/users", async (req: Request, res: Response) => {
     try {
-      const userData = insertUserSchema.parse(req.body);
+      // Validate request using the schema
+      const userData = req.body;
+      
+      console.log("Creating new user with type:", userData.userType);
       
       // Check if username already exists
       const existingUser = await storage.getUserByUsername(userData.username);
       if (existingUser) {
+        console.log(`Username already exists: ${userData.username}`);
         return res.status(400).json({ message: "Username already exists" });
       }
       
-      const user = await storage.createUser(userData);
+      // Hash the password
+      const hashedPassword = await hashPassword(userData.password);
+      
+      // Prepare user data with hashed password
+      const userToCreate = {
+        ...userData,
+        password: hashedPassword,
+        // Set default values for various user fields
+        isAdvisor: userData.userType === 'ADVISOR',
+        availability: '{}',
+        online: false,
+        specialties: userData.userType === 'ADVISOR' ? [] : undefined,
+        balance: 0, // Start with zero balance
+        verificationStatus: 'verified', // Default to verified for admin-created users
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      
+      // Create user in the database
+      const user = await storage.createUser(userToCreate);
+      console.log(`Successfully created user: ${user.username}, id: ${user.id}, type: ${user.userType}`);
+      
       res.status(201).json(user);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating user:", error);
-      res.status(400).json({ message: "Failed to create user" });
+      res.status(400).json({ message: "Failed to create user", error: error.message || "Unknown error" });
     }
   });
 
