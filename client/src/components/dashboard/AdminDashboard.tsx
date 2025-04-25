@@ -3,7 +3,7 @@ import { User, UserType, Transaction } from '@shared/schema';
 import WalletCard from './WalletCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, DollarSign, BarChart3, UserPlus, Settings, AlertCircle } from 'lucide-react';
+import { Users, DollarSign, BarChart3, UserPlus, Settings, AlertCircle, Edit, Trash } from 'lucide-react';
 import { Link } from 'wouter';
 import { Badge } from '@/components/ui/badge';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -19,12 +19,15 @@ import {
 } from "@/components/ui/table";
 import { formatCurrency } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import CreateUserDialog from './CreateUserDialog';
 
 interface AdminDashboardProps {
   user: User;
 }
 
 const AdminDashboard = ({ user }: AdminDashboardProps) => {
+  const [createUserDialogOpen, setCreateUserDialogOpen] = useState(false);
+  
   const { data: transactions, isLoading: isLoadingTransactions } = useQuery<Transaction[]>({
     queryKey: ['/api/admin/transactions'],
   });
@@ -184,7 +187,10 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
                 <CardTitle>User Management</CardTitle>
                 <CardDescription>Manage all platform users</CardDescription>
               </div>
-              <Button className="flex items-center">
+              <Button 
+                className="flex items-center"
+                onClick={() => setCreateUserDialogOpen(true)}
+              >
                 <UserPlus className="mr-1 h-4 w-4" />
                 New User
               </Button>
@@ -312,6 +318,12 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      {/* Create User Dialog */}
+      <CreateUserDialog 
+        open={createUserDialogOpen} 
+        onOpenChange={setCreateUserDialogOpen}
+      />
     </div>
   );
 };
