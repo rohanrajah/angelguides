@@ -8,6 +8,7 @@ import AdvisorMatchingQuestionnaire from '@/components/advisor/AdvisorMatchingQu
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
 
 // Typing animation for text
 const TypedText: React.FC<{
@@ -50,51 +51,39 @@ const TypedText: React.FC<{
 const LoginForm: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [, setLocation] = useLocation();
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+  
+  // Use auth hook for login/register mutations
+  const { loginMutation, registerMutation } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
     
     try {
-      const response = await apiRequest('POST', '/api/login', { username, password });
-      const data = await response.json();
+      await loginMutation.mutateAsync({ username, password });
       
-      if (response.ok) {
-        // Set flag in localStorage to remember this user session
-        localStorage.setItem('hasSeenWelcome', 'true');
-        
-        // Check if user is admin to decide which page to go to
-        if (data.userType === 'ADMIN') {
-          setLocation('/dashboard');
-        } else {
-          setLocation('/dashboard');
-        }
-      } else {
-        setError(data.message || 'Login failed');
-      }
-    } catch (err) {
-      setError('An error occurred. Please try again.');
+      // Set flag in localStorage to remember this user session
+      localStorage.setItem('hasSeenWelcome', 'true');
+      
+      // Redirect to dashboard
+      setLocation('/dashboard');
+    } catch (err: any) {
+      setError(err?.message || 'Login failed. Please check your credentials.');
       console.error('Login error:', err);
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
     
     if (!username || !password || !email) {
       setError('Please fill out all required fields');
-      setLoading(false);
       return;
     }
     
@@ -104,23 +93,19 @@ const LoginForm: React.FC = () => {
         password,
         email,
         name: name || username,
-        userType: 'USER'
+        userType: "USER" as "USER" | "ADVISOR" | "ADMIN"
       };
       
-      const response = await apiRequest('POST', '/api/users', userData);
-      const data = await response.json();
+      await registerMutation.mutateAsync(userData);
       
-      if (response.ok) {
-        localStorage.setItem('hasSeenWelcome', 'true');
-        setLocation('/dashboard');
-      } else {
-        setError(data.message || 'Registration failed');
-      }
-    } catch (err) {
-      setError('An error occurred. Please try again.');
+      // Set flag in localStorage to remember this user session
+      localStorage.setItem('hasSeenWelcome', 'true');
+      
+      // Redirect to dashboard
+      setLocation('/dashboard');
+    } catch (err: any) {
+      setError(err?.message || 'Registration failed. Please try again.');
       console.error('Registration error:', err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -186,11 +171,12 @@ const LoginForm: React.FC = () => {
         <div className="flex justify-between items-center">
           <Button 
             type="submit" 
-            disabled={loading}
+            disabled={isRegisterMode ? registerMutation.isPending : loginMutation.isPending}
             className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
           >
-            {loading ? (isRegisterMode ? 'Creating...' : 'Logging in...') : 
-              (isRegisterMode ? 'Create Account' : 'Login')}
+            {isRegisterMode ? 
+              (registerMutation.isPending ? 'Creating...' : 'Create Account') : 
+              (loginMutation.isPending ? 'Logging in...' : 'Login')}
           </Button>
           
           <Button
