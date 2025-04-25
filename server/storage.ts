@@ -33,6 +33,7 @@ export interface IStorage {
   updateUserStatus(id: number, online: boolean): Promise<User | undefined>;
   updateUser(id: number, data: Partial<User>): Promise<User | undefined>;
   getAdvisorsWithSpecialties(limit?: number): Promise<AdvisorWithSpecialties[]>;
+  deleteUser(id: number): Promise<void>;
   
   // Angela AI chat message methods
   createAngelaMessage(message: { userId: number, content: string, role: string }): Promise<ChatMessage>;
