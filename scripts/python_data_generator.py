@@ -87,14 +87,24 @@ def generate_specialties(conn):
 
     cursor = conn.cursor()
     try:
-        values = [(s["name"], s["icon"], s["category"]) for s in specialty_list]
-        execute_values(
-            cursor,
-            "INSERT INTO specialties (name, icon, category) VALUES %s RETURNING id",
-            values
-        )
-        conn.commit()
-        print(f"Created {len(specialty_list)} specialties.")
+        # Check existing specialties
+        cursor.execute("SELECT name FROM specialties")
+        existing_specialties = {row[0] for row in cursor.fetchall()}
+        
+        # Filter out existing specialties
+        new_specialties = [s for s in specialty_list if s["name"] not in existing_specialties]
+        
+        if new_specialties:
+            values = [(s["name"], s["icon"], s["category"]) for s in new_specialties]
+            execute_values(
+                cursor,
+                "INSERT INTO specialties (name, icon, category) VALUES %s RETURNING id",
+                values
+            )
+            conn.commit()
+            print(f"Created {len(new_specialties)} new specialties.")
+        else:
+            print("No new specialties to create - all already exist.")
     except Exception as e:
         conn.rollback()
         print(f"Error generating specialties: {e}")
@@ -150,55 +160,52 @@ def generate_random_bio():
 def generate_users(conn, count=100):
     print(f"Generating {count} regular users...")
     
-    users = []
-    for i in range(count):
-        name = faker.name()
-        username = f"user{i+1}"
-        password = f"password{i+1}" # In production, these would be hashed
-        
-        user = {
-            "username": username,
-            "password": password,
-            "name": name,
-            "email": faker.email(),
-            "phone": faker.phone_number(),
-            "user_type": UserType.USER,
-            "is_advisor": False,
-            "bio": "Regular user account",
-            "profile_completed": True,
-            "account_balance": random.randint(0, 10000) if random.random() > 0.7 else 0
-        }
-        users.append(user)
-    
     cursor = conn.cursor()
     try:
-        values = [
-            (
-                u["username"], 
-                u["password"], 
-                u["name"], 
-                u["email"], 
-                u["phone"], 
-                u["user_type"], 
-                u["is_advisor"], 
-                u["bio"], 
-                u["profile_completed"],
-                u["account_balance"]
-            ) for u in users
-        ]
+        # Check existing users
+        cursor.execute("SELECT username FROM users WHERE user_type = %s", (UserType.USER,))
+        existing_usernames = {row[0] for row in cursor.fetchall()}
         
-        execute_values(
-            cursor,
-            """
-            INSERT INTO users (
-                username, password, name, email, phone, user_type, is_advisor, bio, 
-                profile_completed, account_balance
-            ) VALUES %s RETURNING id
-            """,
-            values
-        )
+        # Create users that don't exist yet
+        users_created = 0
+        for i in range(count):
+            username = f"user{i+1}"
+            
+            # Skip if user already exists
+            if username in existing_usernames:
+                continue
+                
+            name = faker.name()
+            password = f"password{i+1}" # In production, these would be hashed
+            
+            cursor.execute(
+                """
+                INSERT INTO users (
+                    username, password, name, email, phone, user_type, is_advisor, bio, 
+                    profile_completed, account_balance
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    username, 
+                    password, 
+                    name, 
+                    faker.email(),
+                    faker.phone_number(),
+                    UserType.USER,
+                    False,
+                    "Regular user account",
+                    True,
+                    random.randint(0, 10000) if random.random() > 0.7 else 0
+                )
+            )
+            users_created += 1
+            
+            # Commit in batches to avoid holding transaction too long
+            if users_created % 10 == 0:
+                conn.commit()
+        
         conn.commit()
-        print(f"Created {count} regular users.")
+        print(f"Created {users_created} new regular users.")
     except Exception as e:
         conn.rollback()
         print(f"Error generating users: {e}")
@@ -209,47 +216,33 @@ def generate_users(conn, count=100):
 def generate_advisors(conn, count=50):
     print(f"Generating {count} advisors...")
     
-    advisors = []
-    for i in range(count):
-        name = faker.name()
-        username = f"advisor{i+101}" # Start from 101 to not overlap with users
-        password = f"password{i+101}" # In production, these would be hashed
-        
-        chat_rate = random.randint(100, 500) # $1-$5 per minute
-        audio_rate = chat_rate + random.randint(50, 150) # A bit more than chat
-        video_rate = audio_rate + random.randint(100, 300) # A bit more than audio
-        
-        rating = random.randint(35, 50) # 3.5 to 5.0 stars (stored as 35 to 50)
-        review_count = random.randint(5, 100)
-        
-        specialties = generate_random_specialties(random.randint(2, 5))
-        
-        advisor = {
-            "username": username,
-            "password": password,
-            "name": name,
-            "email": faker.email(),
-            "phone": faker.phone_number(),
-            "user_type": UserType.ADVISOR,
-            "is_advisor": True,
-            "bio": generate_random_bio(),
-            "specialties": specialties,
-            "profile_completed": True,
-            "chat_rate": chat_rate,
-            "audio_rate": audio_rate,
-            "video_rate": video_rate,
-            "rating": rating,
-            "review_count": review_count,
-            "online": random.random() > 0.7, # 30% chance of being online
-            "earnings_balance": random.randint(5000, 50000) if random.random() > 0.7 else 0,
-            "total_earnings": random.randint(10000, 100000) if random.random() > 0.5 else 0
-        }
-        advisors.append(advisor)
-    
     cursor = conn.cursor()
     try:
-        # Insert advisors
-        for advisor in advisors:
+        # Check existing advisors
+        cursor.execute("SELECT username FROM users WHERE user_type = %s", (UserType.ADVISOR,))
+        existing_usernames = {row[0] for row in cursor.fetchall()}
+        
+        # Create advisors that don't exist yet
+        advisors_created = 0
+        for i in range(count):
+            username = f"advisor{i+101}" # Start from 101 to not overlap with users
+            
+            # Skip if advisor already exists
+            if username in existing_usernames:
+                continue
+                
+            name = faker.name()
+            password = f"password{i+101}" # In production, these would be hashed
+            
+            chat_rate = random.randint(100, 500) # $1-$5 per minute
+            audio_rate = chat_rate + random.randint(50, 150) # A bit more than chat
+            video_rate = audio_rate + random.randint(100, 300) # A bit more than audio
+            
+            rating = random.randint(35, 50) # 3.5 to 5.0 stars (stored as 35 to 50)
+            review_count = random.randint(5, 100)
+            
+            specialties = generate_random_specialties(random.randint(2, 5))
+            
             cursor.execute(
                 """
                 INSERT INTO users (
@@ -261,37 +254,48 @@ def generate_advisors(conn, count=50):
                 ) RETURNING id
                 """,
                 (
-                    advisor["username"], 
-                    advisor["password"], 
-                    advisor["name"], 
-                    advisor["email"], 
-                    advisor["phone"], 
-                    advisor["user_type"], 
-                    advisor["is_advisor"], 
-                    advisor["bio"],
-                    json.dumps(advisor["specialties"]),
-                    advisor["profile_completed"],
-                    advisor["chat_rate"],
-                    advisor["audio_rate"],
-                    advisor["video_rate"],
-                    advisor["rating"],
-                    advisor["review_count"],
-                    advisor["online"],
-                    advisor["earnings_balance"],
-                    advisor["total_earnings"]
+                    username, 
+                    password, 
+                    name, 
+                    faker.email(),
+                    faker.phone_number(),
+                    UserType.ADVISOR,
+                    True,
+                    generate_random_bio(),
+                    json.dumps(specialties),
+                    True,
+                    chat_rate,
+                    audio_rate,
+                    video_rate,
+                    rating,
+                    review_count,
+                    random.random() > 0.7, # 30% chance of being online
+                    random.randint(5000, 50000) if random.random() > 0.7 else 0,
+                    random.randint(10000, 100000) if random.random() > 0.5 else 0
                 )
             )
             advisor_id = cursor.fetchone()[0]
             
             # Insert advisor specialties
-            for specialty_id in advisor["specialties"]:
-                cursor.execute(
-                    "INSERT INTO advisor_specialties (advisor_id, specialty_id) VALUES (%s, %s)",
-                    (advisor_id, specialty_id)
-                )
+            for specialty_id in specialties:
+                try:
+                    cursor.execute(
+                        "INSERT INTO advisor_specialties (advisor_id, specialty_id) VALUES (%s, %s)",
+                        (advisor_id, specialty_id)
+                    )
+                except Exception as e:
+                    # Ignore duplicate advisor-specialty mappings
+                    if "duplicate key" not in str(e):
+                        raise
+            
+            advisors_created += 1
+            
+            # Commit in batches to avoid holding transaction too long
+            if advisors_created % 5 == 0:
+                conn.commit()
         
         conn.commit()
-        print(f"Created {count} advisors with their specialties.")
+        print(f"Created {advisors_created} new advisors with their specialties.")
     except Exception as e:
         conn.rollback()
         print(f"Error generating advisors: {e}")
@@ -302,52 +306,46 @@ def generate_advisors(conn, count=50):
 def generate_admins(conn, count=2):
     print(f"Generating {count} admins...")
     
-    admins = []
-    for i in range(count):
-        name = faker.name()
-        username = f"admin{i+1}"
-        password = f"admin{i+1}pass" # In production, these would be hashed
-        
-        admin = {
-            "username": username,
-            "password": password,
-            "name": name,
-            "email": f"admin{i+1}@angelguides.ai",
-            "phone": faker.phone_number(),
-            "user_type": UserType.ADMIN,
-            "is_advisor": False,
-            "bio": "Administrator account",
-            "profile_completed": True
-        }
-        admins.append(admin)
-    
     cursor = conn.cursor()
     try:
-        values = [
-            (
-                a["username"], 
-                a["password"], 
-                a["name"], 
-                a["email"], 
-                a["phone"], 
-                a["user_type"], 
-                a["is_advisor"], 
-                a["bio"], 
-                a["profile_completed"]
-            ) for a in admins
-        ]
+        # Check existing admins
+        cursor.execute("SELECT username FROM users WHERE user_type = %s", (UserType.ADMIN,))
+        existing_usernames = {row[0] for row in cursor.fetchall()}
         
-        execute_values(
-            cursor,
-            """
-            INSERT INTO users (
-                username, password, name, email, phone, user_type, is_advisor, bio, profile_completed
-            ) VALUES %s RETURNING id
-            """,
-            values
-        )
+        # Create admins that don't exist yet
+        admins_created = 0
+        for i in range(count):
+            username = f"admin{i+1}"
+            
+            # Skip if admin already exists
+            if username in existing_usernames:
+                continue
+                
+            name = faker.name()
+            password = f"admin{i+1}pass" # In production, these would be hashed
+            
+            cursor.execute(
+                """
+                INSERT INTO users (
+                    username, password, name, email, phone, user_type, is_advisor, bio, profile_completed
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    username, 
+                    password, 
+                    name, 
+                    f"admin{i+1}@angelguides.ai",
+                    faker.phone_number(),
+                    UserType.ADMIN,
+                    False,
+                    "Administrator account",
+                    True
+                )
+            )
+            admins_created += 1
+        
         conn.commit()
-        print(f"Created {count} admins.")
+        print(f"Created {admins_created} new admins.")
     except Exception as e:
         conn.rollback()
         print(f"Error generating admins: {e}")
@@ -367,8 +365,13 @@ def generate_sessions(conn, count=200):
         cursor.execute("SELECT id, chat_rate, audio_rate, video_rate FROM users WHERE user_type = %s", (UserType.ADVISOR,))
         advisors = [(row[0], row[1], row[2], row[3]) for row in cursor.fetchall()]
         
+        if not user_ids or not advisors:
+            print("No users or advisors found. Skipping session generation.")
+            return
+            
         # Generate session data
-        sessions = []
+        sessions_created = 0
+        transactions_created = 0
         now = datetime.now()
         
         for i in range(count):
@@ -431,76 +434,72 @@ def generate_sessions(conn, count=200):
                     billed_amount = None
                     is_paid = False
             
-            session = {
-                "user_id": user_id,
-                "advisor_id": advisor_id,
-                "start_time": start_time,
-                "end_time": end_time,
-                "session_type": session_type,
-                "status": status,
-                "notes": faker.text(max_nb_chars=200) if random.random() > 0.7 else None,
-                "rate_per_minute": rate,
-                "actual_start_time": actual_start_time,
-                "actual_end_time": actual_end_time,
-                "actual_duration": actual_duration,
-                "billed_amount": billed_amount,
-                "is_paid": is_paid
-            }
-            sessions.append(session)
-        
-        # Insert sessions
-        for session in sessions:
-            cursor.execute(
-                """
-                INSERT INTO sessions (
-                    user_id, advisor_id, start_time, end_time, session_type, status, notes,
-                    rate_per_minute, actual_start_time, actual_end_time, actual_duration,
-                    billed_amount, is_paid
-                ) VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-                ) RETURNING id
-                """,
-                (
-                    session["user_id"],
-                    session["advisor_id"],
-                    session["start_time"],
-                    session["end_time"],
-                    session["session_type"],
-                    session["status"],
-                    session["notes"],
-                    session["rate_per_minute"],
-                    session["actual_start_time"],
-                    session["actual_end_time"],
-                    session["actual_duration"],
-                    session["billed_amount"],
-                    session["is_paid"]
-                )
-            )
-            
-            # Generate transaction for completed sessions that have been paid
-            if session["status"] == "completed" and session["billed_amount"] and session["is_paid"]:
-                session_id = cursor.fetchone()[0]
+            try:
                 cursor.execute(
                     """
-                    INSERT INTO transactions (
-                        type, user_id, advisor_id, session_id, amount, description, payment_status
+                    INSERT INTO sessions (
+                        user_id, advisor_id, start_time, end_time, session_type, status, notes,
+                        rate_per_minute, actual_start_time, actual_end_time, actual_duration,
+                        billed_amount, is_paid
                     ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s
-                    )
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                    ) RETURNING id
                     """,
                     (
-                        TransactionType.SESSION_PAYMENT,
-                        session["user_id"],
-                        session["advisor_id"],
-                        session_id,
-                        -session["billed_amount"],  # Negative for user (payment)
-                        f"Payment for {session['session_type']} session with advisor #{session['advisor_id']}",
-                        "completed"
+                        user_id,
+                        advisor_id,
+                        start_time,
+                        end_time,
+                        session_type,
+                        status,
+                        faker.text(max_nb_chars=200) if random.random() > 0.7 else None,
+                        rate,
+                        actual_start_time,
+                        actual_end_time,
+                        actual_duration,
+                        billed_amount,
+                        is_paid
                     )
                 )
+                
+                sessions_created += 1
+                
+                # Generate transaction for completed sessions that have been paid
+                if status == "completed" and billed_amount and is_paid:
+                    session_id = cursor.fetchone()[0]
+                    cursor.execute(
+                        """
+                        INSERT INTO transactions (
+                            type, user_id, advisor_id, session_id, amount, description, payment_status
+                        ) VALUES (
+                            %s, %s, %s, %s, %s, %s, %s
+                        )
+                        """,
+                        (
+                            TransactionType.SESSION_PAYMENT,
+                            user_id,
+                            advisor_id,
+                            session_id,
+                            -billed_amount,  # Negative for user (payment)
+                            f"Payment for {session_type} session with advisor #{advisor_id}",
+                            "completed"
+                        )
+                    )
+                    transactions_created += 1
+                
+                # Commit in batches to avoid long transaction
+                if sessions_created % 20 == 0:
+                    conn.commit()
+                    
+            except Exception as e:
+                # Continue with the next session if this one fails
+                if "duplicate key" in str(e):
+                    continue
+                else:
+                    raise
         
         conn.commit()
-        print(f"Created {count} sessions with related transactions.")
+        print(f"Created {sessions_created} sessions with {transactions_created} related transactions.")
     except Exception as e:
         conn.rollback()
         print(f"Error generating sessions: {e}")
@@ -520,8 +519,11 @@ def generate_messages(conn, count=500):
         cursor.execute("SELECT id FROM users WHERE user_type = %s", (UserType.ADVISOR,))
         advisor_ids = [row[0] for row in cursor.fetchall()]
         
+        if not user_ids or not advisor_ids:
+            print("No users or advisors found. Skipping message generation.")
+            return
+            
         # Generate message pairs (user to advisor and responses)
-        messages = []
         now = datetime.now()
         
         # Create user-advisor pairs for messaging
@@ -531,11 +533,15 @@ def generate_messages(conn, count=500):
             advisor_id = random.choice(advisor_ids)
             pairs.append((user_id, advisor_id))
         
-        # Generate message threads
+        # Insert messages
+        messages_created = 0
+        
         for user_id, advisor_id in pairs:
             # Random number of messages in this thread
-            thread_count = random.randint(3, 20)
-            
+            thread_count = min(random.randint(3, 20), count - messages_created)
+            if thread_count <= 0:
+                break
+                
             for i in range(thread_count):
                 # Alternate between user and advisor
                 if i % 2 == 0:
@@ -557,36 +563,38 @@ def generate_messages(conn, count=500):
                 # Messages from longer ago are more likely to be read
                 read = True if message_time < (now - timedelta(days=1)) else random.random() > 0.5
                 
-                message = {
-                    "sender_id": sender_id,
-                    "receiver_id": receiver_id,
-                    "content": content,
-                    "timestamp": message_time,
-                    "read": read
-                }
-                messages.append(message)
-        
-        # Insert messages
-        for msg in messages[:count]:  # Limit to requested count
-            cursor.execute(
-                """
-                INSERT INTO messages (
-                    sender_id, receiver_id, content, timestamp, read
-                ) VALUES (
-                    %s, %s, %s, %s, %s
-                )
-                """,
-                (
-                    msg["sender_id"],
-                    msg["receiver_id"],
-                    msg["content"],
-                    msg["timestamp"],
-                    msg["read"]
-                )
-            )
+                try:
+                    cursor.execute(
+                        """
+                        INSERT INTO messages (
+                            sender_id, receiver_id, content, timestamp, read
+                        ) VALUES (
+                            %s, %s, %s, %s, %s
+                        )
+                        """,
+                        (
+                            sender_id,
+                            receiver_id,
+                            content,
+                            message_time,
+                            read
+                        )
+                    )
+                    messages_created += 1
+                    
+                    # Commit in batches
+                    if messages_created % 50 == 0:
+                        conn.commit()
+                        
+                except Exception as e:
+                    # Just continue if this message fails
+                    if "duplicate key" in str(e):
+                        continue
+                    else:
+                        raise
         
         conn.commit()
-        print(f"Created {min(count, len(messages))} messages.")
+        print(f"Created {messages_created} messages.")
     except Exception as e:
         conn.rollback()
         print(f"Error generating messages: {e}")
@@ -606,66 +614,97 @@ def generate_reviews(conn):
         )
         sessions = cursor.fetchall()
         
+        if not sessions:
+            print("No completed sessions found. Skipping review generation.")
+            return
+            
+        # Check for existing reviews to avoid duplicates
+        cursor.execute("SELECT session_id FROM reviews")
+        existing_session_reviews = {row[0] for row in cursor.fetchall()}
+        
         # Generate reviews for some of the sessions
         reviews_count = 0
         for session_id, user_id, advisor_id in sessions:
+            # Skip if session already has a review
+            if session_id in existing_session_reviews:
+                continue
+                
             # 70% chance of having a review
             if random.random() > 0.3:
-                # Rating between 3-5 stars, weighted toward higher ratings
-                rating = random.choices([3, 4, 5], weights=[1, 3, 6])[0]
-                
-                # Content more likely for higher ratings
-                has_content = random.random() > (0.6 - (rating * 0.1))
-                content = faker.paragraph() if has_content else None
-                
-                # Reviews from longer ago are more likely to have advisor responses
-                has_response = random.random() > 0.6
-                response = faker.paragraph() if has_response else None
-                response_date = datetime.now() - timedelta(days=random.randint(0, 10)) if has_response else None
-                
-                cursor.execute(
-                    """
-                    INSERT INTO reviews (
-                        user_id, advisor_id, session_id, rating, content, created_at,
-                        response, response_date, is_hidden
-                    ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s
+                try:
+                    # Rating between 3-5 stars, weighted toward higher ratings
+                    rating = random.choices([3, 4, 5], weights=[1, 3, 6])[0]
+                    
+                    # Content more likely for higher ratings
+                    has_content = random.random() > (0.6 - (rating * 0.1))
+                    content = faker.paragraph() if has_content else None
+                    
+                    # Reviews from longer ago are more likely to have advisor responses
+                    has_response = random.random() > 0.6
+                    response = faker.paragraph() if has_response else None
+                    response_date = datetime.now() - timedelta(days=random.randint(0, 10)) if has_response else None
+                    
+                    cursor.execute(
+                        """
+                        INSERT INTO reviews (
+                            user_id, advisor_id, session_id, rating, content, created_at,
+                            response, response_date, is_hidden
+                        ) VALUES (
+                            %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        )
+                        """,
+                        (
+                            user_id,
+                            advisor_id,
+                            session_id,
+                            rating,
+                            content,
+                            datetime.now() - timedelta(days=random.randint(0, 30)),
+                            response,
+                            response_date,
+                            random.random() < 0.05  # 5% chance of being hidden
+                        )
                     )
-                    """,
-                    (
-                        user_id,
-                        advisor_id,
-                        session_id,
-                        rating,
-                        content,
-                        datetime.now() - timedelta(days=random.randint(0, 30)),
-                        response,
-                        response_date,
-                        random.random() < 0.05  # 5% chance of being hidden
-                    )
-                )
-                reviews_count += 1
-        
-        # Update advisor ratings based on reviews
-        cursor.execute(
-            """
-            UPDATE users u
-            SET 
-                rating = subquery.avg_rating,
-                review_count = subquery.review_count
-            FROM (
-                SELECT 
-                    advisor_id, 
-                    COUNT(*) as review_count,
-                    CAST(AVG(rating) * 10 AS INTEGER) as avg_rating
-                FROM reviews
-                GROUP BY advisor_id
-            ) as subquery
-            WHERE u.id = subquery.advisor_id
-            """
-        )
+                    reviews_count += 1
+                    
+                    # Commit in batches
+                    if reviews_count % 20 == 0:
+                        conn.commit()
+                        
+                except Exception as e:
+                    # Continue with next review if this one fails
+                    if "duplicate key" in str(e):
+                        continue
+                    else:
+                        raise
         
         conn.commit()
+        
+        if reviews_count > 0:
+            # Update advisor ratings based on reviews
+            try:
+                cursor.execute(
+                    """
+                    UPDATE users u
+                    SET 
+                        rating = subquery.avg_rating,
+                        review_count = subquery.review_count
+                    FROM (
+                        SELECT 
+                            advisor_id, 
+                            COUNT(*) as review_count,
+                            CAST(AVG(rating) * 10 AS INTEGER) as avg_rating
+                        FROM reviews
+                        GROUP BY advisor_id
+                    ) as subquery
+                    WHERE u.id = subquery.advisor_id
+                    """
+                )
+                conn.commit()
+            except Exception as e:
+                print(f"Warning: Failed to update advisor ratings: {e}")
+                # Continue anyway
+                
         print(f"Created {reviews_count} reviews and updated advisor ratings.")
     except Exception as e:
         conn.rollback()
@@ -683,55 +722,79 @@ def generate_conversations(conn, count=50):
         cursor.execute("SELECT id FROM users WHERE user_type = %s", (UserType.USER,))
         user_ids = [row[0] for row in cursor.fetchall()]
         
-        # Sample some users for conversations
-        selected_users = random.sample(user_ids, min(count, len(user_ids)))
+        if not user_ids:
+            print("No users found. Skipping Angela AI conversation generation.")
+            return
+            
+        # Check existing conversations to avoid duplicates
+        cursor.execute("SELECT user_id FROM conversations")
+        existing_user_convos = {row[0] for row in cursor.fetchall()}
         
+        # Sample some users for conversations
+        available_users = [uid for uid in user_ids if uid not in existing_user_convos]
+        selected_users = random.sample(available_users, min(count, len(available_users)))
+        
+        conversations_created = 0
         for user_id in selected_users:
-            # Generate a conversation with 3-10 messages
-            message_count = random.randint(3, 10)
-            messages = []
-            
-            for i in range(message_count):
-                if i % 2 == 0:
-                    role = "user"
-                    content = faker.sentence()
+            try:
+                # Generate a conversation with 3-10 messages
+                message_count = random.randint(3, 10)
+                messages = []
+                
+                for i in range(message_count):
+                    if i % 2 == 0:
+                        role = "user"
+                        content = faker.sentence()
+                    else:
+                        role = "assistant"
+                        content = faker.paragraph()
+                    
+                    # Add timestamp to each message
+                    timestamp = datetime.now() - timedelta(
+                        days=random.randint(0, 14),
+                        hours=random.randint(0, 23),
+                        minutes=random.randint(0, 59)
+                    )
+                    
+                    messages.append({
+                        "role": role,
+                        "content": content,
+                        "timestamp": timestamp.isoformat()
+                    })
+                
+                # Sort messages by timestamp
+                messages.sort(key=lambda x: x["timestamp"])
+                
+                cursor.execute(
+                    """
+                    INSERT INTO conversations (
+                        user_id, messages, last_updated
+                    ) VALUES (
+                        %s, %s, %s
+                    )
+                    """,
+                    (
+                        user_id,
+                        json.dumps(messages),
+                        datetime.now() - timedelta(days=random.randint(0, 14))
+                    )
+                )
+                
+                conversations_created += 1
+                
+                # Commit in batches
+                if conversations_created % 10 == 0:
+                    conn.commit()
+                    
+            except Exception as e:
+                # Skip this conversation if it fails
+                if "duplicate key" in str(e):
+                    continue
                 else:
-                    role = "assistant"
-                    content = faker.paragraph()
-                
-                # Add timestamp to each message
-                timestamp = datetime.now() - timedelta(
-                    days=random.randint(0, 14),
-                    hours=random.randint(0, 23),
-                    minutes=random.randint(0, 59)
-                )
-                
-                messages.append({
-                    "role": role,
-                    "content": content,
-                    "timestamp": timestamp.isoformat()
-                })
-            
-            # Sort messages by timestamp
-            messages.sort(key=lambda x: x["timestamp"])
-            
-            cursor.execute(
-                """
-                INSERT INTO conversations (
-                    user_id, messages, last_updated
-                ) VALUES (
-                    %s, %s, %s
-                )
-                """,
-                (
-                    user_id,
-                    json.dumps(messages),
-                    datetime.now() - timedelta(days=random.randint(0, 14))
-                )
-            )
+                    raise
         
         conn.commit()
-        print(f"Created {count} Angela AI conversations.")
+        print(f"Created {conversations_created} Angela AI conversations.")
     except Exception as e:
         conn.rollback()
         print(f"Error generating conversations: {e}")
@@ -748,41 +811,80 @@ def generate_topups(conn, count=50):
         cursor.execute("SELECT id FROM users WHERE user_type = %s", (UserType.USER,))
         user_ids = [row[0] for row in cursor.fetchall()]
         
+        if not user_ids:
+            print("No users found. Skipping topup generation.")
+            return
+            
         # Sample some users for topups
         selected_users = random.sample(user_ids, min(count, len(user_ids)))
         
+        topups_created = 0
+        users_with_topups = 0
+        
         for user_id in selected_users:
+            user_topups = 0
             # Generate 1-3 topups per user
             topup_count = random.randint(1, 3)
             
             for _ in range(topup_count):
-                # Random topup amount between $10 and $200
-                amount = random.randint(1000, 20000)  # In cents
-                
-                # Random date in the past 60 days
-                topup_date = datetime.now() - timedelta(days=random.randint(0, 60))
-                
-                cursor.execute(
-                    """
-                    INSERT INTO transactions (
-                        type, user_id, amount, description, timestamp, payment_status, payment_reference
-                    ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s
+                try:
+                    # Random topup amount between $10 and $200
+                    amount = random.randint(1000, 20000)  # In cents
+                    
+                    # Random date in the past 60 days
+                    topup_date = datetime.now() - timedelta(days=random.randint(0, 60))
+                    
+                    # Generate unique reference
+                    payment_reference = f"top_{faker.uuid4()}"
+                    
+                    cursor.execute(
+                        """
+                        INSERT INTO transactions (
+                            type, user_id, amount, description, timestamp, payment_status, payment_reference
+                        ) VALUES (
+                            %s, %s, %s, %s, %s, %s, %s
+                        )
+                        """,
+                        (
+                            TransactionType.USER_TOPUP,
+                            user_id,
+                            amount,
+                            "Account balance topup",
+                            topup_date,
+                            "completed",
+                            payment_reference
+                        )
                     )
-                    """,
-                    (
-                        TransactionType.USER_TOPUP,
-                        user_id,
-                        amount,
-                        f"Account balance topup",
-                        topup_date,
-                        "completed",
-                        f"top_{faker.uuid4()}"
+                    
+                    topups_created += 1
+                    user_topups += 1
+                    
+                    # Also update user account balance
+                    cursor.execute(
+                        """
+                        UPDATE users
+                        SET account_balance = account_balance + %s
+                        WHERE id = %s
+                        """,
+                        (amount, user_id)
                     )
-                )
+                    
+                    # Commit in batches
+                    if topups_created % 10 == 0:
+                        conn.commit()
+                        
+                except Exception as e:
+                    # Skip this topup if it fails
+                    if "duplicate key" in str(e):
+                        continue
+                    else:
+                        raise
+            
+            if user_topups > 0:
+                users_with_topups += 1
         
         conn.commit()
-        print(f"Created {count} users with topup transactions.")
+        print(f"Created {topups_created} topup transactions for {users_with_topups} users.")
     except Exception as e:
         conn.rollback()
         print(f"Error generating topups: {e}")
