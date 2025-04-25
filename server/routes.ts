@@ -69,7 +69,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all advisors
   app.get("/api/advisors", async (req: Request, res: Response) => {
     try {
+      const currentUserId = req.user?.id;
+      console.log("Fetching advisors, current user ID:", currentUserId);
+      
+      // Get all advisors from storage
       const advisors = await storage.getAdvisors();
+      
+      // If user is not authenticated or is not an advisor, return all advisors
+      if (!currentUserId) {
+        return res.json(advisors);
+      }
+      
+      // Check if the current user is an advisor
+      const currentUser = await storage.getUser(currentUserId);
+      if (!currentUser) {
+        return res.json(advisors);
+      }
+      
+      // Ensure the current user is included in the results if they're an advisor but somehow not in the list
+      if (currentUser.userType === UserType.ADVISOR) {
+        const includesSelf = advisors.some(advisor => advisor.id === currentUserId);
+        
+        if (!includesSelf) {
+          console.log("Adding current advisor to advisor list");
+          return res.json([...advisors, currentUser]);
+        }
+      }
+      
       res.json(advisors);
     } catch (error) {
       console.error("Error fetching advisors:", error);
