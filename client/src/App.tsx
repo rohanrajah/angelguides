@@ -42,6 +42,23 @@ import { useEffect, useState } from "react";
 import { User } from "@shared/schema";
 import { apiRequest } from "./lib/queryClient";
 
+// Component to protect admin routes
+function AdminRoute({ component: Component, ...rest }: { component: React.ComponentType<any>, path: string }) {
+  const { user } = useAuth();
+  const [, navigate] = useLocation();
+  const [match] = useRoute(rest.path);
+  
+  useEffect(() => {
+    // If the route matches and user is not an admin, redirect
+    if (match && (!user || user.userType !== "ADMIN")) {
+      navigate("/dashboard");
+    }
+  }, [match, user, navigate]);
+  
+  // If user is an admin, render the component, otherwise null (redirect happens in useEffect)
+  return match && user?.userType === "ADMIN" ? <Component /> : null;
+}
+
 function Router() {
   const [location] = useLocation();
   const { user } = useAuth();
@@ -53,6 +70,7 @@ function Router() {
   
   // Determine if the user is an advisor
   const isAdvisor = user?.userType === "ADVISOR";
+  const isAdmin = user?.userType === "ADMIN";
   
   return (
     <Switch>
@@ -80,6 +98,12 @@ function Router() {
       <Route path="/advisor-statistics" component={AdvisorStatistics} />
       <Route path="/advisor-services" component={AdvisorServices} />
       <Route path="/advisor-settings" component={AdvisorSettings} />
+      
+      {/* Admin Routes */}
+      <AdminRoute path="/admin/users" component={Dashboard} />
+      <AdminRoute path="/admin/user/:userId" component={Dashboard} />
+      <AdminRoute path="/admin/transactions" component={Dashboard} />
+      <AdminRoute path="/admin/payouts" component={Dashboard} />
       
       <Route component={NotFound} />
     </Switch>
