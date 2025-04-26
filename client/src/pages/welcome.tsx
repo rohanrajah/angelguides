@@ -201,8 +201,8 @@ const LoginForm: React.FC = () => {
               <span className="text-gray-300 text-xs">rohan555</span>
             </div>
             <div className="col-span-2 mt-1">
-              <span className="text-gray-400 text-xs">Password for all test accounts:</span>
-              <span className="text-gray-300 text-xs block">Trinity@1083</span>
+              <span className="text-gray-400 text-xs">Test accounts available</span>
+              <span className="text-gray-300 text-xs block">(Contact admin for password)</span>
             </div>
           </div>
         </div>

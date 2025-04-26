@@ -30,9 +30,13 @@ async function createAdminUser() {
   console.log("Creating admin user 'rchitnis'...");
   
   // Create the admin user with the required credentials
+  // Using environment variable for password or a secure randomly generated password
+  const adminPassword = process.env.ADMIN_PASSWORD || randomBytes(12).toString('hex');
+  console.log(`Generated admin password: ${adminPassword}`); // Log once for setup
+  
   const adminUser = {
     username: "rchitnis",
-    password: await hashPassword("Angela123"),
+    password: await hashPassword(adminPassword),
     name: "Admin User",
     email: "admin@angelguides.ai",
     userType: UserType.ADMIN,

@@ -11,19 +11,9 @@ export async function hashPassword(password: string) {
 
 export async function verifyPassword(suppliedPassword: string, storedPassword: string) {
   try {
-    console.log(`Verifying password format: ${storedPassword.length} chars, contains dot: ${storedPassword.includes('.')}`);
+    console.log(`Verifying password (hash length: ${storedPassword.length} chars)`);
     
-    // For development - use a universal password
-    if (suppliedPassword === 'password123') {
-      console.log("Using development password override");
-      return true;
-    }
-    
-    // Special case for admin with known credentials
-    if (suppliedPassword === 'Angela123' && storedPassword.includes('74ab6df8e7d5f9c')) {
-      console.log("Admin password match");
-      return true;
-    }
+    // No universal passwords - removed for security
     
     // Regular check for passwords in hash.salt format
     if (storedPassword.includes('.')) {
@@ -49,11 +39,7 @@ export async function verifyPassword(suppliedPassword: string, storedPassword: s
       }
     }
     
-    // Direct comparison (only for development)
-    if (suppliedPassword === storedPassword) {
-      console.log("Direct password match");
-      return true;
-    }
+    // No direct password comparison - removed for security
     
     console.log("No password verification method matched");
     return false;
