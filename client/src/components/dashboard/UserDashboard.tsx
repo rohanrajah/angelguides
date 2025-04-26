@@ -1,9 +1,9 @@
 import React from 'react';
-import { User, Session } from '@shared/schema';
+import { User, Session, Review } from '@shared/schema';
 import WalletCard from './WalletCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, Clock, Star, MessageSquare } from 'lucide-react';
+import { Calendar, Clock, Star, MessageSquare, History } from 'lucide-react';
 import { Link } from 'wouter';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
@@ -66,6 +66,66 @@ const UserDashboard = ({ user, onTopUp }: UserDashboardProps) => {
               <span className="text-sm text-muted-foreground">Unread Messages</span>
             </div>
           </CardContent>
+        </Card>
+      </div>
+      
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+        <Card className="shadow-md">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center">
+              <History className="mr-2 h-5 w-5 text-indigo-500" />
+              Session History
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <p className="text-sm text-muted-foreground mb-3">
+              View your past sessions and leave reviews for your advisors.
+            </p>
+          </CardContent>
+          <CardFooter className="pt-0">
+            <Button variant="outline" className="w-full" asChild>
+              <Link href="/sessions">View Session History</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+        
+        <Card className="shadow-md">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center">
+              <Star className="mr-2 h-5 w-5 text-yellow-500" />
+              My Reviews
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <p className="text-sm text-muted-foreground mb-3">
+              Reviews you've written for advisors and their responses.
+            </p>
+          </CardContent>
+          <CardFooter className="pt-0">
+            <Button variant="outline" className="w-full" asChild>
+              <Link href="/sessions?tab=reviews">Manage Reviews</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+        
+        <Card className="shadow-md">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center">
+              <MessageSquare className="mr-2 h-5 w-5 text-green-500" />
+              Messages
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <p className="text-sm text-muted-foreground mb-3">
+              Access your conversations with spiritual advisors.
+            </p>
+          </CardContent>
+          <CardFooter className="pt-0">
+            <Button variant="outline" className="w-full" asChild>
+              <Link href="/messages">View Messages</Link>
+            </Button>
+          </CardFooter>
         </Card>
       </div>
       

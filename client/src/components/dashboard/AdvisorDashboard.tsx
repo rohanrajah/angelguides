@@ -113,10 +113,11 @@ const AdvisorDashboard = ({ user, onWithdraw }: AdvisorDashboardProps) => {
             <CardDescription>Key metrics and stats</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="flex flex-col items-center justify-center p-4 bg-muted rounded-lg">
-              <Star className="h-8 w-8 text-amber-500 mb-2" />
+            <div className="flex flex-col items-center justify-center p-4 bg-muted rounded-lg cursor-pointer group hover:bg-muted/80" onClick={() => window.location.href = '/advisor-reviews'}>
+              <Star className="h-8 w-8 text-amber-500 mb-2 group-hover:scale-110 transition-transform" />
               <span className="text-2xl font-bold">{user.rating || 0}/5</span>
               <span className="text-sm text-muted-foreground">Average Rating</span>
+              <span className="text-xs text-primary mt-2 opacity-0 group-hover:opacity-100 transition-opacity">View all reviews</span>
             </div>
             
             <div className="flex flex-col items-center justify-center p-4 bg-muted rounded-lg">
@@ -131,6 +132,66 @@ const AdvisorDashboard = ({ user, onWithdraw }: AdvisorDashboardProps) => {
               <span className="text-sm text-muted-foreground">Total Sessions</span>
             </div>
           </CardContent>
+        </Card>
+      </div>
+      
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+        <Card className="shadow-md">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center">
+              <Star className="mr-2 h-5 w-5 text-yellow-500" />
+              Manage Reviews
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <p className="text-sm text-muted-foreground mb-3">
+              View and respond to client reviews to build your reputation.
+            </p>
+          </CardContent>
+          <CardFooter className="pt-0">
+            <Button variant="outline" className="w-full" asChild>
+              <Link href="/advisor-reviews">View & Respond to Reviews</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+        
+        <Card className="shadow-md">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center">
+              <Calendar className="mr-2 h-5 w-5 text-blue-500" />
+              Session History
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <p className="text-sm text-muted-foreground mb-3">
+              View your past sessions and performance metrics.
+            </p>
+          </CardContent>
+          <CardFooter className="pt-0">
+            <Button variant="outline" className="w-full" asChild>
+              <Link href="/bookings">View Session History</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+        
+        <Card className="shadow-md">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center">
+              <Edit className="mr-2 h-5 w-5 text-green-500" />
+              Edit Profile
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <p className="text-sm text-muted-foreground mb-3">
+              Update your profile information and service rates.
+            </p>
+          </CardContent>
+          <CardFooter className="pt-0">
+            <Button variant="outline" className="w-full" asChild>
+              <Link href="/profile">Edit Profile</Link>
+            </Button>
+          </CardFooter>
         </Card>
       </div>
       
