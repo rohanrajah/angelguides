@@ -697,12 +697,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUserByUsername(username);
       
       if (!user) {
-        console.log(`User not found: ${username}`);
+        console.log("Login failed: User not found");
         return res.status(401).json({ message: "Invalid credentials" });
       }
       
-      console.log(`Found user: ${user.username}, id: ${user.id}, userType: ${user.userType}`);
-      console.log(`Stored password format: ${user.password.substring(0, 20)}...`);
+      console.log(`Found user with id: ${user.id}, userType: ${user.userType}`);
+      // Don't log password information
       
       const isPasswordValid = await verifyPassword(password, user.password);
       
@@ -724,7 +724,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      console.log(`Login successful for user: ${user.username}`);
+      console.log(`Login successful for user ID: ${user.id}`);
       res.json(user);
     } catch (error) {
       console.error("Error logging in:", error);
@@ -742,7 +742,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const user = await storage.getUser(userId);
         if (user) {
-          console.log(`Found authenticated user: ${user.username}`);
+          console.log(`Found authenticated user with ID: ${user.id}`);
           return res.json(user);
         }
       }
