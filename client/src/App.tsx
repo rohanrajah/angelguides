@@ -29,6 +29,8 @@ import TestPage from "@/pages/test";
 import TestVideo from "@/pages/test-video";
 import Availability from "@/pages/availability";
 import AngelaChat from "@/pages/angela-chat";
+import SessionHistory from "@/pages/session-history";
+import AdvisorReviews from "@/pages/advisor-reviews";
 
 // Advisor Dashboard Pages
 import AdvisorDashboard from "@/pages/advisor-dashboard";
@@ -90,6 +92,7 @@ function Router() {
       <Route path="/test" component={TestPage} />
       <Route path="/test-video" component={TestVideo} />
       <Route path="/angela-chat" component={AngelaChat} />
+      <Route path="/sessions" component={SessionHistory} />
 
       {/* Advisor Dashboard Routes */}
       <Route path="/advisor-dashboard" component={AdvisorDashboard} />
@@ -98,6 +101,7 @@ function Router() {
       <Route path="/advisor-statistics" component={AdvisorStatistics} />
       <Route path="/advisor-services" component={AdvisorServices} />
       <Route path="/advisor-settings" component={AdvisorSettings} />
+      <Route path="/advisor-reviews" component={AdvisorReviews} />
       
       {/* Admin Routes */}
       <AdminRoute path="/admin/users" component={Dashboard} />

@@ -50,7 +50,7 @@ function SessionItem({ session, isAdvisor = false }: { session: Session, isAdvis
 
   // Helper function to get the session type icon
   const getSessionTypeIcon = () => {
-    switch (session.type) {
+    switch (session.sessionType) {
       case 'chat':
         return <MessageCircle className="h-4 w-4 mr-1" />;
       case 'audio':
@@ -107,14 +107,14 @@ function SessionItem({ session, isAdvisor = false }: { session: Session, isAdvis
             <span className="font-medium mr-2">Type:</span> 
             <div className="flex items-center">
               {getSessionTypeIcon()} 
-              <span className="capitalize">{session.type}</span>
+              <span className="capitalize">{session.sessionType}</span>
             </div>
           </div>
           <div>
             <span className="font-medium mr-2">Duration:</span> {sessionDuration} minutes
           </div>
           <div>
-            <span className="font-medium mr-2">Cost:</span> ${session.cost ? (session.cost / 100).toFixed(2) : '0.00'}
+            <span className="font-medium mr-2">Cost:</span> ${session.billedAmount ? (session.billedAmount / 100).toFixed(2) : '0.00'}
           </div>
         </div>
         {session.notes && (
