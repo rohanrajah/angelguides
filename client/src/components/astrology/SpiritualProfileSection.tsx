@@ -121,7 +121,7 @@ const SpiritualProfileSection: React.FC<SpiritualProfileSectionProps> = ({
       });
 
       // Refresh user data after update
-      queryClient.invalidateQueries(['/api/me']);
+      queryClient.invalidateQueries({ queryKey: ['/api/me'] });
       
     } catch (error) {
       toast({

@@ -98,6 +98,11 @@ export function registerProfileRoutes(app: Express) {
         phone,
         bio,
         specialties,
+        birthDate,
+        birthTime,
+        birthPlace,
+        vedicChart,
+        humanDesignData,
         chatRate,
         audioRate,
         videoRate,
@@ -134,6 +139,13 @@ export function registerProfileRoutes(app: Express) {
       
       // Profile completion status
       if (profileCompleted !== undefined) updateData.profileCompleted = profileCompleted;
+      
+      // Spiritual profile data
+      if (birthDate !== undefined) updateData.birthDate = birthDate;
+      if (birthTime !== undefined) updateData.birthTime = birthTime;
+      if (birthPlace !== undefined) updateData.birthPlace = birthPlace;
+      if (vedicChart !== undefined) updateData.vedicChart = vedicChart;
+      if (humanDesignData !== undefined) updateData.humanDesignData = humanDesignData;
       
       // Update the user
       const updatedUser = await storage.updateUser(userId, updateData);
