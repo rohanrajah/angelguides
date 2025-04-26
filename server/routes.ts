@@ -69,7 +69,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all advisors
   app.get("/api/advisors", async (req: Request, res: Response) => {
     try {
-      const currentUserId = req.user?.id;
+      const currentUserId = (req as any).session?.userId;
       console.log("Fetching advisors, current user ID:", currentUserId);
       
       // Get all advisors from storage
@@ -556,7 +556,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // New endpoint for general Angela chat functionality
   app.post("/api/angela/chat", async (req: Request, res: Response) => {
     const { message } = req.body;
-    const userId = req.user?.id || 5;  // Default to user ID 5 if not authenticated
+    const userId = (req as any).session?.userId || 5;  // Default to user ID 5 if not authenticated
     
     try {
       // Get existing conversation if any
@@ -649,7 +649,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if username already exists
       const existingUser = await storage.getUserByUsername(userData.username);
       if (existingUser) {
-        console.log(`Username already exists: ${userData.username}`);
+        console.log("Username already exists");
         return res.status(400).json({ message: "Username already exists" });
       }
       
@@ -673,9 +673,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create user in the database
       const user = await storage.createUser(userToCreate);
-      console.log(`Successfully created user: ${user.username}, id: ${user.id}, type: ${user.userType}`);
+      console.log(`Successfully created user: id: ${user.id}, type: ${user.userType}`);
       
-      res.status(201).json(user);
+      // Remove password from response
+      const { password: _, ...userWithoutPassword } = user;
+      res.status(201).json(userWithoutPassword);
     } catch (error: any) {
       console.error("Error creating user:", error);
       res.status(400).json({ message: "Failed to create user", error: error.message || "Unknown error" });
@@ -687,7 +689,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { username, password } = req.body;
       
-      console.log(`Login attempt for username: ${username}`);
+      console.log("Login attempt received");
       
       if (!username || !password) {
         console.log("Missing username or password");
@@ -725,7 +727,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       console.log(`Login successful for user ID: ${user.id}`);
-      res.json(user);
+      // Remove password from response
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
     } catch (error) {
       console.error("Error logging in:", error);
       res.status(500).json({ message: "Failed to log in" });
@@ -743,7 +747,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const user = await storage.getUser(userId);
         if (user) {
           console.log(`Found authenticated user with ID: ${user.id}`);
-          return res.json(user);
+          // Remove password from response
+          const { password: _pwd1, ...userWithoutPassword } = user;
+          return res.json(userWithoutPassword);
         }
       }
       
@@ -756,7 +762,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      res.json(fallbackUser);
+      // Remove password from response for fallback user too
+      const { password: _pwd2, ...fallbackUserWithoutPassword } = fallbackUser;
+      res.json(fallbackUserWithoutPassword);
     } catch (error) {
       console.error("Error fetching current user:", error);
       res.status(500).json({ message: "Failed to fetch current user" });
