@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ReviewResponse } from '@/components/reviews/ReviewResponse';
 import { RatingSummary } from '@/components/reviews/RatingSummary';
 import { useAuth } from '@/hooks/use-auth';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+import DashboardLayout from '../components/layout/DashboardLayout';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -38,10 +38,15 @@ export default function AdvisorReviews() {
   const [filterRating, setFilterRating] = useState<FilterRating>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // For debugging, log the userType when component loads
+  useEffect(() => {
+    console.log('Current userType:', user?.userType);
+  }, [user?.userType]);
+
   // Fetch advisor's reviews
   const { data: allReviews = [], isLoading } = useQuery<ReviewWithUser[]>({
     queryKey: ['/api/advisors', user?.id, 'reviews'],
-    enabled: !!user?.id && user?.userType === 'advisor',
+    enabled: !!user?.id && (user?.userType === 'ADVISOR' || user?.userType === 'advisor'),
   });
 
   // Calculate rating statistics

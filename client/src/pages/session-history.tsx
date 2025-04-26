@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { ReviewDialog } from '@/components/reviews/ReviewDialog';
 import { useAuth } from '@/hooks/use-auth';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+import DashboardLayout from '../components/layout/DashboardLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
