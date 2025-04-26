@@ -5,10 +5,11 @@ import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from "@/hooks/use-toast";
+import SpiritualProfileSection from '@/components/astrology/SpiritualProfileSection';
 
 const Profile: React.FC = () => {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<'profile' | 'sessions' | 'preferences'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'sessions' | 'spiritual' | 'preferences'>('profile');
   const [statusIsUpdating, setStatusIsUpdating] = useState(false);
   
   // Fetch current user
@@ -174,6 +175,15 @@ const Profile: React.FC = () => {
             >
               <i className="fas fa-calendar-alt mr-2"></i>
               Sessions History
+            </motion.button>
+            <motion.button 
+              className={`py-3 px-5 font-medium ${activeTab === 'spiritual' ? 'text-primary border-b-2 border-primary' : 'text-neutral-dark hover:text-primary'}`}
+              onClick={() => setActiveTab('spiritual')}
+              whileHover={{ y: -2 }}
+              whileTap={{ y: 0 }}
+            >
+              <i className="fas fa-star mr-2"></i>
+              Spiritual Profile
             </motion.button>
             <motion.button 
               className={`py-3 px-5 font-medium ${activeTab === 'preferences' ? 'text-primary border-b-2 border-primary' : 'text-neutral-dark hover:text-primary'}`}
@@ -403,6 +413,17 @@ const Profile: React.FC = () => {
                       </button>
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+            
+            {activeTab === 'spiritual' && (
+              <div className="bg-white rounded-xl shadow-soft overflow-hidden">
+                <div className="p-5 border-b border-neutral-light">
+                  <h2 className="font-heading text-lg font-semibold text-neutral-darkest">Spiritual Profile</h2>
+                </div>
+                <div className="p-5">
+                  <SpiritualProfileSection user={currentUser} isEditable={true} />
                 </div>
               </div>
             )}
