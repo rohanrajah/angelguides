@@ -39,6 +39,11 @@ export const users = pgTable("users", {
   firebaseUid: text("firebase_uid"), // For Firebase Authentication integration
   lastLogin: timestamp("last_login"), // Track last login time
   profileCompleted: boolean("profile_completed").default(false), // Whether the profile is fully set up
+  birthDate: timestamp("birth_date"), // Birth date for astrological calculations
+  birthTime: text("birth_time"), // Birth time for astrological calculations
+  birthPlace: text("birth_place"), // Birth place for astrological calculations
+  vedicChart: jsonb("vedic_chart"), // Vedic astrology chart data
+  humanDesignData: jsonb("human_design_data"), // Human Design data
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -60,6 +65,11 @@ export const insertUserSchema = createInsertSchema(users).pick({
   firebaseUid: true,
   lastLogin: true,
   profileCompleted: true,
+  birthDate: true,
+  birthTime: true,
+  birthPlace: true,
+  vedicChart: true,
+  humanDesignData: true,
 });
 
 // Specialties schema
