@@ -21,15 +21,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-
-type WorkingHour = {
-  id: number;
-  advisorId: number;
-  date: string;
-  startTime: string;
-  endTime: string;
-  isAvailable: boolean;
-};
+import { WorkingHour, User } from '@shared/schema';
 
 type QueuePosition = {
   position: number;
@@ -45,7 +37,7 @@ const AdvisorCallCenter = () => {
   const [queuePosition, setQueuePosition] = useState<QueuePosition>({ position: 2, total: 7 });
 
   // Fetch advisor profile
-  const { data: user } = useQuery({
+  const { data: user } = useQuery<User>({
     queryKey: ['/api/me'],
   });
 

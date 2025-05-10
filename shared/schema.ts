@@ -30,6 +30,7 @@ export const users = pgTable("users", {
   reviewCount: integer("review_count"),
   availability: text("availability"), // JSON string of availability
   online: boolean("online").default(false),
+  statusMessage: text("status_message"),
   accountBalance: integer("account_balance").default(0), // Account balance in cents for all users
   earningsBalance: integer("earnings_balance").default(0), // Pending earnings in cents for advisors
   totalEarnings: integer("total_earnings").default(0), // All-time earnings in cents for advisors
@@ -259,3 +260,22 @@ export const insertTransactionSchema = createInsertSchema(transactions).pick({
 
 export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
+
+// Working Hours schema for advisor availability
+export const workingHours = pgTable("working_hours", {
+  id: serial("id").primaryKey(),
+  advisorId: integer("advisor_id").notNull().references(() => users.id),
+  date: text("date").notNull(), // Format: YYYY-MM-DD
+  startTime: text("start_time").notNull().default("09:00"), // Format: HH:MM
+  endTime: text("end_time").notNull().default("17:00"), // Format: HH:MM
+  isAvailable: boolean("is_available").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertWorkingHoursSchema = createInsertSchema(workingHours).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type WorkingHour = typeof workingHours.$inferSelect;
+export type InsertWorkingHour = z.infer<typeof insertWorkingHoursSchema>;
