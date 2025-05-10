@@ -1407,6 +1407,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: 'Failed to generate heat map data' });
     }
   });
+  
+  // Call Center Routes
+  
+  // Get advisor's working hours
+  app.get("/api/advisors/:advisorId/working-hours", async (req: Request, res: Response) => {
+    try {
+      const advisorId = parseInt(req.params.advisorId);
+      if (!advisorId) {
+        return res.status(400).json({ error: "Invalid advisor ID" });
+      }
+      
+      const workingHours = await storage.getAdvisorWorkingHours(advisorId);
+      res.json(workingHours || []);
+    } catch (error: any) {
+      console.error("Error fetching advisor working hours:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Add or update working hours
+  app.post("/api/advisors/:advisorId/working-hours", async (req: Request, res: Response) => {
+    try {
+      const advisorId = parseInt(req.params.advisorId);
+      if (!advisorId) {
+        return res.status(400).json({ error: "Invalid advisor ID" });
+      }
+      
+      const { date, startTime, endTime, isAvailable } = req.body;
+      
+      if (!date) {
+        return res.status(400).json({ error: "Date is required" });
+      }
+      
+      const result = await storage.addAdvisorWorkingHours(advisorId, {
+        date,
+        startTime: startTime || "09:00",
+        endTime: endTime || "17:00",
+        isAvailable: isAvailable !== false
+      });
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error adding advisor working hours:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Update status message
+  app.post("/api/advisors/:advisorId/status-message", async (req: Request, res: Response) => {
+    try {
+      const advisorId = parseInt(req.params.advisorId);
+      if (!advisorId) {
+        return res.status(400).json({ error: "Invalid advisor ID" });
+      }
+      
+      const { message } = req.body;
+      
+      if (!message) {
+        return res.status(400).json({ error: "Status message is required" });
+      }
+      
+      const result = await storage.updateAdvisorStatusMessage(advisorId, message);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error updating advisor status message:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
 
   // Start an audio or video call with billing
   async function startCall(
