@@ -1134,13 +1134,125 @@ export class DatabaseStorage implements IStorage {
 
   // User methods
   async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
+    try {
+      // We handle status_message separately since the column might not exist
+      // in the database yet (schema evolution)
+      const [user] = await db
+        .select({
+          id: users.id,
+          username: users.username,
+          password: users.password,
+          name: users.name,
+          email: users.email,
+          phone: users.phone,
+          userType: users.userType,
+          isAdvisor: users.isAdvisor,
+          avatar: users.avatar,
+          bio: users.bio,
+          introVideo: users.introVideo,
+          specialties: users.specialties,
+          chatRate: users.chatRate,
+          audioRate: users.audioRate,
+          videoRate: users.videoRate,
+          rating: users.rating,
+          reviewCount: users.reviewCount,
+          availability: users.availability,
+          online: users.online,
+          accountBalance: users.accountBalance,
+          earningsBalance: users.earningsBalance,
+          totalEarnings: users.totalEarnings,
+          pendingPayout: users.pendingPayout,
+          stripeCustomerId: users.stripeCustomerId,
+          stripeConnectId: users.stripeConnectId,
+          firebaseUid: users.firebaseUid,
+          lastLogin: users.lastLogin,
+          profileCompleted: users.profileCompleted,
+          birthDate: users.birthDate,
+          birthTime: users.birthTime,
+          birthPlace: users.birthPlace,
+          vedicChart: users.vedicChart,
+          humanDesignData: users.humanDesignData
+        })
+        .from(users)
+        .where(eq(users.id, id));
+      
+      if (!user) return undefined;
+      
+      // Add default null for statusMessage
+      return { 
+        ...user, 
+        statusMessage: null 
+      };
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      // Fallback to basic query if the detailed one fails
+      const [basicUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, id));
+      
+      return basicUser ? { ...basicUser, statusMessage: null } : undefined;
+    }
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user;
+    try {
+      // Use same approach as getUser to handle missing columns
+      const [user] = await db
+        .select({
+          id: users.id,
+          username: users.username,
+          password: users.password,
+          name: users.name,
+          email: users.email,
+          phone: users.phone,
+          userType: users.userType,
+          isAdvisor: users.isAdvisor,
+          avatar: users.avatar,
+          bio: users.bio,
+          introVideo: users.introVideo,
+          specialties: users.specialties,
+          chatRate: users.chatRate,
+          audioRate: users.audioRate,
+          videoRate: users.videoRate,
+          rating: users.rating,
+          reviewCount: users.reviewCount,
+          availability: users.availability,
+          online: users.online,
+          accountBalance: users.accountBalance,
+          earningsBalance: users.earningsBalance,
+          totalEarnings: users.totalEarnings,
+          pendingPayout: users.pendingPayout,
+          stripeCustomerId: users.stripeCustomerId,
+          stripeConnectId: users.stripeConnectId,
+          firebaseUid: users.firebaseUid,
+          lastLogin: users.lastLogin,
+          profileCompleted: users.profileCompleted,
+          birthDate: users.birthDate,
+          birthTime: users.birthTime,
+          birthPlace: users.birthPlace,
+          vedicChart: users.vedicChart,
+          humanDesignData: users.humanDesignData
+        })
+        .from(users)
+        .where(eq(users.username, username));
+      
+      if (!user) return undefined;
+      
+      return { 
+        ...user, 
+        statusMessage: null 
+      };
+    } catch (error) {
+      console.error("Error fetching user by username:", error);
+      // Fallback to basic query if the detailed one fails
+      const [basicUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.username, username));
+      
+      return basicUser ? { ...basicUser, statusMessage: null } : undefined;
+    }
   }
 
   async createUser(user: InsertUser): Promise<User> {
