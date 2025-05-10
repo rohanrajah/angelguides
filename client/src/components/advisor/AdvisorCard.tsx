@@ -178,15 +178,15 @@ export function AdvisorCard({ advisor, specialties = [], currentUserId, highligh
           <div className="grid grid-cols-3 gap-1 text-xs text-muted-foreground">
             <div className="flex items-center">
               <Clock className="h-3 w-3 mr-1" />
-              <span>Chat: {formatCurrency((advisor.chatRate || 0) * 60)}/hr</span>
+              <span>Chat: {formatCurrency(advisor.chatRate || 0)}/min</span>
             </div>
             <div className="flex items-center">
               <Clock className="h-3 w-3 mr-1" />
-              <span>Audio: {formatCurrency((advisor.audioRate || 0) * 60)}/hr</span>
+              <span>Audio: {formatCurrency(advisor.audioRate || 0)}/min</span>
             </div>
             <div className="flex items-center">
               <Clock className="h-3 w-3 mr-1" />
-              <span>Video: {formatCurrency((advisor.videoRate || 0) * 60)}/hr</span>
+              <span>Video: {formatCurrency(advisor.videoRate || 0)}/min</span>
             </div>
           </div>
         </CardContent>
@@ -258,20 +258,20 @@ export function AdvisorCard({ advisor, specialties = [], currentUserId, highligh
                   <p className="text-lg font-medium">
                     {formatCurrency(
                       sessionType === 'chat' 
-                        ? (advisor.chatRate || 0) * 60
-                        : sessionType === 'audio'
-                          ? (advisor.audioRate || 0) * 60
-                          : (advisor.videoRate || 0) * 60
-                    )}/hour
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    ({formatCurrency(
-                      sessionType === 'chat' 
                         ? advisor.chatRate || 0
                         : sessionType === 'audio'
                           ? advisor.audioRate || 0
                           : advisor.videoRate || 0
-                    )}/min)
+                    )}/min
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    ({formatCurrency(
+                      sessionType === 'chat' 
+                        ? (advisor.chatRate || 0) * 60
+                        : sessionType === 'audio'
+                          ? (advisor.audioRate || 0) * 60
+                          : (advisor.videoRate || 0) * 60
+                    )}/hour)
                   </p>
                 </div>
               </div>
