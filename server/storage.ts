@@ -97,6 +97,11 @@ export interface IStorage {
   getOrCreateConversation(userId: number): Promise<Conversation>;
   updateConversation(id: number, messages: ChatMessage[]): Promise<Conversation>;
   
+  // Call Center methods
+  getAdvisorWorkingHours(advisorId: number): Promise<any[]>;
+  addAdvisorWorkingHours(advisorId: number, workingHour: any): Promise<any>;
+  updateAdvisorStatusMessage(advisorId: number, message: string): Promise<any>;
+  
   // Review methods
   createReview(review: InsertReview): Promise<Review>;
   getReviewById(id: number): Promise<Review | undefined>;
@@ -117,12 +122,14 @@ export class MemStorage implements IStorage {
   private conversations: Map<number, Conversation>;
   private reviews: Map<number, Review>;
   private transactions: Map<number, Transaction>;
+  private workingHours: Map<number, any>;
   
   private userIdCounter: number;
   private specialtyIdCounter: number;
   private advisorSpecialtyIdCounter: number;
   private sessionIdCounter: number;
   private messageIdCounter: number;
+  private workingHourIdCounter: number;
   private conversationIdCounter: number;
   private reviewIdCounter: number;
   private transactionIdCounter: number;
