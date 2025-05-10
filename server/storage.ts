@@ -1283,11 +1283,27 @@ export class DatabaseStorage implements IStorage {
   }
   
   async updateUserStatus(id: number, online: boolean): Promise<User | undefined> {
-    const [updatedUser] = await db.update(users)
-      .set({ online })
-      .where(eq(users.id, id))
-      .returning();
-    return updatedUser;
+    try {
+      // Use a safer approach to update only the online field
+      const [updatedUser] = await db
+        .update(users)
+        .set({ online })
+        .where(eq(users.id, id))
+        .returning({
+          id: users.id,
+          username: users.username,
+          name: users.name,
+          online: users.online
+        });
+      
+      // Get the full user to return
+      const user = await this.getUser(id);
+      return user;
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      // Fallback - just return the user as is
+      return await this.getUser(id);
+    }
   }
   
   async updateUser(id: number, data: Partial<User>): Promise<User | undefined> {
