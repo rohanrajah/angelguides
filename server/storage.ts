@@ -145,6 +145,7 @@ export class MemStorage implements IStorage {
     this.conversations = new Map();
     this.reviews = new Map();
     this.transactions = new Map();
+    this.workingHours = new Map();
     
     this.userIdCounter = 1;
     this.specialtyIdCounter = 1;
@@ -154,6 +155,7 @@ export class MemStorage implements IStorage {
     this.conversationIdCounter = 1;
     this.reviewIdCounter = 1;
     this.transactionIdCounter = 1;
+    this.workingHourIdCounter = 1;
     
     // Initialize in-memory session store
     const MemoryStore = require('memorystore')(session);
