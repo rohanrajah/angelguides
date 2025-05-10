@@ -896,6 +896,57 @@ export class MemStorage implements IStorage {
     return updatedConversation;
   }
   
+  // Call Center methods
+  async getAdvisorWorkingHours(advisorId: number): Promise<any[]> {
+    const workingHoursArray = Array.from(this.workingHours.values());
+    return workingHoursArray.filter(hour => hour.advisorId === advisorId);
+  }
+  
+  async addAdvisorWorkingHours(advisorId: number, workingHour: any): Promise<any> {
+    // Check if there's already an entry for this date
+    const existingHour = Array.from(this.workingHours.values()).find(
+      h => h.advisorId === advisorId && h.date === workingHour.date
+    );
+    
+    // Create the new working hour entry
+    const id = existingHour?.id || this.workingHourIdCounter++;
+    const newWorkingHour = {
+      id,
+      advisorId,
+      ...workingHour,
+      createdAt: existingHour?.createdAt || new Date()
+    };
+    
+    // Store in the map
+    this.workingHours.set(id, newWorkingHour);
+    
+    return newWorkingHour;
+  }
+  
+  async updateAdvisorStatusMessage(advisorId: number, message: string): Promise<any> {
+    // Find the advisor
+    const advisor = this.users.get(advisorId);
+    
+    if (!advisor) {
+      throw new Error('Advisor not found');
+    }
+    
+    // Check if the user is an advisor
+    if (advisor.userType !== UserType.ADVISOR) {
+      throw new Error('User is not an advisor');
+    }
+    
+    // Update status message
+    const updatedAdvisor = {
+      ...advisor,
+      statusMessage: message
+    };
+    
+    this.users.set(advisorId, updatedAdvisor);
+    
+    return { success: true, message: 'Status message updated' };
+  }
+  
   async createAngelaMessage(message: { userId: number, content: string, role: string }): Promise<ChatMessage> {
     // Get or create a conversation for this user
     const conversation = await this.getOrCreateConversation(message.userId);
