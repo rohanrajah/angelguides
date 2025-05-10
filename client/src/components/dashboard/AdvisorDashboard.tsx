@@ -271,10 +271,10 @@ const AdvisorDashboard = ({ user, onWithdraw }: AdvisorDashboardProps) => {
               <p className="text-sm"><strong>Availability:</strong> {user.availability || 'Not set'}</p>
             </div>
             <div className="flex items-center p-3 border rounded-lg">
-              <p className="text-sm"><strong>Chat Rate:</strong> {formatCurrency((user.chatRate || 0) * 60)}/hr</p>
+              <p className="text-sm"><strong>Chat Rate:</strong> {formatCurrency(user.chatRate || 0)}/min</p>
             </div>
             <div className="flex items-center p-3 border rounded-lg">
-              <p className="text-sm"><strong>Video Rate:</strong> {formatCurrency((user.videoRate || 0) * 60)}/hr</p>
+              <p className="text-sm"><strong>Video Rate:</strong> {formatCurrency(user.videoRate || 0)}/min</p>
             </div>
           </div>
         </CardContent>
