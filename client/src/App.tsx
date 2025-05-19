@@ -28,6 +28,7 @@ import NotFound from "@/pages/not-found";
 import TestPage from "@/pages/test";
 import TestVideo from "@/pages/test-video";
 import TestAngelaVoice from "@/pages/test-angela-voice";
+import AngelaSpeakTest from "@/pages/angela-speak-test";
 import Availability from "@/pages/availability";
 import AngelaChat from "@/pages/angela-chat";
 import SessionHistory from "@/pages/session-history";
@@ -93,6 +94,7 @@ function Router() {
       <Route path="/test" component={TestPage} />
       <Route path="/test-video" component={TestVideo} />
       <Route path="/test-angela-voice" component={TestAngelaVoice} />
+      <Route path="/angela-speak-test" component={AngelaSpeakTest} />
       <Route path="/angela-chat" component={AngelaChat} />
       <Route path="/sessions" component={SessionHistory} />
 
