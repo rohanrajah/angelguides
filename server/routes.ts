@@ -528,10 +528,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = parseInt(req.params.userId);
       
+      // Get the user
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
       // Get conversation for this user
       const conversation = await storage.getOrCreateConversation(userId);
       
-      // Format conversation history for OpenAI
+      // Format conversation history
       const conversationHistory = (conversation.messages as any[]).map(msg => ({
         role: msg.role,
         content: msg.content
@@ -540,10 +546,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all advisors with their specialties
       const advisorsWithSpecialties = await storage.getAdvisorsWithSpecialties();
       
+      // Get all specialties for context
+      const allSpecialties = await storage.getAllSpecialties();
+      
+      // Import the advanced recommendation engine
+      const { generateAdvancedRecommendations } = await import('./recommendation-engine');
+      
       // Generate recommendations using the advanced AI matching algorithm
-      const recommendations = await generateAdvisorRecommendations(
+      const recommendations = await generateAdvancedRecommendations(
+        user,
         conversationHistory,
-        advisorsWithSpecialties
+        advisorsWithSpecialties,
+        allSpecialties
       );
       
       res.json(recommendations);
