@@ -35,23 +35,33 @@ const AngelaSpeakTest: React.FC = () => {
       utterance.pitch = 1.2;  // Slightly higher for feminine voice
       utterance.volume = 1.0;
       
-      // Try to find a female voice
+      // Try to find an angelic English-speaking voice
       const voices = window.speechSynthesis.getVoices();
       console.log('Available voices:', voices.map(v => v.name).join(', '));
       
-      const femaleVoice = voices.find(v => 
-        v.name.toLowerCase().includes('female') ||
-        v.name.toLowerCase().includes('woman') ||
-        v.name.toLowerCase().includes('girl') ||
-        v.name.toLowerCase().includes('samantha') ||
-        v.name.toLowerCase().includes('victoria')
+      // First, try to find a specifically angelic-sounding English voice
+      let angelicVoice = voices.find(v => 
+        (v.name.toLowerCase().includes('samantha') || 
+         v.name.toLowerCase().includes('karen') ||
+         v.name.toLowerCase().includes('victoria') ||
+         v.name.toLowerCase().includes('tessa') ||
+         v.name.toLowerCase().includes('serena')) && 
+        v.lang.startsWith('en')
       );
       
-      if (femaleVoice) {
-        utterance.voice = femaleVoice;
-        console.log('Using voice:', femaleVoice.name);
+      // Fallback to any English female voice if no specific angelic voice is found
+      if (!angelicVoice) {
+        angelicVoice = voices.find(v => 
+          v.name.toLowerCase().includes('female') && 
+          v.lang.startsWith('en')
+        );
+      }
+      
+      if (angelicVoice) {
+        utterance.voice = angelicVoice;
+        console.log('Using voice:', angelicVoice.name);
       } else {
-        console.log('No female voice found, using default');
+        console.log('No suitable angelic voice found, using default');
       }
       
       // Event handlers

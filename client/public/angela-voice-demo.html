@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Angela Voice Demo</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #4b0082, #9370db);
+      color: white;
+      height: 100vh;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+    }
+    .container {
+      background-color: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      padding: 30px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      width: 90%;
+      max-width: 600px;
+    }
+    h1 {
+      margin-top: 0;
+      color: #f1c5ff;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    textarea {
+      width: 100%;
+      height: 100px;
+      margin: 15px 0;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #8a2be2;
+      background-color: rgba(255, 255, 255, 0.2);
+      color: white;
+      font-size: 16px;
+    }
+    textarea::placeholder {
+      color: rgba(255, 255, 255, 0.6);
+    }
+    button {
+      background: linear-gradient(135deg, #9370db, #8a2be2);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      padding: 12px 24px;
+      margin: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+    }
+    button:active {
+      transform: translateY(1px);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 20px;
+      padding: 10px;
+      border-radius: 8px;
+      background-color: rgba(0, 0, 0, 0.2);
+    }
+    .voice-select {
+      margin: 15px 0;
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      background-color: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: 1px solid #8a2be2;
+    }
+    .voice-select option {
+      background-color: #4b0082;
+      color: white;
+    }
+    .voice-controls {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .pitch-rate-controls {
+      display: flex;
+      justify-content: space-between;
+      margin: 15px 0;
+    }
+    .control-group {
+      text-align: left;
+      margin: 0 10px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      color: #f1c5ff;
+    }
+    input[type="range"] {
+      width: 150px;
+    }
+    .debug-info {
+      margin-top: 30px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Angela Voice Demo</h1>
+    <p>Test the angelic voice capabilities of Angela AI</p>
+    
+    <textarea id="speechText" placeholder="Enter text for Angela to speak...">Hello, I'm Angela, your spiritual guide. How can I help you with your journey today?</textarea>
+    
+    <div class="pitch-rate-controls">
+      <div class="control-group">
+        <label for="pitch">Pitch (higher for more angelic):</label>
+        <input type="range" id="pitch" min="0.5" max="2" step="0.1" value="1.2">
+        <span id="pitchValue">1.2</span>
+      </div>
+      
+      <div class="control-group">
+        <label for="rate">Rate (speed):</label>
+        <input type="range" id="rate" min="0.5" max="2" step="0.1" value="1">
+        <span id="rateValue">1.0</span>
+      </div>
+    </div>
+    
+    <select id="voiceSelect" class="voice-select">
+      <option value="">Loading voices...</option>
+    </select>
+    
+    <div class="voice-controls">
+      <button id="speakBtn">Speak</button>
+      <button id="pauseBtn" disabled>Pause</button>
+      <button id="resumeBtn" disabled>Resume</button>
+      <button id="stopBtn" disabled>Stop</button>
+    </div>
+    
+    <div class="status" id="status">Ready</div>
+    
+    <div class="debug-info" id="debugInfo">
+      <p>Speech Synthesis Available: <span id="synthAvailable">Checking...</span></p>
+      <p>Voices Loaded: <span id="voicesLoaded">0</span></p>
+      <p>Current Status: <span id="currentStatus">Ready</span></p>
+    </div>
+  </div>
+
+  <script>
+    // Elements
+    const speechText = document.getElementById('speechText');
+    const voiceSelect = document.getElementById('voiceSelect');
+    const speakBtn = document.getElementById('speakBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resumeBtn = document.getElementById('resumeBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const status = document.getElementById('status');
+    const pitch = document.getElementById('pitch');
+    const rate = document.getElementById('rate');
+    const pitchValue = document.getElementById('pitchValue');
+    const rateValue = document.getElementById('rateValue');
+    const synthAvailable = document.getElementById('synthAvailable');
+    const voicesLoaded = document.getElementById('voicesLoaded');
+    const currentStatus = document.getElementById('currentStatus');
+    
+    // State
+    let speaking = false;
+    let voices = [];
+    let currentUtterance = null;
+    
+    // Check if speech synthesis is available
+    if ('speechSynthesis' in window) {
+      synthAvailable.textContent = 'Yes';
+      
+      // Load voices
+      function loadVoices() {
+        voices = window.speechSynthesis.getVoices();
+        voicesLoaded.textContent = voices.length;
+        
+        if (voices.length > 0) {
+          // Clear select
+          voiceSelect.innerHTML = '';
+          
+          // Find angellic voices first (English)
+          const angelicVoices = voices.filter(voice => 
+            (voice.name.toLowerCase().includes('samantha') || 
+             voice.name.toLowerCase().includes('karen') ||
+             voice.name.toLowerCase().includes('victoria') ||
+             voice.name.toLowerCase().includes('serena') ||
+             voice.name.toLowerCase().includes('moira')) &&
+            voice.lang.startsWith('en')
+          );
+          
+          // Then other female English voices
+          const femaleEnglishVoices = voices.filter(voice => 
+            voice.name.toLowerCase().includes('female') && 
+            voice.lang.startsWith('en') &&
+            !angelicVoices.includes(voice)
+          );
+          
+          // Then any English voices
+          const otherEnglishVoices = voices.filter(voice => 
+            voice.lang.startsWith('en') && 
+            !angelicVoices.includes(voice) && 
+            !femaleEnglishVoices.includes(voice)
+          );
+          
+          // Then all other voices
+          const otherVoices = voices.filter(voice => 
+            !angelicVoices.includes(voice) && 
+            !femaleEnglishVoices.includes(voice) && 
+            !otherEnglishVoices.includes(voice)
+          );
+          
+          // Add optgroup for angelic voices
+          if (angelicVoices.length > 0) {
+            const angelicGroup = document.createElement('optgroup');
+            angelicGroup.label = 'Angelic Voices';
+            angelicVoices.forEach(voice => {
+              const option = document.createElement('option');
+              option.value = voice.name;
+              option.textContent = `${voice.name} (${voice.lang})`;
+              angelicGroup.appendChild(option);
+            });
+            voiceSelect.appendChild(angelicGroup);
+          }
+          
+          // Add optgroup for female English voices
+          if (femaleEnglishVoices.length > 0) {
+            const femaleGroup = document.createElement('optgroup');
+            femaleGroup.label = 'Female English Voices';
+            femaleEnglishVoices.forEach(voice => {
+              const option = document.createElement('option');
+              option.value = voice.name;
+              option.textContent = `${voice.name} (${voice.lang})`;
+              femaleGroup.appendChild(option);
+            });
+            voiceSelect.appendChild(femaleGroup);
+          }
+          
+          // Add optgroup for other English voices
+          if (otherEnglishVoices.length > 0) {
+            const englishGroup = document.createElement('optgroup');
+            englishGroup.label = 'Other English Voices';
+            otherEnglishVoices.forEach(voice => {
+              const option = document.createElement('option');
+              option.value = voice.name;
+              option.textContent = `${voice.name} (${voice.lang})`;
+              englishGroup.appendChild(option);
+            });
+            voiceSelect.appendChild(englishGroup);
+          }
+          
+          // Add optgroup for all other voices
+          if (otherVoices.length > 0) {
+            const otherGroup = document.createElement('optgroup');
+            otherGroup.label = 'Other Voices';
+            otherVoices.forEach(voice => {
+              const option = document.createElement('option');
+              option.value = voice.name;
+              option.textContent = `${voice.name} (${voice.lang})`;
+              otherGroup.appendChild(option);
+            });
+            voiceSelect.appendChild(otherGroup);
+          }
+          
+          // Select an angelic voice by default if available
+          if (angelicVoices.length > 0) {
+            voiceSelect.value = angelicVoices[0].name;
+          } else if (femaleEnglishVoices.length > 0) {
+            voiceSelect.value = femaleEnglishVoices[0].name;
+          } else if (otherEnglishVoices.length > 0) {
+            voiceSelect.value = otherEnglishVoices[0].name;
+          }
+        }
+      }
+      
+      // Load voices right away
+      loadVoices();
+      
+      // Some browsers need onvoiceschanged event
+      if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+      } else {
+        // Fallback for browsers that don't support onvoiceschanged
+        setTimeout(loadVoices, 1000);
+      }
+    } else {
+      synthAvailable.textContent = 'No (browser not supported)';
+      status.textContent = 'Speech synthesis not supported in this browser.';
+      speakBtn.disabled = true;
+    }
+    
+    // Setup slider displays
+    pitch.addEventListener('input', () => {
+      pitchValue.textContent = pitch.value;
+    });
+    
+    rate.addEventListener('input', () => {
+      rateValue.textContent = rate.value;
+    });
+    
+    // Speak function
+    function speak() {
+      if (!speechText.value.trim()) {
+        status.textContent = 'Please enter some text to speak.';
+        return;
+      }
+      
+      // Stop any existing speech
+      window.speechSynthesis.cancel();
+      
+      // Update UI
+      status.textContent = 'Speaking...';
+      speaking = true;
+      currentStatus.textContent = 'Speaking';
+      updateButtons();
+      
+      // Create utterance
+      const utterance = new SpeechSynthesisUtterance(speechText.value);
+      currentUtterance = utterance;
+      
+      // Set voice
+      if (voiceSelect.value) {
+        const selectedVoice = voices.find(v => v.name === voiceSelect.value);
+        if (selectedVoice) {
+          utterance.voice = selectedVoice;
+        }
+      }
+      
+      // Set pitch and rate
+      utterance.pitch = parseFloat(pitch.value);
+      utterance.rate = parseFloat(rate.value);
+      
+      // Event handlers
+      utterance.onstart = () => {
+        status.textContent = 'Speaking...';
+        speaking = true;
+        currentStatus.textContent = 'Speaking';
+        updateButtons();
+      };
+      
+      utterance.onend = () => {
+        status.textContent = 'Finished speaking.';
+        speaking = false;
+        currentStatus.textContent = 'Finished';
+        updateButtons();
+      };
+      
+      utterance.onerror = (event) => {
+        status.textContent = `Error: ${event.error}`;
+        speaking = false;
+        currentStatus.textContent = 'Error';
+        updateButtons();
+        console.error('Speech synthesis error:', event);
+      };
+      
+      // Start speaking
+      window.speechSynthesis.speak(utterance);
+      
+      // Chrome bug workaround - make sure speech continues
+      if (window.chrome) {
+        const intervalId = setInterval(() => {
+          if (!speaking) {
+            clearInterval(intervalId);
+            return;
+          }
+          
+          if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+          }
+        }, 1000);
+        
+        utterance.onend = () => {
+          clearInterval(intervalId);
+          status.textContent = 'Finished speaking.';
+          speaking = false;
+          currentStatus.textContent = 'Finished';
+          updateButtons();
+        };
+      }
+    }
+    
+    // Update button states
+    function updateButtons() {
+      speakBtn.disabled = speaking;
+      pauseBtn.disabled = !speaking;
+      resumeBtn.disabled = !(speaking && window.speechSynthesis.paused);
+      stopBtn.disabled = !speaking;
+    }
+    
+    // Button event handlers
+    speakBtn.addEventListener('click', speak);
+    
+    pauseBtn.addEventListener('click', () => {
+      if (speaking) {
+        window.speechSynthesis.pause();
+        status.textContent = 'Paused.';
+        currentStatus.textContent = 'Paused';
+        updateButtons();
+      }
+    });
+    
+    resumeBtn.addEventListener('click', () => {
+      if (speaking && window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+        status.textContent = 'Speaking...';
+        currentStatus.textContent = 'Speaking';
+        updateButtons();
+      }
+    });
+    
+    stopBtn.addEventListener('click', () => {
+      window.speechSynthesis.cancel();
+      status.textContent = 'Stopped.';
+      speaking = false;
+      currentStatus.textContent = 'Stopped';
+      updateButtons();
+    });
+  </script>
+</body>
+</html>
