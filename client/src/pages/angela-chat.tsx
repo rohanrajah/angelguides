@@ -7,7 +7,7 @@ import { User } from '@shared/schema';
 import angelaConsciousImage from '../assets/angela-ai-portrait.png';
 import { useAuth } from '@/hooks/use-auth';
 import angelaTalkingVideo from '../assets/videos/angela-talking.mp4';
-import useAngelaVoice from '@/components/angela/AngelaVoice';
+import { useAngelaVoice } from '@/hooks/use-angela-voice';
 import { Volume2, VolumeX } from 'lucide-react';
 import AngelaSpeakingBubble from '@/components/angela/AngelaSpeakingBubble';
 
