@@ -7,6 +7,9 @@ import { User } from '@shared/schema';
 import angelaConsciousImage from '../assets/angela-ai-portrait.png';
 import { useAuth } from '@/hooks/use-auth';
 import angelaTalkingVideo from '../assets/videos/angela-talking.mp4';
+import useAngelaVoice from '@/components/angela/AngelaVoice';
+import { Volume2, VolumeX } from 'lucide-react';
+import AngelaSpeakingBubble from '@/components/angela/AngelaSpeakingBubble';
 
 // Typing animation for text
 const TypedText: React.FC<{
@@ -45,9 +48,27 @@ const AngelaChatPage: React.FC = () => {
   const [initialMessage, setInitialMessage] = useState(true);
   const [isSmiling, setIsSmiling] = useState(false);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [currentSpeakingMessage, setCurrentSpeakingMessage] = useState("");
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const userName = user?.name || "there";
+  
+  // Initialize Angela's voice capabilities
+  const { isSpeaking, speak, stop } = useAngelaVoice({
+    text: currentSpeakingMessage,
+    autoPlay: !isMuted,
+    onStart: () => {
+      // Start face animation when speaking
+      setIsVideoPlaying(true);
+      setIsSmiling(true);
+    },
+    onEnd: () => {
+      // Return to neutral expression when done speaking
+      setIsVideoPlaying(false);
+      setIsSmiling(false);
+    }
+  });
   
   // Scroll to bottom whenever chat history changes
   useEffect(() => {
@@ -69,16 +90,20 @@ const AngelaChatPage: React.FC = () => {
       // Add initial message with a slight delay to make it feel natural
       setTimeout(() => {
         setChatHistory([{ role: 'assistant', message: welcomeMessage }]);
+        // Set the current speaking message to the welcome message
+        setCurrentSpeakingMessage(welcomeMessage);
       }, 1500);
       
       // Keep smiling for a bit longer than the typing animation
       setTimeout(() => {
-        setIsSmiling(false);
+        if (!isSpeaking) {
+          setIsSmiling(false);
+        }
       }, 4000);
       
       setInitialMessage(false);
     }
-  }, [initialMessage, userName]);
+  }, [initialMessage, userName, isSpeaking]);
 
   // Toggle smile animation when sending/receiving messages
   useEffect(() => {
@@ -117,6 +142,9 @@ const AngelaChatPage: React.FC = () => {
       // Trigger smile animation when user sends a message
       setIsSmiling(true);
       
+      // Stop any current speech before starting a new message
+      stop();
+      
       const response = await apiRequest(
         'POST',
         `/api/angela/chat`,
@@ -127,20 +155,29 @@ const AngelaChatPage: React.FC = () => {
     onSuccess: (data) => {
       // Add the assistant's response to the chat history
       setChatHistory(prev => [...prev, { role: 'assistant', message: data.message }]);
-      setIsTyping(false);
       
-      // Keep smiling for another second after response
-      setTimeout(() => {
-        setIsSmiling(false);
-      }, 1000);
+      // Set the current speaking message to the new response
+      setCurrentSpeakingMessage(data.message);
+      
+      // Start typing animation
+      setIsTyping(true);
+      
+      // Keep the smile animation going while speaking
+      // This will be handled by the voice hook callbacks
     },
     onError: (error) => {
       console.error("Error in chat:", error);
       // Fallback message if the API call fails
+      const errorMessage = "I apologize, but I'm having trouble connecting to my spiritual knowledge. Please try again in a moment.";
+      
       setChatHistory(prev => [...prev, { 
         role: 'assistant', 
-        message: "I apologize, but I'm having trouble connecting to my spiritual knowledge. Please try again in a moment." 
+        message: errorMessage
       }]);
+      
+      // Set error message for speaking
+      setCurrentSpeakingMessage(errorMessage);
+      
       setIsTyping(false);
       setIsSmiling(false);
     }
@@ -247,7 +284,7 @@ const AngelaChatPage: React.FC = () => {
             />
             
             {/* Fallback image (shown when video is not playing) */}
-            {!isTyping && !isSmiling && (
+            {!isTyping && !isSmiling && !isSpeaking && (
               <img 
                 src={angelaConsciousImage} 
                 alt="Angela AI" 
@@ -255,23 +292,23 @@ const AngelaChatPage: React.FC = () => {
               />
             )}
             
-            {/* Video element (shown when typing or smiling) */}
+            {/* Video element (shown when typing, smiling or speaking) */}
             <motion.div
               className="absolute inset-0 z-20"
               initial={{ opacity: 0 }}
-              animate={{ opacity: isTyping || isSmiling ? 1 : 0 }}
+              animate={{ opacity: isTyping || isSmiling || isSpeaking ? 1 : 0 }}
               transition={{ duration: 0.3 }}
             >
               <video 
                 src={angelaTalkingVideo}
-                autoPlay={isTyping || isSmiling}
+                autoPlay={isTyping || isSmiling || isSpeaking}
                 loop
                 muted
                 playsInline
                 preload="auto"
                 className="w-full h-full object-cover"
                 style={{ 
-                  display: isTyping || isSmiling ? 'block' : 'none',
+                  display: isTyping || isSmiling || isSpeaking ? 'block' : 'none',
                   objectFit: 'cover',
                   objectPosition: 'center'
                 }}
@@ -281,7 +318,7 @@ const AngelaChatPage: React.FC = () => {
             
             {/* Concentric waves animation */}
             <AnimatePresence>
-              {(isTyping || isSmiling) && (
+              {(isTyping || isSmiling || isSpeaking) && (
                 <motion.div
                   className="absolute inset-0 opacity-40 z-30"
                   initial={{ opacity: 0 }}
@@ -308,6 +345,16 @@ const AngelaChatPage: React.FC = () => {
                 </motion.div>
               )}
             </AnimatePresence>
+            
+            {/* Mute/Unmute button */}
+            <Button
+              variant="secondary"
+              size="icon"
+              className="absolute bottom-2 right-2 rounded-full h-10 w-10 bg-white/80 hover:bg-white text-purple-600 z-40 shadow-md"
+              onClick={() => setIsMuted(!isMuted)}
+            >
+              {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+            </Button>
           </div>
 
           {/* Chat area */}

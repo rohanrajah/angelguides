@@ -1,18 +1,21 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-interface AngelaVoiceProps {
+interface UseAngelaVoiceProps {
   text: string;
   autoPlay?: boolean;
   onStart?: () => void;
   onEnd?: () => void;
 }
 
-const AngelaVoice: React.FC<AngelaVoiceProps> = ({
+/**
+ * Hook for Angela AI voice capabilities
+ */
+const useAngelaVoice = ({
   text,
   autoPlay = true,
   onStart,
   onEnd
-}) => {
+}: UseAngelaVoiceProps) => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const speechSynthRef = useRef<SpeechSynthesisUtterance | null>(null);
   const isPausedRef = useRef(false);
@@ -117,4 +120,4 @@ const AngelaVoice: React.FC<AngelaVoiceProps> = ({
   };
 };
 
-export default AngelaVoice;
+export default useAngelaVoice;
