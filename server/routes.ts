@@ -1031,19 +1031,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch review" });
     }
   });
-
-  // Advisor: Add response to a review
+  
+  // Add a response to a review (for advisors)
   app.post("/api/reviews/:id/response", async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
-      const { response, advisorId } = req.body;
+      const reviewId = parseInt(req.params.id);
+      const { response } = req.body;
       
-      if (!response || !advisorId) {
-        return res.status(400).json({ message: "Response and advisorId are required" });
+      if (!response || typeof response !== 'string') {
+        return res.status(400).json({ message: "Valid response text is required" });
       }
       
       // Get the review
-      const review = await storage.getReviewById(id);
+      const review = await storage.getReviewById(reviewId);
+      if (!review) {
+        return res.status(404).json({ message: "Review not found" });
+      }
+      
+      // Verify the current user is the advisor for this review
+      if (!req.user || req.user.id !== review.advisorId) {
+        return res.status(403).json({ message: "You can only respond to your own reviews" });
+      }
+      
+      // Add the response to the review
+      const updatedReview = await storage.addReviewResponse(reviewId, response);
+      res.json(updatedReview);
+    } catch (error) {
+      console.error("Error adding response to review:", error);
+      res.status(500).json({ message: "Failed to add response to review" });
+    }
+  });
+  
+  // Get all reviews for a user
+  app.get("/api/users/:userId/reviews", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const reviews = await storage.getReviewsByUser(userId);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching user reviews:", error);
+      res.status(500).json({ message: "Failed to fetch reviews" });
+    }
+  });
+  
+  // Get all reviews for an advisor
+  app.get("/api/advisors/:advisorId/reviews", async (req: Request, res: Response) => {
+    try {
+      const advisorId = parseInt(req.params.advisorId);
+      const reviews = await storage.getReviewsByAdvisor(advisorId);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching advisor reviews:", error);
+      res.status(500).json({ message: "Failed to fetch reviews" });
+    }
+  });
+
+  // WebSocket server setup for real-time communications
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
       if (!review) {
         return res.status(404).json({ message: "Review not found" });
       }
