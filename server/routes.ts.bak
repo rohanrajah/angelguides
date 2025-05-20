@@ -1,0 +1,1371 @@
+import type { Express, Request, Response } from "express";
+import { createServer, type Server } from "http";
+import { WebSocketServer, WebSocket } from 'ws';
+import { storage } from "./storage";
+import { getAngelaResponse, startAdvisorMatchingFlow, generateAdvisorRecommendations } from "./openai";
+import { callPerplexityAPI } from "./perplexity";
+import { registerProfileRoutes } from "./routes-profile";
+import { registerAdminRoutes } from "./routes-admin";
+import { verifyPassword, hashPassword } from "./auth";
+import { z } from "zod";
+import { 
+  insertUserSchema, 
+  insertSessionSchema, 
+  insertMessageSchema, 
+  insertReviewSchema,
+  TransactionType,
+  UserType
+} from "@shared/schema";
+import Stripe from "stripe";
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  // Check if Stripe API key is available
+  let stripe: Stripe | undefined;
+  if (process.env.STRIPE_SECRET_KEY) {
+    stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2025-03-31.basil',
+    });
+  }
+  
+  // Register profile-related routes
+  registerProfileRoutes(app);
+  
+  // Register admin routes
+  registerAdminRoutes(app);
+  
+  // Test endpoint for Perplexity API
+  app.get('/api/test-perplexity', async (req: Request, res: Response) => {
+    try {
+      if (!process.env.PERPLEXITY_API_KEY) {
+        return res.status(400).json({ error: 'PERPLEXITY_API_KEY is not set' });
+      }
+      
+      console.log('[TEST] Testing Perplexity API...');
+      
+      // Force the content type to application/json
+      res.setHeader('Content-Type', 'application/json');
+      
+      const response = await callPerplexityAPI([
+        { role: 'system', content: 'You are a helpful spiritual advisor.' },
+        { role: 'user', content: 'Tell me about the benefits of meditation for spiritual growth.' }
+      ]);
+      
+      console.log('[TEST] Perplexity API test successful');
+      return res.json({ success: true, response });
+    } catch (error: any) {
+      console.error('[TEST] Perplexity API test failed:', error);
+      
+      // Force the content type to application/json
+      res.setHeader('Content-Type', 'application/json');
+      
+      return res.status(500).json({ 
+        success: false, 
+        error: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : null
+      });
+    }
+  });
+
+  // Get all advisors
+  app.get("/api/advisors", async (req: Request, res: Response) => {
+    try {
+      const advisors = await storage.getAdvisors();
+      res.json(advisors);
+    } catch (error) {
+      console.error("Error fetching advisors:", error);
+      res.status(500).json({ message: "Failed to fetch advisors" });
+    }
+  });
+  
+  // Get advisor by ID
+  app.get("/api/advisors/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const advisor = await storage.getAdvisorById(id);
+      
+      if (!advisor) {
+        res.status(404).json({ message: "Advisor not found" });
+        return;
+      }
+      
+      res.json(advisor);
+    } catch (error) {
+      console.error("Error fetching advisor:", error);
+      res.status(500).json({ message: "Failed to fetch advisor" });
+    }
+  });
+  
+  // Get advisors by specialty
+  app.get("/api/advisors/specialty/:specialtyId", async (req: Request, res: Response) => {
+    try {
+      const specialtyId = parseInt(req.params.specialtyId);
+      const advisors = await storage.getAdvisorsBySpecialty(specialtyId);
+      res.json(advisors);
+    } catch (error) {
+      console.error("Error fetching advisors by specialty:", error);
+      res.status(500).json({ message: "Failed to fetch advisors by specialty" });
+    }
+  });
+  
+  // Get advisors by category
+  app.get("/api/advisors/category/:category", async (req: Request, res: Response) => {
+    try {
+      const category = req.params.category;
+      const advisors = await storage.getAdvisorsByCategory(category);
+      res.json(advisors);
+    } catch (error) {
+      console.error("Error fetching advisors by category:", error);
+      res.status(500).json({ message: "Failed to fetch advisors by category" });
+    }
+  });
+  
+  // Get specialties by category
+  app.get("/api/specialties/category/:category", async (req: Request, res: Response) => {
+    try {
+      const category = req.params.category;
+      const specialties = await storage.getSpecialtiesByCategory(category);
+      res.json(specialties);
+    } catch (error) {
+      console.error("Error fetching specialties by category:", error);
+      res.status(500).json({ message: "Failed to fetch specialties by category" });
+    }
+  });
+  
+  // Get all specialties
+  app.get("/api/specialties", async (req: Request, res: Response) => {
+    try {
+      const specialties = await storage.getAllSpecialties();
+      res.json(specialties);
+    } catch (error) {
+      console.error("Error fetching specialties:", error);
+      res.status(500).json({ message: "Failed to fetch specialties" });
+    }
+  });
+
+  // Get user sessions (upcoming)
+  app.get("/api/users/:userId/sessions", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const sessions = await storage.getUpcomingSessionsByUser(userId);
+      
+      // Get advisor details for each session
+      const sessionsWithAdvisors = await Promise.all(
+        sessions.map(async (session) => {
+          const advisor = await storage.getAdvisorById(session.advisorId);
+          return { ...session, advisor };
+        })
+      );
+      
+      res.json(sessionsWithAdvisors);
+    } catch (error) {
+      console.error("Error fetching sessions:", error);
+      res.status(500).json({ message: "Failed to fetch sessions" });
+    }
+  });
+
+  // Book a session with an advisor
+  app.post("/api/sessions", async (req: Request, res: Response) => {
+    try {
+      const sessionData = insertSessionSchema.parse(req.body);
+      const session = await storage.createSession(sessionData);
+      res.status(201).json(session);
+    } catch (error) {
+      console.error("Error booking session:", error);
+      res.status(400).json({ message: "Failed to book session" });
+    }
+  });
+  
+  // Update session status
+  app.patch("/api/sessions/:id/status", async (req: Request, res: Response) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+      const { status } = req.body;
+      
+      if (!status) {
+        return res.status(400).json({ message: "Status is required" });
+      }
+      
+      const updatedSession = await storage.updateSessionStatus(sessionId, status);
+      
+      if (!updatedSession) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      
+      res.json(updatedSession);
+    } catch (error: any) {
+      console.error("Error updating session status:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Start a session
+  app.post("/api/sessions/:id/start", async (req: Request, res: Response) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+      const session = await storage.getSessionById(sessionId);
+      
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      
+      if (session.status !== "scheduled") {
+        return res.status(400).json({ message: "Session cannot be started" });
+      }
+      
+      const startedSession = await storage.startSession(sessionId);
+      res.json(startedSession);
+    } catch (error) {
+      console.error("Error starting session:", error);
+      res.status(500).json({ message: "Failed to start session" });
+    }
+  });
+  
+  // End a session
+  app.post("/api/sessions/:id/end", async (req: Request, res: Response) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+      const session = await storage.getSessionById(sessionId);
+      
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      
+      if (session.status !== "in_progress") {
+        return res.status(400).json({ message: "Only in-progress sessions can be ended" });
+      }
+      
+      // End the session and calculate billing
+      const endedSession = await storage.endSession(sessionId);
+      
+      if (!endedSession || !endedSession.billedAmount) {
+        return res.status(400).json({ message: "Failed to end session and calculate billing" });
+      }
+      
+      // Charge the user
+      await storage.deductUserBalance(session.userId, endedSession.billedAmount);
+      
+      // Credit the advisor
+      await storage.addAdvisorEarnings(session.advisorId, endedSession.billedAmount);
+      
+      // Record the transaction
+      await storage.createTransaction({
+        type: TransactionType.SESSION_PAYMENT,
+        userId: session.userId,
+        advisorId: session.advisorId,
+        sessionId: session.id,
+        amount: -endedSession.billedAmount, // Negative amount for user payment
+        description: `Payment for ${session.sessionType} session with ${(await storage.getAdvisorById(session.advisorId))?.name}`,
+        paymentStatus: "completed"
+      });
+      
+      res.json(endedSession);
+    } catch (error) {
+      console.error("Error ending session:", error);
+      res.status(500).json({ message: "Failed to end session" });
+    }
+  });
+  
+  // Get advisor earnings
+  app.get("/api/advisors/:advisorId/earnings", async (req: Request, res: Response) => {
+    try {
+      const advisorId = parseInt(req.params.advisorId);
+      const advisor = await storage.getAdvisorById(advisorId);
+      
+      if (!advisor) {
+        return res.status(404).json({ message: "Advisor not found" });
+      }
+      
+      const earningsBalance = await storage.getAdvisorEarningsBalance(advisorId);
+      const totalEarnings = await storage.getTotalAdvisorEarnings(advisorId);
+      
+      res.json({
+        earningsBalance,
+        totalEarnings,
+        pendingPayout: advisor.pendingPayout
+      });
+    } catch (error) {
+      console.error("Error fetching advisor earnings:", error);
+      res.status(500).json({ message: "Failed to fetch earnings" });
+    }
+  });
+  
+  // Request a payout (advisor)
+  app.post("/api/advisors/:advisorId/request-payout", async (req: Request, res: Response) => {
+    try {
+      const advisorId = parseInt(req.params.advisorId);
+      const advisor = await storage.getAdvisorById(advisorId);
+      
+      if (!advisor) {
+        return res.status(404).json({ message: "Advisor not found" });
+      }
+      
+      if (advisor.pendingPayout) {
+        return res.status(400).json({ message: "Payout already requested" });
+      }
+      
+      const earningsBalance = await storage.getAdvisorEarningsBalance(advisorId);
+      
+      if (earningsBalance <= 0) {
+        return res.status(400).json({ message: "No earnings available for payout" });
+      }
+      
+      const updatedAdvisor = await storage.setPendingPayout(advisorId, true);
+      
+      res.json({ 
+        message: "Payout requested successfully", 
+        pendingPayout: true,
+        earningsBalance
+      });
+    } catch (error) {
+      console.error("Error requesting payout:", error);
+      res.status(500).json({ message: "Failed to request payout" });
+    }
+  });
+  
+  // Complete a payout (admin)
+  app.post("/api/advisors/:advisorId/complete-payout", async (req: Request, res: Response) => {
+    try {
+      const advisorId = parseInt(req.params.advisorId);
+      const advisor = await storage.getAdvisorById(advisorId);
+      
+      if (!advisor) {
+        return res.status(404).json({ message: "Advisor not found" });
+      }
+      
+      if (!advisor.pendingPayout) {
+        return res.status(400).json({ message: "No pending payout request" });
+      }
+      
+      const earningsBalance = await storage.getAdvisorEarningsBalance(advisorId);
+      
+      if (earningsBalance <= 0) {
+        return res.status(400).json({ message: "No earnings available for payout" });
+      }
+      
+      // Reset pending payout flag
+      await storage.setPendingPayout(advisorId, false);
+      
+      // Deduct from earnings balance
+      await storage.deductAdvisorEarnings(advisorId, earningsBalance);
+      
+      // Create transaction record
+      await storage.createTransaction({
+        type: TransactionType.ADVISOR_PAYOUT,
+        userId: advisorId,
+        amount: earningsBalance, // Positive amount for advisor payout
+        description: `Payout of $${(earningsBalance / 100).toFixed(2)} to advisor`,
+        paymentStatus: "completed"
+      });
+      
+      res.json({ 
+        message: "Payout completed successfully", 
+        amount: earningsBalance
+      });
+    } catch (error) {
+      console.error("Error completing payout:", error);
+      res.status(500).json({ message: "Failed to complete payout" });
+    }
+  });
+  
+  // Get user transactions
+  app.get("/api/users/:userId/transactions", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const transactions = await storage.getTransactionsByUser(userId);
+      res.json(transactions);
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+      res.status(500).json({ message: "Failed to fetch transactions" });
+    }
+  });
+  
+  // Send a message
+  app.post("/api/messages", async (req: Request, res: Response) => {
+    try {
+      const messageData = insertMessageSchema.parse(req.body);
+      const message = await storage.sendMessage(messageData);
+      res.status(201).json(message);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      res.status(400).json({ message: "Failed to send message" });
+    }
+  });
+  
+  // Get messages between two users
+  app.get("/api/messages/:userId1/:userId2", async (req: Request, res: Response) => {
+    try {
+      const userId1 = parseInt(req.params.userId1);
+      const userId2 = parseInt(req.params.userId2);
+      const messages = await storage.getConversation(userId1, userId2);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+  
+  // Get conversation with Angela AI
+  app.get("/api/angela/:userId", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const conversation = await storage.getOrCreateConversation(userId);
+      res.json(conversation);
+    } catch (error) {
+      console.error("Error fetching Angela conversation:", error);
+      res.status(500).json({ message: "Failed to fetch conversation" });
+    }
+  });
+  
+  // Start matching questionnaire with Angela AI
+  app.get("/api/angela/:userId/start-matching", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      // Get or create conversation for this user
+      const conversation = await storage.getOrCreateConversation(userId);
+      
+      // Generate the first matching question
+      const response = await startAdvisorMatchingFlow();
+      
+      // Add the message to the conversation
+      const messages = [...(conversation.messages as ChatMessage[]), {
+        role: 'assistant',
+        content: response.message,
+        timestamp: new Date()
+      }];
+      
+      // Update conversation in storage
+      const updatedConversation = await storage.updateConversation(
+        conversation.id, 
+        messages as any[]
+      );
+      
+      res.json({
+        message: response.message,
+        isMatchingQuestion: true,
+        questionNumber: response.questionNumber,
+        totalQuestions: response.totalQuestions,
+        conversation: updatedConversation
+      });
+    } catch (error) {
+      console.error("Error starting advisor matching:", error);
+      res.status(500).json({ message: "Failed to start advisor matching" });
+    }
+  });
+  
+  // Send message to Angela AI
+  app.post("/api/angela/:userId/message", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { message } = req.body;
+      
+      if (!message) {
+        return res.status(400).json({ message: "Message content is required" });
+      }
+      
+      // Get conversation for this user
+      const conversation = await storage.getOrCreateConversation(userId);
+      
+      // Add user message to conversation
+      let updatedMessages = [...(conversation.messages as any[]), {
+        role: 'user',
+        content: message,
+        timestamp: new Date()
+      }];
+      
+      // Get user details for context
+      const user = await storage.getUser(userId);
+      
+      // Generate Angela's response
+      const angelaResponse = await getAngelaResponse(
+        message,
+        updatedMessages,
+        user
+      );
+      
+      // Add Angela's response to conversation
+      updatedMessages = [...updatedMessages, {
+        role: 'assistant',
+        content: angelaResponse.message,
+        timestamp: new Date()
+      }];
+      
+      // Update conversation in storage
+      const updatedConversation = await storage.updateConversation(
+        conversation.id, 
+        updatedMessages
+      );
+      
+      res.json({ 
+        message: angelaResponse.message, 
+        suggestions: angelaResponse.suggestions,
+        conversation: updatedConversation,
+        isMatchingQuestion: angelaResponse.isMatchingQuestion || false,
+        questionNumber: angelaResponse.questionNumber,
+        totalQuestions: angelaResponse.totalQuestions,
+        recommendedAdvisors: angelaResponse.recommendedAdvisors || [],
+        // Emotional support metadata
+        emotionalTone: angelaResponse.emotionalTone || 'supportive',
+        detectedEmotion: angelaResponse.detectedEmotion || null,
+        empathyLevel: angelaResponse.empathyLevel || 3
+      });
+    } catch (error) {
+      console.error("Error processing Angela message:", error);
+      res.status(500).json({ message: "Failed to process message" });
+    }
+  });
+  
+  // Generate advisor recommendations based on conversation history
+  app.get("/api/angela/:userId/recommendations", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      // Get the user
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Get conversation for this user
+      const conversation = await storage.getOrCreateConversation(userId);
+      
+      // Format conversation history
+      const conversationHistory = (conversation.messages as any[]).map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }));
+      
+      // Get all advisors with their specialties
+      const advisorsWithSpecialties = await storage.getAdvisorsWithSpecialties();
+      
+      // Get all specialties for context
+      const allSpecialties = await storage.getAllSpecialties();
+      
+      // Import the advanced recommendation engine
+      const { generateAdvancedRecommendations } = await import('./recommendation-engine');
+      
+      // Generate recommendations using the advanced AI matching algorithm
+      const recommendations = await generateAdvancedRecommendations(
+        user,
+        conversationHistory,
+        advisorsWithSpecialties,
+        allSpecialties
+      );
+      
+      res.json(recommendations);
+    } catch (error) {
+      console.error("Error generating advisor recommendations:", error);
+      res.status(500).json({ message: "Failed to generate advisor recommendations" });
+    }
+  });
+
+  // New endpoint for general Angela chat functionality
+  app.post("/api/angela/chat", async (req: Request, res: Response) => {
+    try {
+      const { message, userId, conversationHistory = [] } = req.body;
+      
+      if (!message) {
+        return res.status(400).json({ message: "Message content is required" });
+      }
+      
+      // Get the user if userId is provided
+      let user = null;
+      if (userId) {
+        user = await storage.getUser(parseInt(userId));
+      }
+      
+      // Generate Angela's response
+      const angelaResponse = await getAngelaResponse(
+        message,
+        conversationHistory,
+        user
+      );
+      
+      res.json({ 
+        message: angelaResponse.message, 
+        suggestions: angelaResponse.suggestions,
+        emotionalTone: angelaResponse.emotionalTone || 'supportive',
+        detectedEmotion: angelaResponse.detectedEmotion || null,
+        empathyLevel: angelaResponse.empathyLevel || 3
+      });
+    } catch (error) {
+      console.error("Error processing Angela message:", error);
+      res.status(500).json({ message: "Failed to process message" });
+    }
+  });
+  
+  // Create a new user
+  app.post("/api/users", async (req: Request, res: Response) => {
+    try {
+      const userData = insertUserSchema.parse(req.body);
+      
+      // Check if username already exists
+      const existingUser = await storage.getUserByUsername(userData.username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+      
+      // Hash the password
+      const hashedPassword = await hashPassword(userData.password);
+      
+      // Create the user
+      const user = await storage.createUser({
+        ...userData,
+        password: hashedPassword
+      });
+      
+      // Remove the password from the response
+      const { password, ...userWithoutPassword } = user;
+      
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      console.error("Error creating user:", error);
+      res.status(400).json({ message: "Failed to create user" });
+    }
+  });
+
+  // Login
+  app.post("/api/login", async (req: Request, res: Response) => {
+    try {
+      const { username, password } = req.body;
+      
+      // Validate input
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password are required" });
+      }
+      
+      // Get user by username
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      // Verify password
+      const isPasswordValid = await verifyPassword(password, user.password);
+      if (!isPasswordValid) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      // Update last login
+      const updatedUser = await storage.updateUser(user.id, { lastLogin: new Date() });
+      
+      // Remove the password from the response
+      const { password: _, ...userWithoutPassword } = updatedUser || user;
+      
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Error logging in:", error);
+      res.status(500).json({ message: "Failed to login" });
+    }
+  });
+
+  // Get current user
+  app.get("/api/me", async (req: Request, res: Response) => {
+    try {
+      // If you're using sessions, you'd get the user from req.session here
+      // For now, we'll just return a dummy user
+      const userId = 5; // Elena Lovechild (non-admin account)
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Remove the password from the response
+      const { password, ...userWithoutPassword } = user;
+      
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Error fetching current user:", error);
+      res.status(500).json({ message: "Failed to fetch current user" });
+    }
+  });
+
+  // Logout
+  app.post("/api/logout", (req: Request, res: Response) => {
+    // If you're using sessions, you'd clear the session here
+    res.json({ message: "Logged out successfully" });
+  });
+
+  // Get user balance
+  app.get("/api/users/:userId/balance", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json({ balance: user.accountBalance });
+    } catch (error) {
+      console.error("Error fetching user balance:", error);
+      res.status(500).json({ message: "Failed to fetch user balance" });
+    }
+  });
+
+  // Top up user account
+  app.post("/api/topup", async (req: Request, res: Response) => {
+    try {
+      const { userId, amount } = req.body;
+      
+      if (!userId || !amount || amount < 1000) { // Minimum $10.00 (1000 cents)
+        return res.status(400).json({ message: "Valid userId and amount (minimum $10.00) are required" });
+      }
+      
+      // Get the user
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // If we have Stripe set up, create a payment intent
+      if (stripe) {
+        // Convert dollars to cents for Stripe
+        const amountCents = Math.round(amount);
+        const amountUsd = (amountCents / 100).toFixed(2);
+        
+        // Create a PaymentIntent
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: amountCents,
+          currency: 'usd',
+          metadata: {
+            type: 'topup',
+            userId: userId.toString()
+          }
+        });
+        
+        res.json({
+          clientSecret: paymentIntent.client_secret,
+          amount: amountCents,
+          amountUsd
+        });
+      } else {
+        // For development/testing, just add the balance directly
+        await storage.addUserBalance(userId, amount);
+        
+        // Create a transaction record
+        await storage.createTransaction({
+          type: TransactionType.USER_TOPUP,
+          userId,
+          amount,
+          description: `Account top-up of $${(amount / 100).toFixed(2)}`,
+          paymentStatus: "completed"
+        });
+        
+        res.json({ message: "Account topped up successfully (development mode)" });
+      }
+    } catch (error) {
+      console.error("Error creating payment intent:", error);
+      res.status(500).json({ message: "Failed to process payment request" });
+    }
+  });
+
+  // Webhook to handle successful payments
+  app.post('/api/stripe-webhook', async (req: Request, res: Response) => {
+    const payload = req.body;
+    
+    // In production, you would verify this is coming from Stripe
+    try {
+      // Handle the event
+      if (payload.type === 'payment_intent.succeeded') {
+        const paymentIntent = payload.data.object;
+        const metadata = paymentIntent.metadata;
+        
+        if (metadata && metadata.type === 'topup' && metadata.userId) {
+          const userId = parseInt(metadata.userId);
+          const amount = paymentIntent.amount; // amount in cents
+          
+          // Add to user's balance
+          await storage.addUserBalance(userId, amount);
+          
+          // Create transaction record
+          await storage.createTransaction({
+            type: TransactionType.USER_TOPUP,
+            userId,
+            amount,
+            description: `Account top-up of $${(amount / 100).toFixed(2)}`,
+            paymentStatus: 'completed',
+            paymentReference: paymentIntent.id
+          });
+          
+          console.log(`Successfully topped up user ${userId} with ${amount} cents`);
+        }
+      }
+      
+      res.sendStatus(200);
+    } catch (error) {
+      console.error("Error processing webhook:", error);
+      res.status(500).json({ message: "Failed to process webhook" });
+    }
+  });
+
+  // Review routes
+  // Create a review for a session
+  app.post("/api/reviews", async (req: Request, res: Response) => {
+    try {
+      const reviewData = insertReviewSchema.parse(req.body);
+      
+      // Check if session exists
+      const session = await storage.getSessionById(reviewData.sessionId);
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      
+      // Check if user is the one who booked the session
+      if (session.userId !== reviewData.userId) {
+        return res.status(403).json({ message: "You can only review sessions you booked" });
+      }
+      
+      // Check if review already exists for this session
+      const existingReview = await storage.getReviewBySession(reviewData.sessionId);
+      if (existingReview) {
+        return res.status(400).json({ message: "You have already reviewed this session" });
+      }
+      
+      const review = await storage.createReview(reviewData);
+      
+      // Update advisor's average rating
+      await storage.updateAdvisorRating(reviewData.advisorId);
+      
+      res.status(201).json(review);
+    } catch (error) {
+      console.error("Error creating review:", error);
+      res.status(400).json({ message: "Failed to create review" });
+    }
+  });
+  
+  // Get all reviews for an advisor
+  app.get("/api/advisors/:advisorId/reviews", async (req: Request, res: Response) => {
+    try {
+      const advisorId = parseInt(req.params.advisorId);
+      const reviews = await storage.getReviewsByAdvisor(advisorId);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching advisor reviews:", error);
+      res.status(500).json({ message: "Failed to fetch reviews" });
+    }
+  });
+  
+  // Get a review by session ID
+  app.get("/api/reviews/session/:sessionId", async (req: Request, res: Response) => {
+    try {
+      const sessionId = parseInt(req.params.sessionId);
+      const review = await storage.getReviewBySession(sessionId);
+      
+      if (!review) {
+        return res.status(404).json({ message: "No review found for this session" });
+      }
+      
+      res.json(review);
+    } catch (error) {
+      console.error("Error fetching review by session:", error);
+      res.status(500).json({ message: "Failed to fetch review for session" });
+    }
+  });
+  
+  // Get a review by ID
+  app.get("/api/reviews/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const review = await storage.getReviewById(id);
+      
+      if (!review) {
+        return res.status(404).json({ message: "Review not found" });
+      }
+      
+      res.json(review);
+    } catch (error) {
+      console.error("Error fetching review:", error);
+      res.status(500).json({ message: "Failed to fetch review" });
+    }
+  });
+  
+  // Add a response to a review (for advisors)
+  app.post("/api/reviews/:id/response", async (req: Request, res: Response) => {
+    try {
+      const reviewId = parseInt(req.params.id);
+      const { response, advisorId } = req.body;
+      
+      if (!response || !advisorId) {
+        return res.status(400).json({ message: "Response and advisorId are required" });
+      }
+      
+      // Get the review
+      const review = await storage.getReviewById(reviewId);
+      if (!review) {
+        return res.status(404).json({ message: "Review not found" });
+      }
+      
+      // Check if the review is for this advisor
+      if (review.advisorId !== advisorId) {
+        return res.status(403).json({ message: "You can only respond to reviews for your profile" });
+      }
+      
+      // Check if response already exists
+      if (review.response) {
+        return res.status(400).json({ message: "You have already responded to this review" });
+      }
+      
+      const updatedReview = await storage.addResponseToReview(reviewId, response);
+      res.json(updatedReview);
+    } catch (error) {
+      console.error("Error adding review response:", error);
+      res.status(500).json({ message: "Failed to add review response" });
+    }
+  });
+  
+  // Get reviews by user
+  app.get("/api/users/:userId/reviews", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      // Check if user exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const reviews = await storage.getReviewsByUser(userId);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching user reviews:", error);
+      res.status(500).json({ message: "Failed to fetch reviews" });
+    }
+  });
+
+  /* WebSocket setup will happen after HTTP server creation */
+  
+  // Track connected users and their sockets
+  interface UserConnection {
+    userId: number;
+    userType: string;
+    socket: WebSocket;
+    isAlive: boolean;
+    activeCalls: Map<number, {
+      sessionId: number;
+      startTime: Date;
+      type: 'audio' | 'video';
+      targetUserId: number;
+      billingInterval?: NodeJS.Timeout;
+    }>;
+  }
+  
+  const connections = new Map<number, UserConnection>();
+  
+  wss.on('connection', (socket: WebSocket) => {
+    console.log('New WebSocket connection established');
+    
+    // Authenticate user on connection
+    socket.on('message', async (data: Buffer | string) => {
+      const message = data.toString();
+      
+      try {
+        // Ping-pong to keep connection alive
+        if (message === 'ping') {
+          socket.send('pong');
+          return;
+        }
+        
+        // Handle authentication message
+        if (message.startsWith('authenticate:')) {
+          const userId = parseInt(message.split(':')[1]);
+          const userType = message.split(':')[2] || 'user';
+          
+          console.log(`User ${userId} (${userType}) authenticated`);
+          
+          // Store the connection
+          connections.set(userId, {
+            userId,
+            userType,
+            socket,
+            isAlive: true,
+            activeCalls: new Map()
+          });
+          
+          // Let the client know it's authenticated
+          socket.send(JSON.stringify({
+            type: 'authenticated',
+            userId,
+            userType
+          }));
+          
+          // Broadcast advisor status to all clients
+          if (userType === 'advisor') {
+            broadcastAdvisorStatus(userId, true);
+          }
+          
+          return;
+        }
+        
+        // Handle initialization of a call
+        if (message.startsWith('startCall:')) {
+          const [_, initiatorId, targetId, sessionId, callType] = message.split(':');
+          
+          await startCall(
+            parseInt(initiatorId),
+            parseInt(targetId),
+            parseInt(sessionId),
+            callType as 'audio' | 'video'
+          );
+          
+          return;
+        }
+        
+        // Handle end of a call
+        if (message.startsWith('endCall:')) {
+          const [_, initiatorId, targetId, sessionId] = message.split(':');
+          
+          await endCall(
+            parseInt(initiatorId),
+            parseInt(targetId),
+            parseInt(sessionId)
+          );
+          
+          return;
+        }
+        
+        // Handle WebRTC signaling
+        const data = JSON.parse(message);
+        
+        if (data.target && connections.has(data.target)) {
+          const targetConnection = connections.get(data.target);
+          if (targetConnection && targetConnection.socket.readyState === WebSocket.OPEN) {
+            targetConnection.socket.send(message);
+          }
+        }
+      } catch (error) {
+        console.error("Error handling WebSocket message:", error);
+      }
+    });
+    
+    // Handle disconnection
+    socket.on('close', () => {
+      console.log('WebSocket connection closed');
+      
+      // Find and remove the user connection
+      for (const [userId, connection] of connections.entries()) {
+        if (connection.socket === socket) {
+          console.log(`User ${userId} disconnected`);
+          
+          // End any active calls
+          connection.activeCalls.forEach(async (call, targetId) => {
+            await endCall(userId, targetId, call.sessionId);
+          });
+          
+          // Broadcast advisor status if applicable
+          if (connection.userType === 'advisor') {
+            broadcastAdvisorStatus(userId, false);
+          }
+          
+          connections.delete(userId);
+          break;
+        }
+      }
+    });
+  });
+
+  // Get advisor availability heatmap
+  app.get("/api/advisor-availability/heatmap", async (req: Request, res: Response) => {
+    try {
+      const advisors = await storage.getAdvisors();
+      
+      // Generate heatmap data (mock for now)
+      const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      const hours = Array.from({ length: 24 }, (_, i) => i);
+      
+      const heatmapData = days.map(day => {
+        return hours.map(hour => {
+          // Count available advisors for this time slot
+          const availableCount = advisors.filter(advisor => {
+            // Mock availability logic - would be replaced with real availability data
+            const availability = advisor.availability ? JSON.parse(advisor.availability) : {};
+            return availability[day] && availability[day].includes(hour);
+          }).length;
+          
+          return {
+            day,
+            hour,
+            count: availableCount,
+            intensity: Math.min(1, availableCount / 10) // Normalize between 0 and 1
+          };
+        });
+      }).flat();
+      
+      res.json(heatmapData);
+    } catch (error) {
+      console.error("Error generating availability heatmap:", error);
+      res.status(500).json({ message: "Failed to generate availability heatmap" });
+    }
+  });
+
+  // Get advisor working hours
+  app.get("/api/advisors/:advisorId/working-hours", async (req: Request, res: Response) => {
+    try {
+      const advisorId = parseInt(req.params.advisorId);
+      
+      const workingHours = await storage.getAdvisorWorkingHours(advisorId);
+      res.json(workingHours);
+    } catch (error) {
+      console.error("Error fetching advisor working hours:", error);
+      res.status(500).json({ message: "Failed to fetch working hours" });
+    }
+  });
+  
+  // Set advisor working hours
+  app.post("/api/advisors/:advisorId/working-hours", async (req: Request, res: Response) => {
+    try {
+      const advisorId = parseInt(req.params.advisorId);
+      const workingHours = req.body;
+      
+      if (!workingHours || !workingHours.date) {
+        return res.status(400).json({ message: "Working hours data is required" });
+      }
+      
+      const result = await storage.addAdvisorWorkingHours(advisorId, workingHours);
+      res.json(result);
+    } catch (error) {
+      console.error("Error setting advisor working hours:", error);
+      res.status(500).json({ message: "Failed to set working hours" });
+    }
+  });
+  
+  // Set advisor status message
+  app.post("/api/advisors/:advisorId/status-message", async (req: Request, res: Response) => {
+    try {
+      const advisorId = parseInt(req.params.advisorId);
+      const { statusMessage } = req.body;
+      
+      if (statusMessage === undefined) {
+        return res.status(400).json({ message: "Status message is required" });
+      }
+      
+      const result = await storage.updateAdvisorStatusMessage(advisorId, statusMessage);
+      res.json(result);
+    } catch (error) {
+      console.error("Error updating advisor status message:", error);
+      res.status(500).json({ message: "Failed to update status message" });
+    }
+  });
+
+  // Create HTTP server
+  const httpServer = createServer(app);
+
+  // Helper function to start a call between two users
+  async function startCall(
+    initiatorId: number,
+    targetId: number,
+    sessionId: number,
+    callType: 'audio' | 'video'
+  ) {
+    console.log(`Starting ${callType} call: ${initiatorId} -> ${targetId} (Session: ${sessionId})`);
+    
+    // Get initiator and target connections
+    const initiator = connections.get(initiatorId);
+    const target = connections.get(targetId);
+    
+    if (!initiator || !target) {
+      console.log(`Cannot start call: one or both users are not connected`);
+      return;
+    }
+    
+    // Get the session
+    const session = await storage.getSessionById(sessionId);
+    if (!session) {
+      console.log(`Cannot start call: session ${sessionId} not found`);
+      return;
+    }
+    
+    // Update session in the database
+    await storage.startSession(sessionId);
+    
+    // Record the call in both users' active calls
+    const callInfo = {
+      sessionId,
+      startTime: new Date(),
+      type: callType,
+      targetUserId: targetId
+    };
+    
+    initiator.activeCalls.set(targetId, callInfo);
+    
+    const targetCallInfo = {
+      ...callInfo,
+      targetUserId: initiatorId
+    };
+    
+    target.activeCalls.set(initiatorId, targetCallInfo);
+    
+    // Start billing for the call (only for calls to advisors)
+    if (target.userType === 'advisor') {
+      await processCallBilling(initiatorId, targetId, sessionId, callType);
+    }
+    
+    // Notify both users that the call has started
+    if (initiator.socket.readyState === WebSocket.OPEN) {
+      initiator.socket.send(JSON.stringify({
+        type: 'callStarted',
+        peerId: targetId,
+        sessionId,
+        callType
+      }));
+    }
+    
+    if (target.socket.readyState === WebSocket.OPEN) {
+      target.socket.send(JSON.stringify({
+        type: 'incomingCall',
+        peerId: initiatorId,
+        sessionId,
+        callType
+      }));
+    }
+  }
+  
+  // Helper function to process billing for a call
+  async function processCallBilling(
+    userId: number,
+    advisorId: number,
+    sessionId: number,
+    callType: 'audio' | 'video'
+  ) {
+    const userConnection = connections.get(userId);
+    if (!userConnection) return;
+    
+    const callInfo = userConnection.activeCalls.get(advisorId);
+    if (!callInfo) return;
+    
+    // Get the session details
+    const session = await storage.getSessionById(sessionId);
+    if (!session) return;
+    
+    // Get the rate per minute based on call type
+    const ratePerMinute = callType === 'audio' ? session.ratePerMinute : session.ratePerMinute;
+    
+    // Set up billing interval (every minute)
+    const billingInterval = setInterval(async () => {
+      // Get fresh user and advisor data
+      const user = await storage.getUser(userId);
+      const advisor = await storage.getAdvisorById(advisorId);
+      
+      if (!user || !advisor) {
+        clearInterval(billingInterval);
+        return;
+      }
+      
+      // Check if user has enough balance
+      if (user.accountBalance < ratePerMinute) {
+        console.log(`User ${userId} has insufficient balance for call with advisor ${advisorId}`);
+        
+        // End the call due to insufficient funds
+        await endCall(userId, advisorId, sessionId);
+        
+        // Notify both users
+        const initiator = connections.get(userId);
+        const target = connections.get(advisorId);
+        
+        if (initiator && initiator.socket.readyState === WebSocket.OPEN) {
+          initiator.socket.send(JSON.stringify({
+            type: 'callEnded',
+            reason: 'insufficient_funds',
+            peerId: advisorId,
+            sessionId
+          }));
+        }
+        
+        if (target && target.socket.readyState === WebSocket.OPEN) {
+          target.socket.send(JSON.stringify({
+            type: 'callEnded',
+            reason: 'insufficient_funds',
+            peerId: userId,
+            sessionId
+          }));
+        }
+        
+        clearInterval(billingInterval);
+        return;
+      }
+      
+      // Process the minute charge
+      await storage.deductUserBalance(userId, ratePerMinute);
+      await storage.addAdvisorEarnings(advisorId, ratePerMinute);
+      
+      // Record transaction
+      await storage.createTransaction({
+        type: TransactionType.SESSION_PAYMENT,
+        userId,
+        advisorId,
+        sessionId,
+        amount: -ratePerMinute,
+        description: `Payment for ${callType} call with ${advisor.name}`,
+        paymentStatus: 'completed'
+      });
+      
+      console.log(`Billed user ${userId} ${ratePerMinute} cents for call with advisor ${advisorId}`);
+    }, 60000); // Bill every minute
+    
+    // Save the billing interval reference
+    callInfo.billingInterval = billingInterval;
+  }
+  
+  // Helper function to end a call
+  async function endCall(initiatorId: number, targetId: number, sessionId: number) {
+    console.log(`Ending call: ${initiatorId} <-> ${targetId} (Session: ${sessionId})`);
+    
+    // Get initiator and target connections
+    const initiator = connections.get(initiatorId);
+    const target = connections.get(targetId);
+    
+    // Clean up initiator's active call
+    if (initiator) {
+      const callInfo = initiator.activeCalls.get(targetId);
+      
+      if (callInfo && callInfo.billingInterval) {
+        clearInterval(callInfo.billingInterval);
+      }
+      
+      initiator.activeCalls.delete(targetId);
+      
+      // Notify initiator that the call has ended
+      if (initiator.socket.readyState === WebSocket.OPEN) {
+        initiator.socket.send(JSON.stringify({
+          type: 'callEnded',
+          peerId: targetId,
+          sessionId
+        }));
+      }
+    }
+    
+    // Clean up target's active call
+    if (target) {
+      target.activeCalls.delete(initiatorId);
+      
+      // Notify target that the call has ended
+      if (target.socket.readyState === WebSocket.OPEN) {
+        target.socket.send(JSON.stringify({
+          type: 'callEnded',
+          peerId: initiatorId,
+          sessionId
+        }));
+      }
+    }
+    
+    // End the session in the database
+    await storage.endSession(sessionId);
+  }
+  
+  // Helper function to broadcast advisor status changes
+  function broadcastAdvisorStatus(advisorId: number, isOnline: boolean) {
+    // Send status update to all connected clients
+    connections.forEach((connection) => {
+      if (connection.socket.readyState === WebSocket.OPEN) {
+        connection.socket.send(JSON.stringify({
+          type: 'advisorStatusChange',
+          advisorId,
+          isOnline
+        }));
+      }
+    });
+  }
+
+  return httpServer;
+}

@@ -2,10 +2,6 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from 'ws';
 import { storage } from "./storage";
-import { getAngelaResponse, startAdvisorMatchingFlow, generateAdvisorRecommendations } from "./openai";
-import { callPerplexityAPI } from "./perplexity";
-import { registerProfileRoutes } from "./routes-profile";
-import { registerAdminRoutes } from "./routes-admin";
 import { verifyPassword, hashPassword } from "./auth";
 import { z } from "zod";
 import { 
@@ -19,90 +15,46 @@ import {
 import Stripe from "stripe";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Check if Stripe API key is available
+  // Create HTTP server
+  const httpServer = createServer(app);
+  
+  // Create WebSocket server for real-time communications
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  // Register profile and admin routes if available
+  try {
+    const { registerProfileRoutes } = require('./routes-profile');
+    registerProfileRoutes(app);
+  } catch (error) {
+    console.log('Profile routes not available, skipping');
+  }
+  
+  try {
+    const { registerAdminRoutes } = require('./routes-admin');
+    registerAdminRoutes(app);
+  } catch (error) {
+    console.log('Admin routes not available, skipping');
+  }
+  
+  // Set up Stripe if API key is available
   let stripe: Stripe | undefined;
   if (process.env.STRIPE_SECRET_KEY) {
     stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: '2025-03-31.basil',
+      apiVersion: '2023-10-16',
     });
   }
-  
-  // Register profile-related routes
-  registerProfileRoutes(app);
-  
-  // Register admin routes
-  registerAdminRoutes(app);
-  
-  // Test endpoint for Perplexity API
-  app.get('/api/test-perplexity', async (req: Request, res: Response) => {
-    try {
-      if (!process.env.PERPLEXITY_API_KEY) {
-        return res.status(400).json({ error: 'PERPLEXITY_API_KEY is not set' });
-      }
-      
-      console.log('[TEST] Testing Perplexity API...');
-      
-      // Force the content type to application/json
-      res.setHeader('Content-Type', 'application/json');
-      
-      const response = await callPerplexityAPI([
-        { role: 'system', content: 'You are a helpful spiritual advisor.' },
-        { role: 'user', content: 'Tell me about the benefits of meditation for spiritual growth.' }
-      ]);
-      
-      console.log('[TEST] Perplexity API test successful');
-      return res.json({ success: true, response });
-    } catch (error: any) {
-      console.error('[TEST] Perplexity API test failed:', error);
-      
-      // Force the content type to application/json
-      res.setHeader('Content-Type', 'application/json');
-      
-      return res.status(500).json({ 
-        success: false, 
-        error: error.message,
-        details: error.response?.data || 'No additional details'
-      });
-    }
-  });
-  
+
   // Get all advisors
   app.get("/api/advisors", async (req: Request, res: Response) => {
     try {
-      const currentUserId = (req as any).session?.userId;
-      console.log("Fetching advisors, current user ID:", currentUserId);
-      
-      // Get all advisors from storage
       const advisors = await storage.getAdvisors();
-      
-      // If user is not authenticated or is not an advisor, return all advisors
-      if (!currentUserId) {
-        return res.json(advisors);
-      }
-      
-      // Check if the current user is an advisor
-      const currentUser = await storage.getUser(currentUserId);
-      if (!currentUser) {
-        return res.json(advisors);
-      }
-      
-      // Ensure the current user is included in the results if they're an advisor but somehow not in the list
-      if (currentUser.userType === UserType.ADVISOR) {
-        const includesSelf = advisors.some(advisor => advisor.id === currentUserId);
-        
-        if (!includesSelf) {
-          console.log("Adding current advisor to advisor list");
-          return res.json([...advisors, currentUser]);
-        }
-      }
-      
       res.json(advisors);
     } catch (error) {
       console.error("Error fetching advisors:", error);
       res.status(500).json({ message: "Failed to fetch advisors" });
     }
   });
-
+  
   // Get advisor by ID
   app.get("/api/advisors/:id", async (req: Request, res: Response) => {
     try {
@@ -110,67 +62,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const advisor = await storage.getAdvisorById(id);
       
       if (!advisor) {
-        return res.status(404).json({ message: "Advisor not found" });
+        res.status(404).json({ message: "Advisor not found" });
+        return;
       }
       
-      // Get specialties for this advisor
-      const specialties = await storage.getAdvisorSpecialties(id);
-      
-      res.json({ ...advisor, specialties });
+      res.json(advisor);
     } catch (error) {
       console.error("Error fetching advisor:", error);
       res.status(500).json({ message: "Failed to fetch advisor" });
     }
   });
-
-  // Get advisors by specialty
-  app.get("/api/advisors/specialty/:specialtyId", async (req: Request, res: Response) => {
-    try {
-      const specialtyId = parseInt(req.params.specialtyId);
-      const advisors = await storage.getAdvisorsBySpecialty(specialtyId);
-      res.json(advisors);
-    } catch (error) {
-      console.error("Error fetching advisors by specialty:", error);
-      res.status(500).json({ message: "Failed to fetch advisors by specialty" });
-    }
-  });
   
-  // Get advisors by category
-  app.get("/api/advisors/category/:category", async (req: Request, res: Response) => {
-    try {
-      const category = req.params.category;
-      const advisors = await storage.getAdvisorsByCategory(category);
-      res.json(advisors);
-    } catch (error) {
-      console.error("Error fetching advisors by category:", error);
-      res.status(500).json({ message: "Failed to fetch advisors by category" });
-    }
-  });
-  
-  // Get specialties by category
-  app.get("/api/specialties/category/:category", async (req: Request, res: Response) => {
-    try {
-      const category = req.params.category;
-      const specialties = await storage.getSpecialtiesByCategory(category);
-      res.json(specialties);
-    } catch (error) {
-      console.error("Error fetching specialties by category:", error);
-      res.status(500).json({ message: "Failed to fetch specialties by category" });
-    }
-  });
-
-  // Get all specialties
-  app.get("/api/specialties", async (req: Request, res: Response) => {
-    try {
-      const specialties = await storage.getAllSpecialties();
-      res.json(specialties);
-    } catch (error) {
-      console.error("Error fetching specialties:", error);
-      res.status(500).json({ message: "Failed to fetch specialties" });
-    }
-  });
-
-  // Get user sessions (upcoming)
+  // Get user sessions
   app.get("/api/users/:userId/sessions", async (req: Request, res: Response) => {
     try {
       const userId = parseInt(req.params.userId);
@@ -191,765 +94,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Book a session with an advisor
-  app.post("/api/sessions", async (req: Request, res: Response) => {
-    try {
-      const sessionData = insertSessionSchema.parse(req.body);
-      const session = await storage.createSession(sessionData);
-      res.status(201).json(session);
-    } catch (error) {
-      console.error("Error booking session:", error);
-      res.status(400).json({ message: "Failed to book session" });
-    }
-  });
-  
-  // Update session status
-  app.patch("/api/sessions/:id/status", async (req: Request, res: Response) => {
-    try {
-      const sessionId = parseInt(req.params.id);
-      const { status } = req.body;
-      
-      if (!status) {
-        return res.status(400).json({ message: "Status is required" });
-      }
-      
-      const updatedSession = await storage.updateSessionStatus(sessionId, status);
-      
-      if (!updatedSession) {
-        return res.status(404).json({ message: "Session not found" });
-      }
-      
-      res.json(updatedSession);
-    } catch (error: any) {
-      console.error("Error updating session status:", error);
-      res.status(400).json({ message: error.message });
-    }
-  });
-
-  // Start a session
-  app.post("/api/sessions/:id/start", async (req: Request, res: Response) => {
-    try {
-      const sessionId = parseInt(req.params.id);
-      const session = await storage.getSessionById(sessionId);
-      
-      if (!session) {
-        return res.status(404).json({ message: "Session not found" });
-      }
-      
-      if (session.status !== "scheduled") {
-        return res.status(400).json({ message: "Session cannot be started" });
-      }
-      
-      const startedSession = await storage.startSession(sessionId);
-      res.status(200).json(startedSession);
-    } catch (error: any) {
-      console.error("Error starting session:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-  
-  // End a session and process payment
-  app.post("/api/sessions/:id/end", async (req: Request, res: Response) => {
-    try {
-      const sessionId = parseInt(req.params.id);
-      const session = await storage.getSessionById(sessionId);
-      
-      if (!session) {
-        return res.status(404).json({ message: "Session not found" });
-      }
-      
-      if (session.status !== "in_progress") {
-        return res.status(400).json({ message: "Session is not in progress" });
-      }
-      
-      const endedSession = await storage.endSession(sessionId);
-      res.status(200).json(endedSession);
-    } catch (error: any) {
-      console.error("Error ending session:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-  
-  // Advisor earnings and payout endpoints
-  app.get("/api/advisors/:advisorId/earnings", async (req: Request, res: Response) => {
-    try {
-      const advisorId = parseInt(req.params.advisorId);
-      const advisor = await storage.getAdvisorById(advisorId);
-      
-      if (!advisor) {
-        return res.status(404).json({ message: "Advisor not found" });
-      }
-      
-      const earningsBalance = await storage.getAdvisorEarningsBalance(advisorId);
-      const totalEarnings = await storage.getTotalAdvisorEarnings(advisorId);
-      const transactions = await storage.getTransactionsByAdvisor(advisorId);
-      const completedSessions = (await storage.getSessionsByAdvisor(advisorId))
-        .filter(session => session.status === "completed");
-      
-      res.status(200).json({
-        earningsBalance,
-        totalEarnings,
-        pendingPayout: advisor.pendingPayout,
-        transactions,
-        completedSessions
-      });
-    } catch (error: any) {
-      console.error("Error fetching advisor earnings:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-  
-  // Request a payout
-  app.post("/api/advisors/:advisorId/request-payout", async (req: Request, res: Response) => {
-    try {
-      const advisorId = parseInt(req.params.advisorId);
-      const advisor = await storage.getAdvisorById(advisorId);
-      
-      if (!advisor) {
-        return res.status(404).json({ message: "Advisor not found" });
-      }
-      
-      if (advisor.pendingPayout) {
-        return res.status(400).json({ message: "Payout already requested" });
-      }
-      
-      const earningsBalance = await storage.getAdvisorEarningsBalance(advisorId);
-      if (earningsBalance <= 0) {
-        return res.status(400).json({ message: "No earnings available for payout" });
-      }
-      
-      const updatedAdvisor = await storage.setPendingPayout(advisorId, true);
-      
-      // Create a transaction record for the payout request
-      await storage.createTransaction({
-        type: TransactionType.ADVISOR_PAYOUT,
-        userId: advisorId,
-        amount: earningsBalance,
-        description: `Payout request for $${(earningsBalance / 100).toFixed(2)}`,
-        paymentStatus: 'pending'
-      });
-      
-      res.status(200).json({
-        message: "Payout requested successfully",
-        pendingPayout: true,
-        amount: earningsBalance
-      });
-    } catch (error: any) {
-      console.error("Error requesting payout:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-  
-  // Admin: Complete a payout request
-  app.post("/api/advisors/:advisorId/complete-payout", async (req: Request, res: Response) => {
-    try {
-      const advisorId = parseInt(req.params.advisorId);
-      const advisor = await storage.getAdvisorById(advisorId);
-      
-      if (!advisor) {
-        return res.status(404).json({ message: "Advisor not found" });
-      }
-      
-      if (!advisor.pendingPayout) {
-        return res.status(400).json({ message: "No pending payout" });
-      }
-      
-      const earningsBalance = await storage.getAdvisorEarningsBalance(advisorId);
-      
-      // Deduct from advisor's earnings balance
-      await storage.deductAdvisorEarnings(advisorId, earningsBalance);
-      
-      // Update the pending payout flag
-      await storage.setPendingPayout(advisorId, false);
-      
-      // Create a transaction record for the completed payout
-      await storage.createTransaction({
-        type: TransactionType.ADVISOR_PAYOUT,
-        userId: advisorId,
-        amount: earningsBalance,
-        description: `Completed payout of $${(earningsBalance / 100).toFixed(2)}`,
-        paymentStatus: 'completed'
-      });
-      
-      res.status(200).json({
-        message: "Payout completed successfully",
-        amount: earningsBalance
-      });
-    } catch (error: any) {
-      console.error("Error completing payout:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-  
-  // User transaction history
-  app.get("/api/users/:userId/transactions", async (req: Request, res: Response) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      const user = await storage.getUser(userId);
-      
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      const transactions = await storage.getTransactionsByUser(userId);
-      
-      res.status(200).json(transactions);
-    } catch (error: any) {
-      console.error("Error fetching transactions:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Send a message
-  app.post("/api/messages", async (req: Request, res: Response) => {
-    try {
-      const messageData = insertMessageSchema.parse(req.body);
-      const message = await storage.sendMessage(messageData);
-      res.status(201).json(message);
-    } catch (error) {
-      console.error("Error sending message:", error);
-      res.status(400).json({ message: "Failed to send message" });
-    }
-  });
-
-  // Get conversation between two users
-  app.get("/api/messages/:userId1/:userId2", async (req: Request, res: Response) => {
-    try {
-      const userId1 = parseInt(req.params.userId1);
-      const userId2 = parseInt(req.params.userId2);
-      const messages = await storage.getConversation(userId1, userId2);
-      res.json(messages);
-    } catch (error) {
-      console.error("Error fetching conversation:", error);
-      res.status(500).json({ message: "Failed to fetch conversation" });
-    }
-  });
-
-  // Get or create Angela AI conversation
-  app.get("/api/angela/:userId", async (req: Request, res: Response) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      const conversation = await storage.getOrCreateConversation(userId);
-      res.json(conversation);
-    } catch (error) {
-      console.error("Error fetching Angela conversation:", error);
-      res.status(500).json({ message: "Failed to fetch conversation" });
-    }
-  });
-  
-  // Start the advisor matching flow
-  app.get("/api/angela/:userId/start-matching", async (req: Request, res: Response) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      
-      // Get or create a conversation for this user
-      const conversation = await storage.getOrCreateConversation(userId);
-      
-      // Start the advisor matching flow
-      const matchingResponse = await startAdvisorMatchingFlow();
-      
-      // Add Angela's response to the conversation
-      const updatedMessages = [
-        ...(conversation.messages as any[]),
-        {
-          role: "assistant",
-          content: matchingResponse.message,
-          timestamp: new Date()
-        }
-      ];
-      
-      // Update the conversation in storage
-      await storage.updateConversation(conversation.id, updatedMessages);
-      
-      // Return the response
-      res.json(matchingResponse);
-    } catch (error) {
-      console.error("Error starting matching flow:", error);
-      res.status(500).json({ message: "Failed to start advisor matching" });
-    }
-  });
-
-  // Send message to Angela AI
-  app.post("/api/angela/:userId/message", async (req: Request, res: Response) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      const { message, emotionalSupportEnabled = true } = req.body;
-      
-      if (!message || typeof message !== 'string') {
-        return res.status(400).json({ message: "Message is required" });
-      }
-      
-      // Get existing conversation
-      const conversation = await storage.getOrCreateConversation(userId);
-      
-      // Format conversation history for OpenAI
-      const conversationHistory = (conversation.messages as any[]).map(msg => ({
-        role: msg.role,
-        content: msg.content
-      }));
-      
-      // Get response from Angela, passing the emotional support mode flag
-      const angelaResponse = await getAngelaResponse(message, conversationHistory, emotionalSupportEnabled);
-      
-      // Add user message and Angela's response to conversation
-      const updatedMessages = [
-        ...(conversation.messages as any[]),
-        { role: 'user', content: message, timestamp: new Date() },
-        { role: 'assistant', content: angelaResponse.message, timestamp: new Date() }
-      ];
-      
-      // Update conversation in storage
-      const updatedConversation = await storage.updateConversation(
-        conversation.id, 
-        updatedMessages
-      );
-      
-      res.json({ 
-        message: angelaResponse.message, 
-        suggestions: angelaResponse.suggestions,
-        conversation: updatedConversation,
-        isMatchingQuestion: angelaResponse.isMatchingQuestion || false,
-        questionNumber: angelaResponse.questionNumber,
-        totalQuestions: angelaResponse.totalQuestions,
-        recommendedAdvisors: angelaResponse.recommendedAdvisors || [],
-        // Emotional support metadata
-        emotionalTone: angelaResponse.emotionalTone || 'supportive',
-        detectedEmotion: angelaResponse.detectedEmotion || null,
-        empathyLevel: angelaResponse.empathyLevel || 3
-      });
-    } catch (error) {
-      console.error("Error processing Angela message:", error);
-      res.status(500).json({ message: "Failed to process message" });
-    }
-  });
-  
-  // Generate advisor recommendations based on conversation history
-  app.get("/api/angela/:userId/recommendations", async (req: Request, res: Response) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      
-      // Get the user
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      // Get conversation for this user
-      const conversation = await storage.getOrCreateConversation(userId);
-      
-      // Format conversation history
-      const conversationHistory = (conversation.messages as any[]).map(msg => ({
-        role: msg.role,
-        content: msg.content
-      }));
-      
-      // Get all advisors with their specialties
-      const advisorsWithSpecialties = await storage.getAdvisorsWithSpecialties();
-      
-      // Get all specialties for context
-      const allSpecialties = await storage.getAllSpecialties();
-      
-      // Import the advanced recommendation engine
-      const { generateAdvancedRecommendations } = await import('./recommendation-engine');
-      
-      // Generate recommendations using the advanced AI matching algorithm
-      const recommendations = await generateAdvancedRecommendations(
-        user,
-        conversationHistory,
-        advisorsWithSpecialties,
-        allSpecialties
-      );
-      
-      res.json(recommendations);
-    } catch (error) {
-      console.error("Error generating advisor recommendations:", error);
-      res.status(500).json({ message: "Failed to generate advisor recommendations" });
-    }
-  });
-
-  // New endpoint for general Angela chat functionality
-  app.post("/api/angela/chat", async (req: Request, res: Response) => {
-    const { message } = req.body;
-    const userId = (req as any).session?.userId || 5;  // Default to user ID 5 if not authenticated
-    
-    try {
-      // Get existing conversation if any
-      const conversation = await storage.getOrCreateConversation(userId);
-      
-      // Save the user message to the database first
-      await storage.createAngelaMessage({
-        userId: userId,
-        content: message,
-        role: "user"
-      });
-      
-      // Generate response - first try OpenAI, fallback to rule-based responses
-      let response = "";
-      
-      try {
-        // Try to use OpenAI for a more natural response
-        const conversationHistory = (conversation.messages as any[]).map(msg => ({
-          role: msg.role,
-          content: msg.content
-        }));
-        
-        // Add the current message to history
-        conversationHistory.push({
-          role: 'user',
-          content: message
-        });
-        
-        // Use a separate try-catch for OpenAI call
-        try {
-          // Attempt to get response from OpenAI
-          const openAIResponse = await getAngelaResponse(message, conversationHistory);
-          response = openAIResponse.message;
-        } catch (openAIError) {
-          console.log("OpenAI error, using fallback responses:", openAIError);
-          // If OpenAI fails, we'll use our fallback logic below
-          throw openAIError;
-        }
-      } catch (error) {
-        // Fallback chat responses if OpenAI fails
-        console.log("Using fallback response logic");
-        
-        if (message.toLowerCase().includes("hello") || message.toLowerCase().includes("hi")) {
-          response = "Hello! I'm Angela, your spiritual AI guide. How may I assist you on your journey today?";
-        } else if (message.toLowerCase().includes("help") || message.toLowerCase().includes("guidance")) {
-          response = "I'm here to provide spiritual guidance and connect you with advisors who can help you on your journey. What specific area are you seeking guidance in?";
-        } else if (message.toLowerCase().includes("love") || message.toLowerCase().includes("relationship")) {
-          response = "Relationships and love are profound aspects of our spiritual journey. Would you like me to help you find an advisor specialized in matters of the heart?";
-        } else if (message.toLowerCase().includes("career") || message.toLowerCase().includes("job") || message.toLowerCase().includes("work")) {
-          response = "Your career path is deeply connected to your spiritual purpose. I can help you explore this connection or find an advisor who specializes in career guidance.";
-        } else if (message.toLowerCase().includes("meditation") || message.toLowerCase().includes("mindfulness")) {
-          response = "Meditation is a powerful practice for spiritual growth. Would you like some simple techniques to try, or would you prefer to connect with a meditation expert?";
-        } else if (message.toLowerCase().includes("future") || message.toLowerCase().includes("predict")) {
-          response = "The future holds many possibilities that unfold based on your choices and energy. Would you like to explore potential paths with one of our intuitive advisors?";
-        } else if (message.toLowerCase().includes("tarot") || message.toLowerCase().includes("reading")) {
-          response = "Tarot readings can provide valuable insights. I can connect you with skilled readers who can interpret the cards for your specific situation.";
-        } else if (message.toLowerCase().includes("thank")) {
-          response = "You're very welcome! I'm always here whenever you need guidance or support on your spiritual journey.";
-        } else {
-          response = "I sense there's something specific on your mind. I'm here to listen and guide you. Would you like to explore this further with one of our specialized advisors?";
-        }
-      }
-      
-      // Save the response to the database
-      await storage.createAngelaMessage({
-        userId: userId,
-        content: response,
-        role: "assistant"
-      });
-      
-      // Send the response
-      res.json({ message: response });
-    } catch (error) {
-      console.error("Error in Angela chat:", error);
-      // Provide a more helpful error message to the user
-      res.status(500).json({ 
-        message: "I'm here to assist you, but I'm experiencing a brief connection issue with my spiritual knowledge. Please try again in a moment." 
-      });
-    }
-  });
-
-  // User registration
-  app.post("/api/users", async (req: Request, res: Response) => {
-    try {
-      // Validate request using the schema
-      const userData = req.body;
-      
-      console.log("Creating new user with type:", userData.userType);
-      
-      // Check if username already exists
-      const existingUser = await storage.getUserByUsername(userData.username);
-      if (existingUser) {
-        console.log("Username already exists");
-        return res.status(400).json({ message: "Username already exists" });
-      }
-      
-      // Hash the password
-      const hashedPassword = await hashPassword(userData.password);
-      
-      // Prepare user data with hashed password
-      const userToCreate = {
-        ...userData,
-        password: hashedPassword,
-        // Set default values for various user fields
-        isAdvisor: userData.userType === 'ADVISOR',
-        availability: '{}',
-        online: false,
-        specialties: userData.userType === 'ADVISOR' ? [] : undefined,
-        balance: 0, // Start with zero balance
-        verificationStatus: 'verified', // Default to verified for admin-created users
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      
-      // Create user in the database
-      const user = await storage.createUser(userToCreate);
-      console.log(`Successfully created user: id: ${user.id}, type: ${user.userType}`);
-      
-      // Remove password from response
-      const { password: _, ...userWithoutPassword } = user;
-      res.status(201).json(userWithoutPassword);
-    } catch (error: any) {
-      console.error("Error creating user:", error);
-      res.status(400).json({ message: "Failed to create user", error: error.message || "Unknown error" });
-    }
-  });
-
-  // Login with secure password verification
-  app.post("/api/login", async (req: Request, res: Response) => {
-    try {
-      const { username, password } = req.body;
-      
-      console.log("Login attempt received");
-      
-      if (!username || !password) {
-        console.log("Missing username or password");
-        return res.status(400).json({ message: "Username and password are required" });
-      }
-      
-      const user = await storage.getUserByUsername(username);
-      
-      if (!user) {
-        console.log("Login failed: User not found");
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
-      
-      console.log(`Found user with id: ${user.id}, userType: ${user.userType}`);
-      // Don't log password information
-      
-      const isPasswordValid = await verifyPassword(password, user.password);
-      
-      console.log(`Password validation result: ${isPasswordValid}`);
-      
-      if (!isPasswordValid) {
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
-      
-      // Update last login
-      if (user.id) {
-        console.log(`Updating last login for user: ${user.id}`);
-        await storage.updateUser(user.id, { lastLogin: new Date() });
-        
-        // Set user ID in session for authentication
-        if ((req as any).session) {
-          (req as any).session.userId = user.id;
-          console.log(`Set session.userId to ${user.id}`);
-        }
-      }
-      
-      console.log(`Login successful for user ID: ${user.id}`);
-      // Remove password from response
-      const { password: _, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
-    } catch (error) {
-      console.error("Error logging in:", error);
-      res.status(500).json({ message: "Failed to log in" });
-    }
-  });
-
-  // Get current authenticated user
-  app.get("/api/me", async (req: Request, res: Response) => {
-    try {
-      // First check for proper session authentication
-      if ((req as any).session?.userId) {
-        const userId = (req as any).session.userId;
-        console.log(`Getting authenticated user from session: ${userId}`);
-        
-        const user = await storage.getUser(userId);
-        if (user) {
-          console.log(`Found authenticated user with ID: ${user.id}`);
-          // Remove password from response
-          const { password: _pwd1, ...userWithoutPassword } = user;
-          return res.json(userWithoutPassword);
-        }
-      }
-      
-      // If no valid session, fallback to demo user during development
-      const fallbackUserId = 5; // elenalovechild account for demo
-      console.log(`No valid session, using fallback user ID: ${fallbackUserId}`);
-      
-      const fallbackUser = await storage.getUser(fallbackUserId);
-      if (!fallbackUser) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      // Remove password from response for fallback user too
-      const { password: _pwd2, ...fallbackUserWithoutPassword } = fallbackUser;
-      res.json(fallbackUserWithoutPassword);
-    } catch (error) {
-      console.error("Error fetching current user:", error);
-      res.status(500).json({ message: "Failed to fetch current user" });
-    }
-  });
-  
-  // Logout user
-  app.post("/api/logout", async (req: Request, res: Response) => {
-    try {
-      // Check if there's a session to clear
-      if ((req as any).session) {
-        const userId = (req as any).session.userId;
-        
-        if (userId) {
-          console.log(`Logging out user: ${userId}`);
-          
-          // Destroy the session
-          (req as any).session.destroy((err: any) => {
-            if (err) {
-              console.error("Error destroying session:", err);
-              return res.status(500).json({ message: "Failed to log out" });
-            }
-            
-            res.clearCookie('connect.sid');
-            return res.status(200).json({ message: "Logged out successfully" });
-          });
-        } else {
-          // No user in session
-          console.log("No user in session to log out");
-          res.status(200).json({ message: "No active session" });
-        }
-      } else {
-        // No session exists
-        console.log("No session exists");
-        res.status(200).json({ message: "No active session" });
-      }
-    } catch (error) {
-      console.error("Error logging out:", error);
-      res.status(500).json({ message: "Failed to log out" });
-    }
-  });
-
-  // Get user balance
-  app.get("/api/users/:userId/balance", async (req: Request, res: Response) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      const user = await storage.getUser(userId);
-      
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      res.json({ 
-        balance: user.accountBalance || 0,
-        formattedBalance: `$${((user.accountBalance || 0) / 100).toFixed(2)}`
-      });
-    } catch (error) {
-      console.error("Error fetching user balance:", error);
-      res.status(500).json({ message: "Failed to fetch balance" });
-    }
-  });
-
-  // Create a payment intent for account top-up
-  app.post("/api/topup", async (req: Request, res: Response) => {
-    try {
-      const { userId, amountUsd } = req.body;
-      
-      if (!userId || !amountUsd) {
-        return res.status(400).json({ message: "User ID and amount are required" });
-      }
-
-      // Validate minimum top-up amount of $10
-      if (amountUsd < 10) {
-        return res.status(400).json({ message: "Minimum top-up amount is $10" });
-      }
-      
-      // Convert USD to cents
-      const amountCents = Math.round(amountUsd * 100);
-      
-      // Check if Stripe is initialized
-      if (!stripe) {
-        return res.status(503).json({ 
-          message: "Payment service is unavailable. Please contact support." 
-        });
-      }
-      
-      // Get user info
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      // Create or retrieve customer
-      let customerId = user.stripeCustomerId;
-      if (!customerId) {
-        // Create a new customer
-        const customer = await stripe.customers.create({
-          email: user.email,
-          name: user.name,
-          metadata: {
-            userId: user.id.toString()
-          }
-        });
-        
-        customerId = customer.id;
-        await storage.updateStripeCustomerId(userId, customerId);
-      }
-      
-      // Create a payment intent
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: amountCents,
-        currency: 'usd',
-        customer: customerId,
-        metadata: {
-          userId: userId.toString(),
-          type: 'topup'
-        }
-      });
-      
-      res.json({
-        clientSecret: paymentIntent.client_secret,
-        amount: amountCents,
-        amountUsd
-      });
-    } catch (error) {
-      console.error("Error creating payment intent:", error);
-      res.status(500).json({ message: "Failed to process payment request" });
-    }
-  });
-
-  // Webhook to handle successful payments
-  app.post('/api/stripe-webhook', async (req: Request, res: Response) => {
-    const payload = req.body;
-    
-    // In production, you would verify this is coming from Stripe
-    try {
-      // Handle the event
-      if (payload.type === 'payment_intent.succeeded') {
-        const paymentIntent = payload.data.object;
-        const metadata = paymentIntent.metadata;
-        
-        if (metadata && metadata.type === 'topup' && metadata.userId) {
-          const userId = parseInt(metadata.userId);
-          const amount = paymentIntent.amount; // amount in cents
-          
-          // Add to user's balance
-          await storage.addUserBalance(userId, amount);
-          
-          // Create transaction record
-          await storage.createTransaction({
-            type: TransactionType.USER_TOPUP,
-            userId,
-            amount,
-            description: `Account top-up of $${(amount / 100).toFixed(2)}`,
-            paymentStatus: 'completed',
-            paymentReference: paymentIntent.id
-          });
-          
-          console.log(`Successfully topped up user ${userId} with ${amount} cents`);
-        }
-      }
-      
-      res.json({ received: true });
-    } catch (error) {
-      console.error("Error processing webhook:", error);
-      res.status(500).json({ message: "Failed to process webhook" });
-    }
-  });
-
-  // Review routes
-  // Create a review for a session
+  // Create a review
   app.post("/api/reviews", async (req: Request, res: Response) => {
     try {
       const reviewData = insertReviewSchema.parse(req.body);
@@ -972,32 +117,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const review = await storage.createReview(reviewData);
+      
+      // Update advisor's average rating
+      await storage.updateAdvisorRating(reviewData.advisorId);
+      
       res.status(201).json(review);
     } catch (error) {
       console.error("Error creating review:", error);
       res.status(400).json({ message: "Failed to create review" });
     }
   });
-
-  // Get reviews for an advisor
+  
+  // Get all reviews for an advisor
   app.get("/api/advisors/:advisorId/reviews", async (req: Request, res: Response) => {
     try {
       const advisorId = parseInt(req.params.advisorId);
-      
-      // Check if advisor exists
-      const advisor = await storage.getAdvisorById(advisorId);
-      if (!advisor) {
-        return res.status(404).json({ message: "Advisor not found" });
-      }
-      
       const reviews = await storage.getReviewsByAdvisor(advisorId);
       res.json(reviews);
     } catch (error) {
       console.error("Error fetching advisor reviews:", error);
-      res.status(500).json({ message: "Failed to fetch advisor reviews" });
+      res.status(500).json({ message: "Failed to fetch reviews" });
     }
   });
-
+  
   // Get a review by session ID
   app.get("/api/reviews/session/:sessionId", async (req: Request, res: Response) => {
     try {
@@ -1036,58 +178,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/reviews/:id/response", async (req: Request, res: Response) => {
     try {
       const reviewId = parseInt(req.params.id);
-      const { response } = req.body;
+      const { response, advisorId } = req.body;
       
-      if (!response || typeof response !== 'string') {
-        return res.status(400).json({ message: "Valid response text is required" });
+      if (!response || !advisorId) {
+        return res.status(400).json({ message: "Response and advisorId are required" });
       }
       
       // Get the review
       const review = await storage.getReviewById(reviewId);
-      if (!review) {
-        return res.status(404).json({ message: "Review not found" });
-      }
-      
-      // Verify the current user is the advisor for this review
-      if (!req.user || req.user.id !== review.advisorId) {
-        return res.status(403).json({ message: "You can only respond to your own reviews" });
-      }
-      
-      // Add the response to the review
-      const updatedReview = await storage.addReviewResponse(reviewId, response);
-      res.json(updatedReview);
-    } catch (error) {
-      console.error("Error adding response to review:", error);
-      res.status(500).json({ message: "Failed to add response to review" });
-    }
-  });
-  
-  // Get all reviews for a user
-  app.get("/api/users/:userId/reviews", async (req: Request, res: Response) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      const reviews = await storage.getReviewsByUser(userId);
-      res.json(reviews);
-    } catch (error) {
-      console.error("Error fetching user reviews:", error);
-      res.status(500).json({ message: "Failed to fetch reviews" });
-    }
-  });
-  
-  // Get all reviews for an advisor
-  app.get("/api/advisors/:advisorId/reviews", async (req: Request, res: Response) => {
-    try {
-      const advisorId = parseInt(req.params.advisorId);
-      const reviews = await storage.getReviewsByAdvisor(advisorId);
-      res.json(reviews);
-    } catch (error) {
-      console.error("Error fetching advisor reviews:", error);
-      res.status(500).json({ message: "Failed to fetch reviews" });
-    }
-  });
-
-  // WebSocket server setup for real-time communications
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
       if (!review) {
         return res.status(404).json({ message: "Review not found" });
       }
@@ -1102,14 +200,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "You have already responded to this review" });
       }
       
-      const updatedReview = await storage.addResponseToReview(id, response);
+      const updatedReview = await storage.addResponseToReview(reviewId, response);
       res.json(updatedReview);
     } catch (error) {
       console.error("Error adding review response:", error);
       res.status(500).json({ message: "Failed to add review response" });
     }
   });
-
+  
   // Get reviews by user
   app.get("/api/users/:userId/reviews", async (req: Request, res: Response) => {
     try {
@@ -1125,714 +223,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(reviews);
     } catch (error) {
       console.error("Error fetching user reviews:", error);
-      res.status(500).json({ message: "Failed to fetch user reviews" });
+      res.status(500).json({ message: "Failed to fetch reviews" });
     }
   });
 
-  const httpServer = createServer(app);
-  
-  // Initialize WebSocket server
-  const wss = new WebSocketServer({ 
-    server: httpServer, 
-    path: '/ws',
-  });
-  
-  // Store active connections and user data
-  interface UserConnection {
-    userId: number;
-    userType: string;
-    socket: WebSocket;
-    isAlive: boolean;
-    activeCalls: Map<number, {
-      sessionId: number;
-      startTime: Date;
-      type: 'audio' | 'video';
-      targetUserId: number;
-      billingInterval?: NodeJS.Timeout;
-    }>;
-  }
-
-  const userConnections = new Map<number, UserConnection>();
-  const advisorSessions = new Map<number, Set<number>>(); // advisorId -> Set of session IDs
-  
-  // Set up connection handling
-  wss.on('connection', (socket: WebSocket) => {
-    let userId: number | null = null;
-    
-    // Handle messages
-    socket.on('message', async (message: string) => {
-      try {
-        const data = JSON.parse(message.toString());
-        console.log('Received message:', data.type);
-        
-        switch (data.type) {
-          case 'authenticate':
-            // Store user connection
-            userId = data.payload.userId;
-            const userType = data.payload.userType;
-            
-            if (userId) {
-              userConnections.set(userId, {
-                userId,
-                userType,
-                socket,
-                isAlive: true,
-                activeCalls: new Map()
-              });
-              
-              // Notify client of successful authentication
-              socket.send(JSON.stringify({
-                type: 'auth_success',
-                payload: { userId }
-              }));
-              
-              // Broadcast user's online status if they are an advisor
-              if (userType === 'advisor') {
-                broadcastAdvisorStatus(userId, true);
-                
-                // Update advisor status in database
-                await storage.updateUserStatus(userId, true);
-              }
-            }
-            break;
-            
-          case 'start_session':
-            if (!userId) break;
-            
-            const { sessionId, participantId } = data.payload;
-            const userConn = userConnections.get(userId);
-            const participantConn = userConnections.get(participantId);
-            
-            if (userConn && participantConn) {
-              // Add session to tracking
-              if (!advisorSessions.has(userId)) {
-                advisorSessions.set(userId, new Set());
-              }
-              advisorSessions.get(userId)?.add(sessionId);
-              
-              // Notify both parties
-              socket.send(JSON.stringify({
-                type: 'session_started',
-                payload: { sessionId, participantId }
-              }));
-              
-              participantConn.socket.send(JSON.stringify({
-                type: 'session_started',
-                payload: { sessionId, participantId: userId }
-              }));
-            }
-            break;
-            
-          case 'end_session':
-            if (!userId) break;
-            
-            const { sessionId: endSessionId, participantId: endParticipantId } = data.payload;
-            const endParticipantConn = userConnections.get(endParticipantId);
-            
-            // Remove session from tracking
-            advisorSessions.get(userId)?.delete(endSessionId);
-            
-            // Notify the other party if they're connected
-            if (endParticipantConn) {
-              endParticipantConn.socket.send(JSON.stringify({
-                type: 'session_ended',
-                payload: { sessionId: endSessionId }
-              }));
-            }
-            break;
-            
-          case 'chat_message':
-            if (!userId) break;
-            
-            const { recipientId, content, sessionId: chatSessionId } = data.payload;
-            const recipientConn = userConnections.get(recipientId);
-            
-            if (recipientConn) {
-              recipientConn.socket.send(JSON.stringify({
-                type: 'chat_message',
-                payload: {
-                  senderId: userId,
-                  content,
-                  sessionId: chatSessionId,
-                  timestamp: new Date().toISOString()
-                }
-              }));
-            }
-            
-            // Store message in database
-            await storage.sendMessage({
-              senderId: userId,
-              receiverId: recipientId,
-              content
-            });
-            break;
-            
-          case 'signal_offer':
-            if (!userId) break;
-            
-            const { target, signal, sessionId: signalSessionId } = data.payload;
-            const targetConn = userConnections.get(target);
-            
-            if (targetConn) {
-              // Check if this is a call start (audio or video)
-              if (signal && signal.type && (signal.type === 'audio' || signal.type === 'video')) {
-                await startCall(userId, target, signalSessionId, signal.type);
-              }
-              
-              targetConn.socket.send(JSON.stringify({
-                type: data.type,
-                payload: {
-                  from: userId,
-                  signal,
-                  sessionId: signalSessionId
-                }
-              }));
-            }
-            break;
-            
-          case 'signal_answer':
-          case 'signal_ice_candidate':
-            if (!userId) break;
-            
-            const { target: targetId, signal: signalData, sessionId: signalSessionId2 } = data.payload;
-            const targetConn2 = userConnections.get(targetId);
-            
-            if (targetConn2) {
-              targetConn2.socket.send(JSON.stringify({
-                type: data.type,
-                payload: {
-                  from: userId,
-                  signal: signalData,
-                  sessionId: signalSessionId2
-                }
-              }));
-            }
-            break;
-            
-          case 'signal_end':
-            if (!userId) break;
-            
-            const { target: endCallTarget, sessionId: endCallSessionId } = data.payload;
-            const endCallTargetConn = userConnections.get(endCallTarget);
-            
-            // End the call billing if active
-            await endCall(userId, endCallTarget, endCallSessionId);
-            
-            // Forward the signal to the target
-            if (endCallTargetConn) {
-              endCallTargetConn.socket.send(JSON.stringify({
-                type: data.type,
-                payload: {
-                  from: userId,
-                  sessionId: endCallSessionId
-                }
-              }));
-            }
-            break;
-            
-          case 'pong':
-            if (userId && userConnections.has(userId)) {
-              const conn = userConnections.get(userId)!;
-              conn.isAlive = true;
-            }
-            break;
-        }
-      } catch (error) {
-        console.error('Error processing WebSocket message:', error);
-      }
-    });
-    
-    // Handle disconnection
-    socket.on('close', async () => {
-      if (userId && userConnections.has(userId)) {
-        const connection = userConnections.get(userId)!;
-        
-        // Clean up connection
-        userConnections.delete(userId);
-        
-        // If advisor, clean up sessions and notify status change
-        if (connection.userType === 'advisor') {
-          broadcastAdvisorStatus(userId, false);
-          advisorSessions.delete(userId);
-          
-          // Update advisor status in database
-          await storage.updateUserStatus(userId, false);
-        }
-      }
-    });
-    
-    // Set up ping for connection health check
-    socket.send(JSON.stringify({ type: 'ping' }));
-  });
-  
-  // Set up regular ping to keep connections alive and detect disconnections
-  const pingInterval = setInterval(() => {
-    wss.clients.forEach((socket) => {
-      if (socket.readyState !== WebSocket.OPEN) return;
-      
-      socket.send(JSON.stringify({ type: 'ping' }));
-    });
-    
-    // Check for dead connections
-    userConnections.forEach(async (conn, userId) => {
-      if (!conn.isAlive) {
-        console.log(`Connection to user ${userId} lost, cleaning up`);
-        conn.socket.terminate();
-        userConnections.delete(userId);
-        
-        // If advisor, clean up sessions and notify status change
-        if (conn.userType === 'advisor') {
-          broadcastAdvisorStatus(userId, false);
-          advisorSessions.delete(userId);
-          
-          // Update advisor status in database
-          await storage.updateUserStatus(userId, false);
-        }
-      } else {
-        conn.isAlive = false; // Reset for next ping
-      }
-    });
-  }, 30000);
-  
-  // Clean up on server close
-  wss.on('close', () => {
-    clearInterval(pingInterval);
-  });
-  
-  // Heat map API endpoint
-  app.get("/api/advisor-availability/heatmap", async (req: Request, res: Response) => {
+  // Login
+  app.post("/api/login", async (req: Request, res: Response) => {
     try {
-      // Get all advisors to calculate online counts
-      const advisors = await storage.getAdvisors();
+      const { username, password } = req.body;
       
-      // Days of the week
-      const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-      
-      // Generate heat map data
-      const heatMapData = [];
-      
-      // For each day and hour, calculate advisor availability
-      for (const day of days) {
-        for (let hour = 0; hour < 24; hour++) {
-          // In a real implementation, this would query historical data
-          // For now, we'll generate a pattern based on typical availability
-          
-          // Base count - more advisors during evenings and weekends
-          let baseCount = 2;
-          
-          // Evening hours (5pm-10pm) typically have more advisors
-          if (hour >= 17 && hour <= 22) {
-            baseCount += 4;
-          }
-          // Morning/afternoon (9am-5pm) have moderate availability
-          else if (hour >= 9 && hour <= 17) {
-            baseCount += 2;
-          }
-          
-          // Weekend boost
-          if (day === 'Saturday' || day === 'Sunday') {
-            baseCount += 2;
-          }
-          
-          // For the current day and hour, use actual online advisors count
-          const now = new Date();
-          const currentDay = days[now.getDay() === 0 ? 6 : now.getDay() - 1]; // Convert Sunday (0) to index 6
-          const currentHour = now.getHours();
-          
-          let advisorCount = baseCount;
-          
-          // Use real count for current time
-          if (day === currentDay && hour === currentHour) {
-            advisorCount = advisors.filter(advisor => advisor.online).length;
-          }
-          
-          // Calculate average wait time (inversely related to advisor count)
-          // Assumes each advisor can handle about one client every 30 minutes
-          const averageWaitTime = advisorCount > 0 ? Math.round(30 / advisorCount) : 0;
-          
-          heatMapData.push({
-            day,
-            hour,
-            advisorCount,
-            averageWaitTime
-          });
-        }
+      // Validate input
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password are required" });
       }
       
-      res.json(heatMapData);
-    } catch (error) {
-      console.error('Error generating heat map data:', error);
-      res.status(500).json({ error: 'Failed to generate heat map data' });
-    }
-  });
-  
-  // Call Center Routes
-  
-  // Get advisor's working hours
-  app.get("/api/advisors/:advisorId/working-hours", async (req: Request, res: Response) => {
-    try {
-      const advisorId = parseInt(req.params.advisorId);
-      if (!advisorId) {
-        return res.status(400).json({ error: "Invalid advisor ID" });
-      }
-      
-      const workingHours = await storage.getAdvisorWorkingHours(advisorId);
-      res.json(workingHours || []);
-    } catch (error: any) {
-      console.error("Error fetching advisor working hours:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-  
-  // Add or update working hours
-  app.post("/api/advisors/:advisorId/working-hours", async (req: Request, res: Response) => {
-    try {
-      const advisorId = parseInt(req.params.advisorId);
-      if (!advisorId) {
-        return res.status(400).json({ error: "Invalid advisor ID" });
-      }
-      
-      const { date, startTime, endTime, isAvailable } = req.body;
-      
-      if (!date) {
-        return res.status(400).json({ error: "Date is required" });
-      }
-      
-      const result = await storage.addAdvisorWorkingHours(advisorId, {
-        date,
-        startTime: startTime || "09:00",
-        endTime: endTime || "17:00",
-        isAvailable: isAvailable !== false
-      });
-      
-      res.json(result);
-    } catch (error: any) {
-      console.error("Error adding advisor working hours:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-  
-  // Update status message
-  app.post("/api/advisors/:advisorId/status-message", async (req: Request, res: Response) => {
-    try {
-      const advisorId = parseInt(req.params.advisorId);
-      if (!advisorId) {
-        return res.status(400).json({ error: "Invalid advisor ID" });
-      }
-      
-      const { message } = req.body;
-      
-      if (!message) {
-        return res.status(400).json({ error: "Status message is required" });
-      }
-      
-      const result = await storage.updateAdvisorStatusMessage(advisorId, message);
-      res.json(result);
-    } catch (error: any) {
-      console.error("Error updating advisor status message:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Start an audio or video call with billing
-  async function startCall(
-    initiatorId: number, 
-    targetId: number, 
-    sessionId: number, 
-    callType: 'audio' | 'video'
-  ) {
-    try {
-      // Get both user connections
-      const initiatorConn = userConnections.get(initiatorId);
-      const targetConn = userConnections.get(targetId);
-      
-      if (!initiatorConn || !targetConn) {
-        console.error(`Cannot start call: One or both users not connected`);
-        return;
-      }
-      
-      // Determine advisor and user
-      let advisorId: number;
-      let userId: number;
-      
-      if (initiatorConn.userType === 'advisor') {
-        advisorId = initiatorId;
-        userId = targetId;
-      } else if (targetConn.userType === 'advisor') {
-        advisorId = targetId;
-        userId = initiatorId;
-      } else {
-        console.error(`Cannot start call: No advisor in the call`);
-        return;
-      }
-      
-      // Get advisor data to get the rate
-      const advisor = await storage.getUser(advisorId);
-      if (!advisor) {
-        console.error(`Cannot start call: Advisor not found`);
-        return;
-      }
-      
-      // Get the appropriate rate based on call type
-      const ratePerMinute = callType === 'audio' 
-        ? advisor.audioRate || 100 // Default to $1/min if not set
-        : advisor.videoRate || 200; // Default to $2/min if not set
-      
-      // Get user data to check balance
-      const user = await storage.getUser(userId);
+      // Get user by username
+      const user = await storage.getUserByUsername(username);
       if (!user) {
-        console.error(`Cannot start call: User not found`);
-        return;
+        return res.status(401).json({ message: "Invalid credentials" });
       }
       
-      // Check if user has sufficient balance (at least 5 minutes worth)
-      const minimumBalance = ratePerMinute * 5;
-      if ((user.accountBalance || 0) < minimumBalance) {
-        // Send insufficient funds notification
-        const userConn = userConnections.get(userId);
-        if (userConn) {
-          userConn.socket.send(JSON.stringify({
-            type: 'call_error',
-            payload: {
-              sessionId,
-              error: 'insufficient_funds',
-              message: `You need at least $${(minimumBalance / 100).toFixed(2)} balance to start a ${callType} call with this advisor.`
-            }
-          }));
-        }
-        return;
+      // Verify password
+      const isPasswordValid = await verifyPassword(password, user.password);
+      if (!isPasswordValid) {
+        return res.status(401).json({ message: "Invalid credentials" });
       }
       
-      // Get the session and update it if it exists
-      const session = await storage.getSessionById(sessionId);
-      if (session) {
-        // Update session type if needed
-        if (session.sessionType !== callType) {
-          await storage.updateSessionStatus(sessionId, session.status, callType);
-        }
-        
-        // Start the session
-        await storage.startSession(sessionId);
-      } else {
-        console.error(`Cannot start call: Session ${sessionId} not found`);
-        // Create a new session
-        await storage.createSession({
-          userId,
-          advisorId,
-          startTime: new Date(),
-          endTime: new Date(Date.now() + 3600000), // Default 1 hour from now
-          sessionType: callType,
-          ratePerMinute
-        });
-      }
+      // Update last login
+      const updatedUser = await storage.updateUser(user.id, { lastLogin: new Date() });
       
-      // Store call information and start billing
-      const callInfo = {
-        sessionId,
-        startTime: new Date(),
-        type: callType,
-        targetUserId: targetId
-      };
+      // Remove the password from the response
+      const { password: _, ...userWithoutPassword } = updatedUser || user;
       
-      // Start billing at 1-minute intervals
-      const billingInterval = setInterval(async () => {
-        await processCallBilling(initiatorId, targetId, sessionId, callType, ratePerMinute);
-      }, 60000); // Bill every minute
-      
-      // Store call info with both users
-      initiatorConn.activeCalls.set(sessionId, {...callInfo, billingInterval});
-      
-      // Let both users know the call is being billed
-      initiatorConn.socket.send(JSON.stringify({
-        type: 'call_billing_started',
-        payload: {
-          sessionId,
-          callType,
-          ratePerMinute
-        }
-      }));
-      
-      targetConn.socket.send(JSON.stringify({
-        type: 'call_billing_started',
-        payload: {
-          sessionId,
-          callType,
-          ratePerMinute
-        }
-      }));
-      
-      console.log(`Started ${callType} call billing for session ${sessionId} between user ${userId} and advisor ${advisorId}`);
+      res.json(userWithoutPassword);
     } catch (error) {
-      console.error('Error starting call billing:', error);
+      console.error("Error logging in:", error);
+      res.status(500).json({ message: "Failed to login" });
     }
-  }
-  
-  // Process billing for ongoing call
-  async function processCallBilling(
-    initiatorId: number, 
-    targetId: number, 
-    sessionId: number, 
-    callType: 'audio' | 'video',
-    ratePerMinute: number
-  ) {
+  });
+
+  // Get current user
+  app.get("/api/me", async (req: Request, res: Response) => {
     try {
-      // Determine advisor and user
-      const initiatorConn = userConnections.get(initiatorId);
-      if (!initiatorConn) return;
+      // If you're using sessions, you'd get the user from req.session here
+      // For now, we'll just return a dummy user
+      const userId = 5; // Elena Lovechild (non-admin account)
+      const user = await storage.getUser(userId);
       
-      let advisorId: number;
-      let userId: number;
-      
-      if (initiatorConn.userType === 'advisor') {
-        advisorId = initiatorId;
-        userId = targetId;
-      } else {
-        advisorId = targetId;
-        userId = initiatorId;
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
       }
       
-      // Deduct from user's balance
-      const deductResult = await storage.deductUserBalance(userId, ratePerMinute);
+      // Remove the password from the response
+      const { password, ...userWithoutPassword } = user;
       
-      if (!deductResult) {
-        // User has insufficient funds, end the call
-        await endCall(initiatorId, targetId, sessionId);
-        
-        // Notify both parties
-        const senderConn = userConnections.get(initiatorId);
-        const receiverConn = userConnections.get(targetId);
-        
-        if (senderConn) {
-          senderConn.socket.send(JSON.stringify({
-            type: 'call_ended',
-            payload: {
-              sessionId,
-              reason: 'insufficient_funds'
-            }
-          }));
-        }
-        
-        if (receiverConn) {
-          receiverConn.socket.send(JSON.stringify({
-            type: 'call_ended',
-            payload: {
-              sessionId,
-              reason: 'insufficient_funds'
-            }
-          }));
-        }
-        
-        return;
-      }
-      
-      // Add to advisor's earnings
-      await storage.addAdvisorEarnings(advisorId, ratePerMinute);
-      
-      // Create a transaction record
-      await storage.createTransaction({
-        type: TransactionType.SESSION_PAYMENT,
-        userId,
-        advisorId,
-        sessionId,
-        amount: ratePerMinute,
-        description: `${callType.charAt(0).toUpperCase() + callType.slice(1)} call payment (1 minute)`,
-        paymentStatus: 'completed'
-      });
-      
-      // Update session billing amount
-      const session = await storage.getSessionById(sessionId);
-      if (session) {
-        const billedAmount = (session.billedAmount || 0) + ratePerMinute;
-        // Update the billed amount directly without ending the session
-        await storage.updateSessionBilledAmount(sessionId, billedAmount);
-      }
-      
-      // Notify both parties of the billing
-      const billingInitiatorConn = userConnections.get(initiatorId);
-      const billingTargetConn = userConnections.get(targetId);
-      
-      const billingUpdate = {
-        type: 'call_billing_update',
-        payload: {
-          sessionId,
-          ratePerMinute,
-          currentCharge: ratePerMinute,
-          totalBilled: session?.billedAmount || ratePerMinute
-        }
-      };
-      
-      if (billingInitiatorConn) {
-        billingInitiatorConn.socket.send(JSON.stringify(billingUpdate));
-      }
-      
-      if (billingTargetConn) {
-        billingTargetConn.socket.send(JSON.stringify(billingUpdate));
-      }
+      res.json(userWithoutPassword);
     } catch (error) {
-      console.error('Error processing call billing:', error);
+      console.error("Error fetching current user:", error);
+      res.status(500).json({ message: "Failed to fetch current user" });
     }
-  }
-  
-  // End an audio or video call and finalize billing
-  async function endCall(initiatorId: number, targetId: number, sessionId: number) {
-    try {
-      // Get both user connections
-      const initiatorConn = userConnections.get(initiatorId);
-      if (!initiatorConn || !initiatorConn.activeCalls.has(sessionId)) {
-        return;
+  });
+
+  // WebSocket connection handler
+  wss.on('connection', (socket: WebSocket) => {
+    console.log('New WebSocket connection established');
+    
+    socket.on('message', (message) => {
+      // Basic ping/pong for keeping connection alive
+      if (message.toString() === 'ping') {
+        socket.send('pong');
       }
-      
-      // Get call information
-      const callInfo = initiatorConn.activeCalls.get(sessionId)!;
-      
-      // Clear billing interval
-      if (callInfo.billingInterval) {
-        clearInterval(callInfo.billingInterval);
-      }
-      
-      // Remove call from tracking
-      initiatorConn.activeCalls.delete(sessionId);
-      
-      // Update session in database
-      await storage.endSession(sessionId);
-      
-      console.log(`Ended call for session ${sessionId}`);
-    } catch (error) {
-      console.error('Error ending call:', error);
-    }
-  }
-  
-  // Helper function to broadcast advisor status changes
-  function broadcastAdvisorStatus(advisorId: number, isOnline: boolean) {
-    // Count online advisors
-    storage.getAdvisors().then(advisors => {
-      const onlineAdvisorsCount = advisors.filter(advisor => advisor.online).length;
-      
-      userConnections.forEach((conn) => {
-        if (conn.socket.readyState === WebSocket.OPEN) {
-          conn.socket.send(JSON.stringify({
-            type: 'advisor_status_change',
-            payload: { 
-              advisorId, 
-              isOnline,
-              onlineAdvisorsCount 
-            }
-          }));
-        }
-      });
-    }).catch(error => {
-      console.error('Error counting online advisors:', error);
-      // Send update without count if there's an error
-      userConnections.forEach((conn) => {
-        if (conn.socket.readyState === WebSocket.OPEN) {
-          conn.socket.send(JSON.stringify({
-            type: 'advisor_status_change',
-            payload: { advisorId, isOnline }
-          }));
-        }
-      });
     });
-  }
-  
+    
+    socket.on('close', () => {
+      console.log('WebSocket connection closed');
+    });
+  });
+
   return httpServer;
 }

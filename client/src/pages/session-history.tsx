@@ -1,333 +1,278 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Session, User } from '@shared/schema';
 import { format } from 'date-fns';
-import { MessageCircle, PhoneCall, Video, Clock, CheckCircle, Star, XCircle } from 'lucide-react';
-import { 
-  Card, 
-  CardHeader,
-  CardTitle, 
-  CardDescription, 
-  CardContent,
-  CardFooter
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { ReviewDialog } from '@/components/reviews/ReviewDialog';
 import { useAuth } from '@/hooks/use-auth';
-import DashboardLayout from '../components/layout/DashboardLayout';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { Loader2, Calendar, Clock, Video, MessageSquare, Phone } from 'lucide-react';
+import SessionReviewButton from '@/components/reviews/SessionReviewButton';
+import { Session } from '@shared/schema';
 
-// Session item component to display a single session
-function SessionItem({ session, isAdvisor = false }: { session: Session, isAdvisor?: boolean }) {
-  const { toast } = useToast();
-  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+const statusColorMap = {
+  scheduled: 'bg-blue-50 text-blue-700 border-blue-200',
+  in_progress: 'bg-green-50 text-green-700 border-green-200',
+  completed: 'bg-purple-50 text-purple-700 border-purple-200',
+  canceled: 'bg-red-50 text-red-700 border-red-200',
+};
 
-  // Fetch the user or advisor profile data
-  const { data: otherParty, isLoading: loadingOtherParty } = useQuery<User>({
-    queryKey: [`/api/users/${isAdvisor ? session.userId : session.advisorId}`],
-    enabled: !!session,
-  });
+const iconMap = {
+  chat: <MessageSquare className="h-5 w-5" />,
+  audio: <Phone className="h-5 w-5" />,
+  video: <Video className="h-5 w-5" />,
+};
 
-  // Check if a review exists for this session
-  const { data: existingReview, isLoading: checkingReview } = useQuery({
-    queryKey: [`/api/reviews/session/${session.id}`],
-    enabled: !!session && !isAdvisor, // Only check for reviews if the user is not an advisor
-  });
+interface SessionCardProps {
+  session: Session & { advisor?: any };
+  onReviewSubmitted?: () => void;
+}
 
-  // Determine if this session has been reviewed already
-  const hasReview = existingReview && Array.isArray(existingReview) && existingReview.length > 0;
-
-  // Format session date and time
-  const sessionDate = session.startTime ? format(new Date(session.startTime), 'MMMM d, yyyy') : '';
-  const sessionTime = session.startTime ? format(new Date(session.startTime), 'h:mm a') : '';
-  const sessionDuration = session.endTime && session.startTime 
-    ? Math.round((new Date(session.endTime).getTime() - new Date(session.startTime).getTime()) / 60000) 
-    : 0;
-
-  // Helper function to get the session type icon
-  const getSessionTypeIcon = () => {
-    switch (session.sessionType) {
-      case 'chat':
-        return <MessageCircle className="h-4 w-4 mr-1" />;
-      case 'audio':
-        return <PhoneCall className="h-4 w-4 mr-1" />;
-      case 'video':
-        return <Video className="h-4 w-4 mr-1" />;
-      default:
-        return <MessageCircle className="h-4 w-4 mr-1" />;
-    }
-  };
-
-  // Helper function to get status badge
-  const getStatusBadge = () => {
-    switch (session.status) {
-      case 'scheduled':
-        return <Badge variant="outline" className="ml-2 bg-blue-50 text-blue-700 border-blue-200"><Clock className="h-3 w-3 mr-1" /> Scheduled</Badge>;
-      case 'active':
-        return <Badge variant="outline" className="ml-2 bg-green-50 text-green-700 border-green-200"><Clock className="h-3 w-3 mr-1" /> Active</Badge>;
-      case 'completed':
-        return <Badge variant="outline" className="ml-2 bg-green-50 text-green-700 border-green-200"><CheckCircle className="h-3 w-3 mr-1" /> Completed</Badge>;
-      case 'cancelled':
-        return <Badge variant="outline" className="ml-2 bg-red-50 text-red-700 border-red-200"><XCircle className="h-3 w-3 mr-1" /> Cancelled</Badge>;
-      default:
-        return null;
-    }
-  };
-
+const SessionCard: React.FC<SessionCardProps> = ({ session, onReviewSubmitted }) => {
+  const statusClass = statusColorMap[session.status as keyof typeof statusColorMap] || 'bg-gray-50 text-gray-700 border-gray-200';
+  const icon = iconMap[session.sessionType as keyof typeof iconMap] || <MessageSquare className="h-5 w-5" />;
+  
+  // Format date and time
+  const formattedDate = format(new Date(session.startTime), 'MMM d, yyyy');
+  const formattedStartTime = format(new Date(session.startTime), 'h:mm a');
+  const formattedEndTime = format(new Date(session.endTime), 'h:mm a');
+  
+  // Calculate session cost
+  const sessionCost = session.billedAmount ? 
+    (session.billedAmount / 100).toFixed(2) : 
+    ((Number(session.ratePerMinute) * 60) / 100).toFixed(2);
+  
   return (
-    <Card className="mb-4">
-      <CardHeader className="pb-2">
+    <Card className="mb-6 overflow-hidden">
+      <CardHeader className="pb-3">
         <div className="flex justify-between items-center">
-          <div className="flex items-center">
-            <Avatar className="h-8 w-8 mr-2">
-              <AvatarImage src={otherParty?.avatar} alt={otherParty?.name} />
-              <AvatarFallback>{otherParty?.name.charAt(0)}</AvatarFallback>
+          <Badge className={`${statusClass} font-medium capitalize`}>
+            {session.status}
+          </Badge>
+          <div className="flex items-center text-gray-500 space-x-1">
+            <Calendar className="h-4 w-4" />
+            <span className="text-sm">{formattedDate}</span>
+          </div>
+        </div>
+        <CardTitle className="flex items-center mt-2">
+          <div className="flex-shrink-0 mr-3">
+            <Avatar className="h-12 w-12">
+              <AvatarImage src={session.advisor?.avatar || ''} alt={session.advisor?.name || 'Advisor'} />
+              <AvatarFallback>{session.advisor?.name?.charAt(0) || 'A'}</AvatarFallback>
             </Avatar>
-            <div>
-              <CardTitle className="text-lg">
-                {loadingOtherParty ? <Skeleton className="h-4 w-24" /> : otherParty?.name}
-              </CardTitle>
-              <CardDescription>
-                {sessionDate} at {sessionTime}
-              </CardDescription>
-            </div>
           </div>
           <div>
-            {getStatusBadge()}
+            <h3 className="text-lg font-semibold">{session.advisor?.name || 'Unknown Advisor'}</h3>
+            <div className="flex items-center text-sm text-gray-500">
+              <div className="flex items-center mr-3">
+                {icon}
+                <span className="ml-1 capitalize">{session.sessionType} Session</span>
+              </div>
+              <div className="flex items-center">
+                <Clock className="h-4 w-4 mr-1" />
+                <span>{formattedStartTime} - {formattedEndTime}</span>
+              </div>
+            </div>
           </div>
-        </div>
+        </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          <div className="flex items-center">
-            <span className="font-medium mr-2">Type:</span> 
-            <div className="flex items-center">
-              {getSessionTypeIcon()} 
-              <span className="capitalize">{session.sessionType}</span>
-            </div>
-          </div>
-          <div>
-            <span className="font-medium mr-2">Duration:</span> {sessionDuration} minutes
-          </div>
-          <div>
-            <span className="font-medium mr-2">Cost:</span> ${session.billedAmount ? (session.billedAmount / 100).toFixed(2) : '0.00'}
-          </div>
-        </div>
+      
+      <CardContent className="pb-3">
         {session.notes && (
-          <div className="mt-4">
-            <span className="font-medium">Session Notes:</span>
-            <p className="text-sm mt-1">{session.notes}</p>
+          <div className="mb-3">
+            <h4 className="text-sm font-medium text-gray-500 mb-1">Session Notes</h4>
+            <p className="text-gray-700">{session.notes}</p>
           </div>
         )}
+        
+        <div className="grid grid-cols-2 gap-4 mt-2">
+          <div>
+            <h4 className="text-sm font-medium text-gray-500">Rate</h4>
+            <p className="text-gray-900">${(session.ratePerMinute / 100).toFixed(2)}/min</p>
+          </div>
+          {session.actualDuration && (
+            <div>
+              <h4 className="text-sm font-medium text-gray-500">Duration</h4>
+              <p className="text-gray-900">{session.actualDuration} minutes</p>
+            </div>
+          )}
+          {session.billedAmount && (
+            <div>
+              <h4 className="text-sm font-medium text-gray-500">Total</h4>
+              <p className="text-gray-900">${(session.billedAmount / 100).toFixed(2)}</p>
+            </div>
+          )}
+        </div>
       </CardContent>
-      {!isAdvisor && session.status === 'completed' && (
-        <CardFooter className="pt-0 flex justify-end">
-          {!hasReview ? (
-            <ReviewDialog
-              userId={session.userId}
-              advisorId={session.advisorId}
-              sessionId={session.id}
-              trigger={
-                <Button 
-                  variant="outline" 
-                  className="flex items-center"
-                >
-                  <Star className="h-4 w-4 mr-1" /> Leave Review
-                </Button>
-              }
-            />
-          ) : (
-            <Button 
-              variant="outline" 
-              className="flex items-center text-green-600"
-              onClick={() => {
-                setIsReviewDialogOpen(true);
-              }}
-            >
-              <Star className="h-4 w-4 mr-1 fill-yellow-500 text-yellow-500" /> View Your Review
+      
+      <Separator />
+      
+      <CardFooter className="pt-3 flex justify-between">
+        <div className="flex space-x-2">
+          {session.status === 'scheduled' && (
+            <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50">
+              Cancel Session
             </Button>
           )}
-        </CardFooter>
-      )}
-      {isReviewDialogOpen && hasReview && (
-        <ReviewDialog
-          userId={session.userId}
-          advisorId={session.advisorId}
-          sessionId={session.id}
-          trigger={null}
+        </div>
+        
+        <SessionReviewButton 
+          session={session} 
+          onReviewSubmitted={onReviewSubmitted}
         />
-      )}
+      </CardFooter>
     </Card>
   );
-}
+};
 
-export default function SessionHistory() {
+const SessionHistoryPage: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('completed');
-
-  // Fetch user's sessions
-  const { data: sessions = [], isLoading: loadingSessions } = useQuery<Session[]>({
-    queryKey: [`/api/users/${user?.id}/sessions`],
-    enabled: !!user?.id,
-  });
-
-  // Filter sessions based on status
-  const completedSessions = sessions.filter(session => session.status === 'completed');
-  const upcomingSessions = sessions.filter(session => session.status === 'scheduled');
-  const activeSessions = sessions.filter(session => session.status === 'active');
-  const cancelledSessions = sessions.filter(session => session.status === 'cancelled');
-
-  // Sort sessions by date (newest first)
-  const sortByDate = (a: Session, b: Session) => {
-    const dateA = a.startTime ? new Date(a.startTime).getTime() : 0;
-    const dateB = b.startTime ? new Date(b.startTime).getTime() : 0;
-    return dateB - dateA;
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  
+  // Force refresh when a review is submitted
+  const handleReviewSubmitted = () => {
+    setRefreshTrigger(prev => prev + 1);
   };
-
-  return (
-    <DashboardLayout>
-      <div className="container mx-auto py-6 max-w-5xl">
-        <h1 className="text-3xl font-bold mb-6">Session History</h1>
-        
-        <Tabs defaultValue="completed" onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid grid-cols-4 mb-6">
-            <TabsTrigger value="completed" className="text-sm">
-              Completed ({completedSessions.length})
-            </TabsTrigger>
-            <TabsTrigger value="upcoming" className="text-sm">
-              Upcoming ({upcomingSessions.length})
-            </TabsTrigger>
-            <TabsTrigger value="active" className="text-sm">
-              Active ({activeSessions.length})
-            </TabsTrigger>
-            <TabsTrigger value="cancelled" className="text-sm">
-              Cancelled ({cancelledSessions.length})
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="completed">
-            {loadingSessions ? (
-              Array(3).fill(null).map((_, i) => (
-                <Card key={i} className="mb-4">
-                  <CardHeader>
-                    <Skeleton className="h-6 w-48 mb-2" />
-                    <Skeleton className="h-4 w-32" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-full" />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            ) : completedSessions.length > 0 ? (
-              completedSessions.sort(sortByDate).map(session => (
-                <SessionItem key={session.id} session={session} />
-              ))
-            ) : (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <CheckCircle className="h-16 w-16 text-muted-foreground mb-4" />
-                  <h3 className="text-xl font-medium mb-2">No completed sessions yet</h3>
-                  <p className="text-muted-foreground text-center max-w-md">
-                    Once you've had sessions with advisors, they'll appear here, and you'll be able to leave reviews.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="upcoming">
-            {loadingSessions ? (
-              <Card>
-                <CardHeader>
-                  <Skeleton className="h-6 w-48 mb-2" />
-                  <Skeleton className="h-4 w-32" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-24 w-full" />
-                </CardContent>
-              </Card>
-            ) : upcomingSessions.length > 0 ? (
-              upcomingSessions.sort(sortByDate).map(session => (
-                <SessionItem key={session.id} session={session} />
-              ))
-            ) : (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <Clock className="h-16 w-16 text-muted-foreground mb-4" />
-                  <h3 className="text-xl font-medium mb-2">No upcoming sessions</h3>
-                  <p className="text-muted-foreground text-center max-w-md">
-                    You don't have any scheduled sessions at the moment. Book a session with an advisor to get started.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="active">
-            {loadingSessions ? (
-              <Card>
-                <CardHeader>
-                  <Skeleton className="h-6 w-48 mb-2" />
-                  <Skeleton className="h-4 w-32" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-24 w-full" />
-                </CardContent>
-              </Card>
-            ) : activeSessions.length > 0 ? (
-              activeSessions.sort(sortByDate).map(session => (
-                <SessionItem key={session.id} session={session} />
-              ))
-            ) : (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <Video className="h-16 w-16 text-muted-foreground mb-4" />
-                  <h3 className="text-xl font-medium mb-2">No active sessions</h3>
-                  <p className="text-muted-foreground text-center max-w-md">
-                    You don't have any active sessions at the moment. 
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="cancelled">
-            {loadingSessions ? (
-              <Card>
-                <CardHeader>
-                  <Skeleton className="h-6 w-48 mb-2" />
-                  <Skeleton className="h-4 w-32" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-24 w-full" />
-                </CardContent>
-              </Card>
-            ) : cancelledSessions.length > 0 ? (
-              cancelledSessions.sort(sortByDate).map(session => (
-                <SessionItem key={session.id} session={session} />
-              ))
-            ) : (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <XCircle className="h-16 w-16 text-muted-foreground mb-4" />
-                  <h3 className="text-xl font-medium mb-2">No cancelled sessions</h3>
-                  <p className="text-muted-foreground text-center max-w-md">
-                    You don't have any cancelled sessions.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
+  
+  // Fetch user sessions
+  const { data: sessions, isLoading, error } = useQuery({
+    queryKey: ['/api/users', user?.id, 'sessions', refreshTrigger],
+    queryFn: async () => {
+      if (!user) return [];
+      const res = await fetch(`/api/users/${user.id}/sessions`);
+      if (!res.ok) throw new Error('Failed to fetch sessions');
+      return res.json();
+    },
+    enabled: !!user,
+  });
+  
+  // Filter sessions by status
+  const upcomingSessions = sessions?.filter((session: Session) => 
+    session.status === 'scheduled'
+  ) || [];
+  
+  const pastSessions = sessions?.filter((session: Session) => 
+    session.status === 'completed' || session.status === 'canceled'
+  ) || [];
+  
+  const ongoingSessions = sessions?.filter((session: Session) => 
+    session.status === 'in_progress'
+  ) || [];
+  
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-[70vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
-    </DashboardLayout>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="container max-w-4xl mx-auto px-4 py-10">
+        <div className="bg-red-50 p-6 rounded-lg border border-red-200 text-center">
+          <h2 className="text-xl font-semibold text-red-700 mb-2">Error Loading Sessions</h2>
+          <p className="text-red-600">{error.message}</p>
+          <Button 
+            onClick={() => setRefreshTrigger(prev => prev + 1)} 
+            className="mt-4"
+            variant="outline"
+          >
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="container max-w-4xl mx-auto px-4 py-10">
+      <h1 className="text-3xl font-bold mb-8">Session History</h1>
+      
+      <Tabs defaultValue="upcoming" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 mb-8">
+          <TabsTrigger value="upcoming">
+            Upcoming
+            {upcomingSessions.length > 0 && (
+              <Badge className="ml-2 bg-blue-500">{upcomingSessions.length}</Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="ongoing">
+            Ongoing
+            {ongoingSessions.length > 0 && (
+              <Badge className="ml-2 bg-green-500">{ongoingSessions.length}</Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="past">
+            Past Sessions
+            {pastSessions.length > 0 && (
+              <Badge className="ml-2 bg-purple-500">{pastSessions.length}</Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="upcoming">
+          {upcomingSessions.length === 0 ? (
+            <div className="text-center py-16 bg-gray-50 rounded-lg border border-gray-200">
+              <h3 className="text-lg font-medium text-gray-500 mb-2">No Upcoming Sessions</h3>
+              <p className="text-gray-500 mb-6">You don't have any upcoming sessions scheduled.</p>
+              <Button>Book a Session</Button>
+            </div>
+          ) : (
+            <div>
+              {upcomingSessions.map((session: Session) => (
+                <SessionCard 
+                  key={session.id} 
+                  session={session} 
+                  onReviewSubmitted={handleReviewSubmitted}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="ongoing">
+          {ongoingSessions.length === 0 ? (
+            <div className="text-center py-16 bg-gray-50 rounded-lg border border-gray-200">
+              <h3 className="text-lg font-medium text-gray-500 mb-2">No Ongoing Sessions</h3>
+              <p className="text-gray-500">You don't have any sessions in progress.</p>
+            </div>
+          ) : (
+            <div>
+              {ongoingSessions.map((session: Session) => (
+                <SessionCard 
+                  key={session.id} 
+                  session={session}
+                  onReviewSubmitted={handleReviewSubmitted} 
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="past">
+          {pastSessions.length === 0 ? (
+            <div className="text-center py-16 bg-gray-50 rounded-lg border border-gray-200">
+              <h3 className="text-lg font-medium text-gray-500 mb-2">No Past Sessions</h3>
+              <p className="text-gray-500">You don't have any completed or canceled sessions.</p>
+            </div>
+          ) : (
+            <div>
+              {pastSessions.map((session: Session) => (
+                <SessionCard 
+                  key={session.id} 
+                  session={session}
+                  onReviewSubmitted={handleReviewSubmitted} 
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
   );
-}
+};
+
+export default SessionHistoryPage;
