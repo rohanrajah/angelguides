@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Simple Voice Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #4b0082, #9370db);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .container {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      width: 90%;
+      max-width: 500px;
+    }
+    h1 {
+      text-align: center;
+      margin-top: 0;
+    }
+    textarea {
+      width: 100%;
+      height: 100px;
+      margin-bottom: 20px;
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #8a2be2;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      font-size: 16px;
+    }
+    button {
+      background: #8a2be2;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-right: 10px;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #9370db;
+    }
+    #status {
+      margin-top: 20px;
+      padding: 10px;
+      border-radius: 5px;
+      background: rgba(0, 0, 0, 0.2);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Angela Voice Test</h1>
+    <textarea id="textToSpeak">Hello, I'm Angela, your spiritual guide. How can I help you with your journey today?</textarea>
+    <div>
+      <button id="speakBtn">Speak</button>
+      <button id="stopBtn">Stop</button>
+    </div>
+    <div id="status">Ready</div>
+  </div>
+
+  <script>
+    // Get references to DOM elements
+    const textToSpeak = document.getElementById('textToSpeak');
+    const speakBtn = document.getElementById('speakBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const status = document.getElementById('status');
+
+    // Check if speech synthesis is available
+    if ('speechSynthesis' in window) {
+      status.textContent = "Speech synthesis is available";
+    } else {
+      status.textContent = "Speech synthesis is not available in this browser";
+      speakBtn.disabled = true;
+      stopBtn.disabled = true;
+    }
+
+    // Function to speak text
+    function speak() {
+      // Stop any previous speech
+      window.speechSynthesis.cancel();
+      
+      // Get text to speak
+      const text = textToSpeak.value;
+      if (!text) {
+        status.textContent = "Please enter some text to speak";
+        return;
+      }
+      
+      // Create new speech synthesis utterance
+      const utterance = new SpeechSynthesisUtterance(text);
+      
+      // Try to find an angelic female voice
+      const voices = window.speechSynthesis.getVoices();
+      
+      // Log available voices
+      console.log("Available voices:", voices.map(v => `${v.name} (${v.lang})`).join(', '));
+      
+      // Try to find an English female voice
+      const englishFemaleVoice = voices.find(v => 
+        (v.name.toLowerCase().includes('samantha') || 
+         v.name.toLowerCase().includes('victoria') ||
+         v.name.toLowerCase().includes('karen') ||
+         v.name.toLowerCase().includes('female')) && 
+        v.lang.startsWith('en')
+      );
+      
+      if (englishFemaleVoice) {
+        utterance.voice = englishFemaleVoice;
+        console.log(`Using voice: ${englishFemaleVoice.name}`);
+      }
+      
+      // Set pitch slightly higher for angelic sound
+      utterance.pitch = 1.2;
+      utterance.rate = 1.0;
+      
+      // Set event handlers
+      utterance.onstart = () => {
+        status.textContent = "Speaking...";
+      };
+      
+      utterance.onend = () => {
+        status.textContent = "Finished speaking";
+      };
+      
+      utterance.onerror = (event) => {
+        status.textContent = `Error: ${event.error}`;
+      };
+      
+      // Start speaking
+      window.speechSynthesis.speak(utterance);
+    }
+    
+    // Function to stop speaking
+    function stop() {
+      window.speechSynthesis.cancel();
+      status.textContent = "Speech stopped";
+    }
+    
+    // Event listeners
+    speakBtn.addEventListener('click', speak);
+    stopBtn.addEventListener('click', stop);
+    
+    // Force voices to load 
+    window.speechSynthesis.getVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = function() {
+        const voices = window.speechSynthesis.getVoices();
+        console.log(`Loaded ${voices.length} voices`);
+      };
+    }
+  </script>
+</body>
+</html>
