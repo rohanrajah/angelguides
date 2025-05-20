@@ -1,388 +1,128 @@
-import { useState } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Review, User } from '@shared/schema';
-import { Star, Filter, ArrowUpDown, Clock, CheckCircle, XCircle } from 'lucide-react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ReviewResponse } from '@/components/reviews/ReviewResponse';
-import { RatingSummary } from '@/components/reviews/RatingSummary';
-import { useAuth } from '@/hooks/use-auth';
-import DashboardLayout from '../components/layout/DashboardLayout';
-import { formatDistanceToNow } from 'date-fns';
-import { Badge } from '@/components/ui/badge';
+import { useParams, useLocation } from 'wouter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { format } from 'date-fns';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Loader2, ChevronLeft, Star } from 'lucide-react';
+import { useAuth } from '@/hooks/use-auth';
+import ReviewsList from '@/components/reviews/ReviewsList';
+import RatingSummary from '@/components/reviews/RatingSummary';
+import { User } from '@shared/schema';
 
-type SortField = 'date' | 'rating';
-type SortDirection = 'asc' | 'desc';
-type FilterRating = 'all' | '1' | '2' | '3' | '4' | '5' | 'responded' | 'unresponded';
-
-interface ReviewWithUser extends Review {
-  user?: User;
-}
-
-export default function AdvisorReviews() {
+const AdvisorReviewsPage: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const advisorId = parseInt(id || '0', 10);
   const { user } = useAuth();
-  const [sortField, setSortField] = useState<SortField>('date');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [filterRating, setFilterRating] = useState<FilterRating>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-
-  // For debugging, log the userType when component loads
-  useEffect(() => {
-    console.log('Current userType:', user?.userType);
-  }, [user?.userType]);
-
-  // Fetch advisor's reviews
-  const { data: allReviews = [], isLoading } = useQuery<ReviewWithUser[]>({
-    queryKey: ['/api/advisors', user?.id, 'reviews'],
-    enabled: !!user?.id && (user?.userType === 'ADVISOR' || user?.userType === 'advisor'),
-  });
-
-  // Calculate rating statistics
-  const totalReviews = allReviews.length;
-  const avgRating = totalReviews > 0
-    ? allReviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews
-    : 0;
-  const respondedReviews = allReviews.filter(review => !!review.response).length;
+  const [, setLocation] = useLocation();
   
-  // Apply filters
-  const filteredReviews = allReviews.filter(review => {
-    // Filter by rating
-    if (filterRating === 'responded' && !review.response) return false;
-    if (filterRating === 'unresponded' && review.response) return false;
-    if (filterRating !== 'all' && filterRating !== 'responded' && filterRating !== 'unresponded') {
-      if (review.rating !== parseInt(filterRating)) return false;
-    }
-
-    // Filter by search query
-    if (searchQuery && !review.content?.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
-    }
-
-    return true;
+  const isOwnProfile = user?.id === advisorId;
+  
+  // Fetch advisor data
+  const { data: advisor, isLoading: isLoadingAdvisor } = useQuery<User>({
+    queryKey: ['/api/advisors', advisorId],
+    queryFn: async () => {
+      const res = await fetch(`/api/advisors/${advisorId}`);
+      if (!res.ok) throw new Error('Failed to fetch advisor data');
+      return res.json();
+    },
+    enabled: !!advisorId,
   });
 
-  // Sort the filtered reviews
-  const sortedReviews = [...filteredReviews].sort((a, b) => {
-    if (sortField === 'date') {
-      const dateA = new Date(a.createdAt).getTime();
-      const dateB = new Date(b.createdAt).getTime();
-      return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
-    } else {
-      return sortDirection === 'asc' ? a.rating - b.rating : b.rating - a.rating;
-    }
-  });
+  if (isLoadingAdvisor) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen py-10">
+        <Loader2 className="h-10 w-10 animate-spin text-indigo-600 mb-4" />
+        <p className="text-gray-600">Loading advisor information...</p>
+      </div>
+    );
+  }
 
-  // Group reviews into responded and pending
-  const respondedReviewsList = sortedReviews.filter(review => !!review.response);
-  const pendingReviewsList = sortedReviews.filter(review => !review.response);
-
-  // Handle sorting changes
-  const toggleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('desc');
-    }
-  };
+  if (!advisor) {
+    return (
+      <div className="container max-w-6xl mx-auto px-4 py-10">
+        <div className="text-center p-10 bg-red-50 rounded-lg border border-red-200">
+          <h2 className="text-2xl font-bold text-red-700 mb-4">Advisor Not Found</h2>
+          <p className="text-red-600 mb-6">The advisor you're looking for doesn't exist or has been removed.</p>
+          <Button onClick={() => setLocation('/advisors')}>
+            Browse Advisors
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <DashboardLayout>
-      <div className="container mx-auto py-6 max-w-5xl">
-        <h1 className="text-3xl font-bold mb-2">My Reviews</h1>
-        <p className="text-muted-foreground mb-6">Manage and respond to your client reviews</p>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Overall Rating</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-baseline">
-                <span className="text-3xl font-bold mr-2">
-                  {avgRating ? avgRating.toFixed(1) : '0.0'}
-                </span>
-                <div className="flex">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <Star
-                      key={i}
-                      className={`h-4 w-4 ${
-                        i <= Math.round(avgRating) 
-                          ? 'text-yellow-500 fill-yellow-500' 
-                          : 'text-gray-300'
-                      }`}
-                    />
-                  ))}
-                </div>
-                <span className="text-sm text-muted-foreground ml-2">
-                  ({totalReviews} {totalReviews === 1 ? 'review' : 'reviews'})
+    <div className="container max-w-6xl mx-auto px-4 py-10">
+      {/* Back button and header */}
+      <div className="mb-8">
+        <Button
+          variant="ghost"
+          className="mb-4 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 pl-0"
+          onClick={() => setLocation(`/advisors/${advisorId}`)}
+        >
+          <ChevronLeft className="h-5 w-5 mr-1" />
+          Back to Advisor Profile
+        </Button>
+        
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              {isOwnProfile ? "My Reviews" : `${advisor.name}'s Reviews`}
+            </h1>
+            <div className="flex items-center text-gray-600">
+              <div className="flex items-center">
+                <Star className="h-5 w-5 text-yellow-400 fill-yellow-400 mr-1" />
+                <span className="font-medium mr-1">
+                  {advisor.rating ? advisor.rating.toFixed(1) : 'No ratings yet'}
                 </span>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Response Rate</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-baseline">
-                <span className="text-3xl font-bold mr-2">
-                  {totalReviews > 0 ? Math.round((respondedReviews / totalReviews) * 100) : 0}%
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  ({respondedReviews} of {totalReviews} responded)
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Pending Responses</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-baseline">
-                <span className="text-3xl font-bold mr-2">
-                  {totalReviews - respondedReviews}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  {totalReviews - respondedReviews === 1 ? 'review' : 'reviews'} need your response
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Rating summary */}
-        {user?.id && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Rating Distribution</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <RatingSummary advisorId={user.id} />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Filters and search */}
-        <div className="flex flex-col md:flex-row gap-3 mb-6">
-          <div className="flex-1">
-            <Input 
-              placeholder="Search reviews..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full"
-            />
-          </div>
-          <div className="flex flex-row gap-2">
-            <Select
-              value={filterRating}
-              onValueChange={(value) => setFilterRating(value as FilterRating)}
-            >
-              <SelectTrigger className="w-[180px]">
-                <div className="flex items-center">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <span>Filter</span>
-                </div>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Reviews</SelectItem>
-                <SelectItem value="unresponded">Needs Response</SelectItem>
-                <SelectItem value="responded">Responded</SelectItem>
-                <SelectItem value="5">5 Stars</SelectItem>
-                <SelectItem value="4">4 Stars</SelectItem>
-                <SelectItem value="3">3 Stars</SelectItem>
-                <SelectItem value="2">2 Stars</SelectItem>
-                <SelectItem value="1">1 Star</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Button 
-              variant="outline" 
-              onClick={() => toggleSort('date')}
-              className={sortField === 'date' ? 'border-primary' : ''}
-            >
-              <Clock className="h-4 w-4 mr-1" />
-              Date
-              {sortField === 'date' && (
-                <ArrowUpDown className={`h-3 w-3 ml-1 ${sortDirection === 'asc' ? 'rotate-180' : ''}`} />
-              )}
-            </Button>
-
-            <Button 
-              variant="outline" 
-              onClick={() => toggleSort('rating')}
-              className={sortField === 'rating' ? 'border-primary' : ''}
-            >
-              <Star className="h-4 w-4 mr-1" />
-              Rating
-              {sortField === 'rating' && (
-                <ArrowUpDown className={`h-3 w-3 ml-1 ${sortDirection === 'asc' ? 'rotate-180' : ''}`} />
-              )}
-            </Button>
+              {advisor.reviewCount ? (
+                <span className="text-gray-500">({advisor.reviewCount} reviews)</span>
+              ) : null}
+            </div>
           </div>
         </div>
-
-        <Tabs defaultValue="pending" className="w-full">
-          <TabsList className="grid grid-cols-2 mb-6">
-            <TabsTrigger value="pending" className="text-sm">
-              Needs Response ({pendingReviewsList.length})
-            </TabsTrigger>
-            <TabsTrigger value="responded" className="text-sm">
-              Responded ({respondedReviewsList.length})
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="pending">
-            {isLoading ? (
-              Array(3).fill(null).map((_, i) => (
-                <Card key={i} className="mb-4">
-                  <CardHeader>
-                    <Skeleton className="h-6 w-48 mb-2" />
-                    <Skeleton className="h-4 w-32" />
-                  </CardHeader>
-                  <CardContent>
-                    <Skeleton className="h-24 w-full" />
-                  </CardContent>
-                </Card>
-              ))
-            ) : pendingReviewsList.length > 0 ? (
-              pendingReviewsList.map(review => (
-                <Card key={review.id} className="mb-4">
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center">
-                        <Avatar className="h-8 w-8 mr-2">
-                          <AvatarImage src={review.user?.avatar} alt={review.user?.name} />
-                          <AvatarFallback>{review.user?.name?.charAt(0) || 'U'}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <CardTitle className="text-base">{review.user?.name || 'Anonymous User'}</CardTitle>
-                          <CardDescription>
-                            {formatDistanceToNow(new Date(review.createdAt), { addSuffix: true })}
-                          </CardDescription>
-                        </div>
-                      </div>
-                      <div className="flex items-center">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`h-4 w-4 ${
-                              i < review.rating ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'
-                            }`}
-                          />
-                        ))}
-                        <Badge variant="outline" className="ml-2">Needs Response</Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm mb-4">{review.content}</p>
-                    <ReviewResponse 
-                      review={review} 
-                      advisorId={user?.id || 0}
-                    />
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <CheckCircle className="h-16 w-16 text-green-500 mb-4" />
-                  <h3 className="text-xl font-medium mb-2">All caught up!</h3>
-                  <p className="text-muted-foreground text-center max-w-md">
-                    You've responded to all your reviews. Great job maintaining communication with your clients!
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="responded">
-            {isLoading ? (
-              <Card>
-                <CardHeader>
-                  <Skeleton className="h-6 w-48 mb-2" />
-                  <Skeleton className="h-4 w-32" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-24 w-full" />
-                </CardContent>
-              </Card>
-            ) : respondedReviewsList.length > 0 ? (
-              respondedReviewsList.map(review => (
-                <Card key={review.id} className="mb-4">
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center">
-                        <Avatar className="h-8 w-8 mr-2">
-                          <AvatarImage src={review.user?.avatar} alt={review.user?.name} />
-                          <AvatarFallback>{review.user?.name?.charAt(0) || 'U'}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <CardTitle className="text-base">{review.user?.name || 'Anonymous User'}</CardTitle>
-                          <CardDescription>
-                            {formatDistanceToNow(new Date(review.createdAt), { addSuffix: true })}
-                          </CardDescription>
-                        </div>
-                      </div>
-                      <div className="flex items-center">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`h-4 w-4 ${
-                              i < review.rating ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'
-                            }`}
-                          />
-                        ))}
-                        <Badge variant="outline" className="ml-2 bg-green-50 text-green-700 border-green-200">Responded</Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm mb-4">{review.content}</p>
-                    {review.response && (
-                      <div className="border-t pt-4 mt-4">
-                        <h4 className="text-sm font-medium mb-2">Your Response</h4>
-                        <p className="text-sm">{review.response}</p>
-                        {review.responseDate && (
-                          <p className="text-xs text-muted-foreground mt-2">
-                            Responded {formatDistanceToNow(new Date(review.responseDate), { addSuffix: true })}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <XCircle className="h-16 w-16 text-muted-foreground mb-4" />
-                  <h3 className="text-xl font-medium mb-2">No responded reviews</h3>
-                  <p className="text-muted-foreground text-center max-w-md">
-                    You haven't responded to any reviews yet. Reviews with your responses will appear here.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
       </div>
-    </DashboardLayout>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Rating Summary */}
+        <div className="lg:col-span-1">
+          <RatingSummary advisorId={advisorId} />
+        </div>
+        
+        {/* Reviews List */}
+        <div className="lg:col-span-2">
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <Tabs defaultValue="all" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="all">All Reviews</TabsTrigger>
+                {isOwnProfile && <TabsTrigger value="pending">Pending Responses</TabsTrigger>}
+              </TabsList>
+              
+              <TabsContent value="all">
+                <ReviewsList 
+                  advisorId={advisorId} 
+                  isAdvisor={isOwnProfile} 
+                  showResponseForm={isOwnProfile}
+                />
+              </TabsContent>
+              
+              {isOwnProfile && (
+                <TabsContent value="pending">
+                  {/* We could add a filter here for reviews without responses if needed */}
+                  <ReviewsList 
+                    advisorId={advisorId} 
+                    isAdvisor={true} 
+                    showResponseForm={true}
+                  />
+                </TabsContent>
+              )}
+            </Tabs>
+          </div>
+        </div>
+      </div>
+    </div>
   );
-}
+};
+
+export default AdvisorReviewsPage;

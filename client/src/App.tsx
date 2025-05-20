@@ -105,7 +105,7 @@ function Router() {
       <Route path="/advisor-statistics" component={AdvisorStatistics} />
       <Route path="/advisor-services" component={AdvisorServices} />
       <Route path="/advisor-settings" component={AdvisorSettings} />
-      <Route path="/advisor-reviews" component={AdvisorReviews} />
+      <Route path="/advisor-reviews/:id" component={AdvisorReviews} />
       
       {/* Admin Routes */}
       <AdminRoute path="/admin/users" component={Dashboard} />
