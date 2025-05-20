@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Basic Voice Test</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: linear-gradient(135deg, #4b0082, #9370db);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      text-align: center;
+    }
+    .container {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 30px;
+      border-radius: 10px;
+      width: 80%;
+      max-width: 500px;
+    }
+    button {
+      background: #8a2be2;
+      color: white;
+      border: none;
+      padding: 15px 25px;
+      margin: 10px;
+      border-radius: 5px;
+      font-size: 18px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #9370db;
+    }
+    .status {
+      margin-top: 20px;
+      padding: 10px;
+      min-height: 20px;
+    }
+    textarea {
+      width: 100%;
+      height: 100px;
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid #ccc;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Angela Voice Test</h1>
+    
+    <textarea id="message">Hello, I'm Angela, your spiritual guide. How can I help you today?</textarea>
+    
+    <div>
+      <button id="speakButton">Speak</button>
+      <button id="stopButton">Stop</button>
+    </div>
+    
+    <div class="status" id="status">Ready to speak</div>
+    
+    <p id="browserInfo"></p>
+  </div>
+  
+  <script>
+    // Check browser capabilities
+    const browserInfo = document.getElementById('browserInfo');
+    const status = document.getElementById('status');
+    const textarea = document.getElementById('message');
+    
+    if ('speechSynthesis' in window) {
+      browserInfo.textContent = 'Your browser supports speech synthesis!';
+    } else {
+      browserInfo.textContent = 'Sorry, your browser does not support speech synthesis.';
+      document.getElementById('speakButton').disabled = true;
+    }
+    
+    // Simple function to speak text
+    function speak() {
+      // Stop any current speech
+      window.speechSynthesis.cancel();
+      
+      // Get the text to speak
+      const text = textarea.value;
+      
+      // Create a new utterance
+      const utterance = new SpeechSynthesisUtterance(text);
+      
+      // Set up event handlers
+      utterance.onstart = function() {
+        status.textContent = 'Speaking...';
+      };
+      
+      utterance.onend = function() {
+        status.textContent = 'Finished speaking';
+      };
+      
+      utterance.onerror = function(event) {
+        status.textContent = 'Error occurred: ' + event.error;
+        console.error('Speech error:', event);
+      };
+      
+      // Speak!
+      try {
+        window.speechSynthesis.speak(utterance);
+        console.log('Started speaking');
+      } catch (e) {
+        status.textContent = 'Error: ' + e.message;
+        console.error('Exception:', e);
+      }
+    }
+    
+    // Stop function
+    function stop() {
+      window.speechSynthesis.cancel();
+      status.textContent = 'Speech stopped';
+    }
+    
+    // Event listeners
+    document.getElementById('speakButton').addEventListener('click', speak);
+    document.getElementById('stopButton').addEventListener('click', stop);
+    
+    // Get available voices (for debugging)
+    setTimeout(function() {
+      const voices = window.speechSynthesis.getVoices();
+      console.log('Available voices:', voices.map(v => v.name).join(', '));
+    }, 1000);
+  </script>
+</body>
+</html>
