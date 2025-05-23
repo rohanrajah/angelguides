@@ -12,6 +12,7 @@ import {
   TransactionType,
   UserType
 } from "@shared/schema";
+import { startAdvisorMatchingFlow, getNextMatchingQuestion, generateAdvisorRecommendations } from "./openai";
 import Stripe from "stripe";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -281,6 +282,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching current user:", error);
       res.status(500).json({ message: "Failed to fetch current user" });
+    }
+  });
+  
+  // Angela AI advisor matching endpoints
+  
+  // Start the advisor matching flow
+  app.get("/api/angela/:userId/start-matching", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      // Check if user exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Get first question in the matching flow
+      const matchingQuestion = await startAdvisorMatchingFlow();
+      
+      res.json(matchingQuestion);
+    } catch (error) {
+      console.error("Error starting advisor matching flow:", error);
+      
+      // Return a fallback question if there's an error
+      const fallbackQuestion = {
+        message: "What type of spiritual guidance are you seeking today?",
+        questionNumber: 1,
+        totalQuestions: 5,
+        isMatchingQuestion: true
+      };
+      
+      res.json(fallbackQuestion);
+    }
+  });
+  
+  // Continue the advisor matching flow
+  app.post("/api/angela/:userId/matching", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { message, conversationHistory } = req.body;
+      
+      if (!message || !conversationHistory) {
+        return res.status(400).json({ message: "Message and conversation history are required" });
+      }
+      
+      // Check if user exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Check if this is the final question
+      const currentQuestionNumber = conversationHistory.filter(msg => 
+        msg.role === "assistant" && msg.content.includes("question")
+      ).length;
+      
+      if (currentQuestionNumber >= 5) {
+        // Generate advisor recommendations
+        const advisors = await storage.getAdvisors();
+        const specialties = await storage.getAllSpecialties();
+        
+        const recommendations = await generateAdvisorRecommendations(
+          user,
+          conversationHistory,
+          advisors,
+          specialties
+        );
+        
+        return res.json(recommendations);
+      }
+      
+      // Get next question in the matching flow
+      const nextQuestion = await getNextMatchingQuestion(
+        message,
+        conversationHistory,
+        currentQuestionNumber
+      );
+      
+      res.json(nextQuestion);
+    } catch (error) {
+      console.error("Error in advisor matching flow:", error);
+      
+      // Return a fallback response
+      const fallbackResponse = {
+        message: "I'd like to understand more about what you're looking for. Could you share more about your spiritual needs?",
+        questionNumber: 2,
+        totalQuestions: 5,
+        isMatchingQuestion: true
+      };
+      
+      res.json(fallbackResponse);
     }
   });
 

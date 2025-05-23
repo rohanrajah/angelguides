@@ -212,7 +212,44 @@ export async function getNextMatchingQuestion(
   try {
     // If we've completed all 5 questions, provide advisor recommendations
     if (currentQuestionNumber >= 5) {
-      return await generateAdvisorRecommendations(conversationHistory);
+      // Use a placeholder user object that matches User type requirements
+      const dummyUser = {
+        id: 1,
+        username: "user",
+        password: "password",
+        name: "User",
+        email: "user@example.com",
+        phone: null,
+        userType: "user",
+        isAdvisor: false,
+        avatar: null,
+        bio: null,
+        introVideo: null,
+        specialties: [],
+        chatRate: null,
+        audioRate: null,
+        videoRate: null,
+        rating: null,
+        reviewCount: null,
+        availability: null,
+        online: false,
+        statusMessage: null,
+        accountBalance: 0,
+        earningsBalance: 0,
+        totalEarnings: 0,
+        pendingPayout: false,
+        stripeCustomerId: null,
+        stripeConnectId: null,
+        firebaseUid: null,
+        lastLogin: null,
+        profileCompleted: false,
+        birthDate: null,
+        birthTime: null,
+        birthPlace: null,
+        vedicChart: null,
+        humanDesignData: null
+      };
+      return await generateAdvisorRecommendations(dummyUser, conversationHistory);
     }
     
     // Create a system message with enhanced context
@@ -410,6 +447,7 @@ export interface AdvisorWithSpecialties extends User {
 }
 
 export async function generateAdvisorRecommendations(
+  user: User,
   conversationHistory: { role: string; content: string }[],
   advisors?: AdvisorWithSpecialties[],
   specialties?: Specialty[]
