@@ -58,9 +58,20 @@ const AdvisorRecommendationsPage: React.FC = () => {
     // Combine bio and specialties for searching
     const searchText = `${advisor.bio.toLowerCase()} ${specialtyNames.join(' ')}`;
     
-    // Score based on keyword matches
+    // Score based on keyword matches with weight for exact matches
     return terms.reduce((score, term) => {
-      return searchText.includes(term.toLowerCase()) ? score + 1 : score;
+      // Check for exact match (higher weight)
+      if (searchText.includes(term.toLowerCase())) {
+        return score + 2;
+      }
+      // Check for partial match (lower weight)
+      else if (term.length > 3 && searchText.split(' ').some(word => 
+        word.toLowerCase().includes(term.toLowerCase()) || 
+        term.toLowerCase().includes(word.toLowerCase())
+      )) {
+        return score + 1;
+      }
+      return score;
     }, 0);
   };
   

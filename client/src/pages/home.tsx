@@ -81,7 +81,7 @@ const Home: React.FC = () => {
                       <span>Book a Session</span>
                     </motion.a>
                   </Link>
-                  <Link href="/advisor-recommendations/spiritual,guidance,intuitive">
+                  <Link href="/get-matched">
                     <motion.a 
                       className="bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 text-white rounded-md px-4 py-2 transition duration-200 flex items-center"
                       whileHover={{ scale: 1.05 }}
