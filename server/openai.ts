@@ -74,41 +74,41 @@ export function getMatchingQuestionNumber(conversationHistory: { role: string; c
 // Predefined adaptive conversation templates based on different scenarios
 // These are designed to create a more natural flowing conversation
 const fallbackQuestions = [
-  // First question - Introduction and primary concern
+  // First question - Core spiritual challenges and needs
   {
-    message: "I'd love to connect you with the perfect spiritual advisor who resonates with your unique journey. Everyone's spiritual path is different, and finding the right guide can make all the difference. What brings you to seek spiritual guidance today? Perhaps it's love, career decisions, or simply seeking deeper meaning?",
+    message: "What specific spiritual challenges are you facing right now that have led you to seek guidance? Understanding your current situation will help me find an advisor who specializes in your unique needs.",
     questionNumber: 1,
     totalQuestions: 5,
     isMatchingQuestion: true
   },
   
-  // Second question - Decision-making style (adapts based on first answer)
+  // Second question - Spiritual practices and modalities
   {
-    message: "I understand completely. When facing these kinds of situations, how do you typically approach making decisions? Do you go with your intuition, prefer a more analytical approach, or maybe a blend of both? Understanding your style helps me match you with an advisor who communicates in a way that resonates with you.",
+    message: "What spiritual practices or modalities do you feel most drawn to or curious about? For example: tarot, astrology, energy healing, mediumship, past life regression, or something else entirely?",
     questionNumber: 2,
     totalQuestions: 5,
     isMatchingQuestion: true
   },
   
-  // Third question - Timeframe and support type
+  // Third question - Personal connection style
   {
-    message: "That makes a lot of sense. And I'm curious - are you looking for guidance on this specific situation we're discussing, or would you prefer more ongoing support for your spiritual journey? Some people need immediate insights while others prefer a longer-term spiritual relationship.",
+    message: "When working with a spiritual advisor, what kind of connection style resonates with you most? Do you prefer someone who is compassionate and nurturing, direct and straightforward, analytical and detailed, or perhaps intuitive and visionary?",
     questionNumber: 3, 
     totalQuestions: 5,
     isMatchingQuestion: true
   },
   
-  // Fourth question - Spiritual tools and practices
+  // Fourth question - Specific life areas needing guidance
   {
-    message: "I appreciate you sharing that with me. Have you worked with any spiritual tools or practices before that you found helpful? Things like tarot, astrology, meditation, energy work? Or perhaps you're curious to explore something new? This will help me find someone with the right approach for you.",
+    message: "In which areas of your life are you specifically seeking spiritual insight? For instance: relationships, career path, personal growth, soul purpose, family matters, or healing from past experiences?",
     questionNumber: 4,
     totalQuestions: 5,
     isMatchingQuestion: true
   },
   
-  // Fifth question - Communication style preference
+  // Fifth question - Timing and session preferences
   {
-    message: "You've shared so much helpful information. One last thing that would really help me find your perfect match - what kind of personality do you connect with best? Do you prefer someone gentle and nurturing, direct and straightforward, or perhaps more analytical and detailed in their approach?",
+    message: "Are you looking for immediate guidance on a pressing matter, or ongoing spiritual support? And do you have a preference for how you'd like to connect with your advisor - through chat, audio calls, or video sessions?",
     questionNumber: 5,
     totalQuestions: 5,
     isMatchingQuestion: true

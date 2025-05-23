@@ -7,6 +7,83 @@ import { useLocation } from 'wouter';
 import { Skeleton } from '@/components/ui/skeleton';
 import { User, Specialty } from '@shared/schema';
 
+// Function to extract keywords from conversation
+function extractKeywordsFromConversation(chatHistory: {role: 'user' | 'assistant', message: string}[]): string[] {
+  // Common spiritual and advisor-related keywords to look for
+  const keywordCategories = {
+    practices: [
+      "tarot", "astrology", "meditation", "energy healing", "chakra", "reiki",
+      "past life", "mediumship", "channeling", "psychic", "intuitive", "divination",
+      "crystals", "aura", "spiritual coaching", "shamanic", "oracle cards",
+      "numerology", "dream interpretation", "spiritual guidance"
+    ],
+    lifeAreas: [
+      "relationship", "career", "family", "health", "money", "purpose", "spirituality",
+      "growth", "transition", "healing", "grief", "decision", "clarity", "direction",
+      "future", "path", "balance", "well-being", "trauma", "anxiety", "peace"
+    ],
+    communicationStyles: [
+      "compassionate", "direct", "nurturing", "analytical", "intuitive", "gentle",
+      "straightforward", "detailed", "supportive", "empathetic", "practical", "visionary"
+    ],
+    sessionTypes: [
+      "chat", "audio", "video", "immediate", "ongoing", "regular", "one-time"
+    ]
+  };
+  
+  // Flatten all keywords into a single array
+  const allKeywords = [
+    ...keywordCategories.practices, 
+    ...keywordCategories.lifeAreas,
+    ...keywordCategories.communicationStyles,
+    ...keywordCategories.sessionTypes
+  ];
+  
+  // Extract user messages from the conversation
+  const userMessages = chatHistory
+    .filter(msg => msg.role === 'user')
+    .map(msg => msg.message.toLowerCase());
+  
+  // Join all user messages into a single string for easier searching
+  const userText = userMessages.join(' ');
+  
+  // Find keywords present in the user's messages
+  const foundKeywords = allKeywords.filter(keyword => 
+    userText.includes(keyword.toLowerCase())
+  );
+  
+  // If we found less than 3 keywords, add some default ones
+  if (foundKeywords.length < 3) {
+    // Add some common defaults based on the conversation context
+    if (userText.includes('love') || userText.includes('partner') || userText.includes('relationship')) {
+      foundKeywords.push('relationship guidance');
+    }
+    
+    if (userText.includes('work') || userText.includes('job') || userText.includes('career')) {
+      foundKeywords.push('career guidance');
+    }
+    
+    if (userText.includes('meaning') || userText.includes('purpose') || userText.includes('path')) {
+      foundKeywords.push('spiritual purpose');
+    }
+    
+    // Ensure we have at least 3 keywords
+    if (foundKeywords.length < 3) {
+      foundKeywords.push('spiritual guidance');
+      
+      if (foundKeywords.length < 3) {
+        foundKeywords.push('intuitive reading');
+      }
+      
+      if (foundKeywords.length < 3) {
+        foundKeywords.push('personal growth');
+      }
+    }
+  }
+  
+  return Array.from(new Set(foundKeywords)).slice(0, 5); // Return up to 5 unique keywords
+}
+
 // Helper function to get specialty names by ID
 const specialtyNames: Record<number, string> = {
   1: "Tarot Reading",
@@ -138,6 +215,13 @@ const AdvisorMatchingQuestionnaire: React.FC<Props> = ({ userId, onComplete }) =
         setTimeout(() => {
           setIsCompleting(true);
           setTimeout(() => {
+            // Extract keywords from the conversation for better matching
+            const keywordsFromConversation = extractKeywordsFromConversation(chatHistory);
+            
+            // Redirect to the new recommendation page with keywords
+            setLocation(`/advisor-recommendations/${encodeURIComponent(keywordsFromConversation.join(','))}`);
+            
+            // Also call the original onComplete function for backward compatibility
             onComplete(data.recommendedAdvisors || []);
           }, 2000);
         }, 6000);

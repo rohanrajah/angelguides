@@ -2,6 +2,104 @@ import { AdvisorWithSpecialties, User, Specialty } from '@shared/schema';
 import { callPerplexityAPI } from './perplexity';
 
 /**
+ * Extract relevant keywords from a conversation for advisor matching
+ * 
+ * @param conversation The conversation history between the user and Angela AI
+ * @returns Array of extracted keywords
+ */
+function extractKeywordsFromConversation(conversation: any[]): string[] {
+  // Common spiritual and advisor-related keywords to look for
+  const keywordCategories = {
+    practices: [
+      "tarot", "astrology", "meditation", "energy healing", "chakra", "reiki",
+      "past life", "mediumship", "channeling", "psychic", "intuitive", "divination",
+      "crystals", "aura", "spiritual coaching", "shamanic", "oracle cards",
+      "numerology", "dream interpretation", "spiritual guidance"
+    ],
+    lifeAreas: [
+      "relationship", "career", "family", "health", "money", "purpose", "spirituality",
+      "growth", "transition", "healing", "grief", "decision", "clarity", "direction",
+      "future", "path", "balance", "well-being", "trauma", "anxiety", "peace"
+    ],
+    communicationStyles: [
+      "compassionate", "direct", "nurturing", "analytical", "intuitive", "gentle",
+      "straightforward", "detailed", "supportive", "empathetic", "practical", "visionary"
+    ],
+    sessionTypes: [
+      "chat", "audio", "video", "immediate", "ongoing", "regular", "one-time"
+    ]
+  };
+  
+  // Flatten all keywords into a single array
+  const allKeywords = [
+    ...keywordCategories.practices, 
+    ...keywordCategories.lifeAreas,
+    ...keywordCategories.communicationStyles,
+    ...keywordCategories.sessionTypes
+  ];
+  
+  // Extract user messages from the conversation
+  const userMessages = conversation
+    .filter(msg => msg.role === 'user')
+    .map(msg => msg.content.toLowerCase());
+  
+  // Join all user messages into a single string for easier searching
+  const userText = userMessages.join(' ');
+  
+  // Find keywords present in the user's messages
+  const foundKeywords = allKeywords.filter(keyword => 
+    userText.includes(keyword.toLowerCase())
+  );
+  
+  // If we found less than 3 keywords, add some default ones
+  if (foundKeywords.length < 3) {
+    // Add some common defaults based on the conversation context
+    if (userText.includes('love') || userText.includes('partner') || userText.includes('relationship')) {
+      foundKeywords.push('relationship guidance');
+    }
+    
+    if (userText.includes('work') || userText.includes('job') || userText.includes('career')) {
+      foundKeywords.push('career guidance');
+    }
+    
+    if (userText.includes('meaning') || userText.includes('purpose') || userText.includes('path')) {
+      foundKeywords.push('spiritual purpose');
+    }
+    
+    // Ensure we have at least 3 keywords
+    if (foundKeywords.length < 3) {
+      foundKeywords.push('spiritual guidance');
+    }
+  }
+  
+  return Array.from(new Set(foundKeywords)); // Remove duplicates
+}
+
+/**
+ * Generate a personalized note for an advisor based on matched keywords
+ * 
+ * @param advisor The advisor to generate a note for
+ * @param keywords The keywords extracted from the user's conversation
+ * @returns A personalized note from the advisor to the user
+ */
+function generatePersonalizedNote(advisor: AdvisorWithSpecialties, keywords: string[]): string {
+  // Get advisor specialties
+  const specialties = advisor.specialtiesList?.map(s => s.name.toLowerCase()) || [];
+  
+  // Find matching keywords
+  const matchingKeywords = keywords.filter(keyword => 
+    specialties.some(specialty => specialty.includes(keyword.toLowerCase()))
+  );
+  
+  // Create personalized note based on matches
+  if (matchingKeywords.length > 0) {
+    return `Hi there! I'm ${advisor.name}, and I specialize in ${matchingKeywords.join(', ')}. Based on what you've shared, I believe I can provide the guidance you're seeking. I'd love to connect and help you on your spiritual journey.`;
+  } else {
+    return `Hello! I'm ${advisor.name}, and I'm here to provide supportive spiritual guidance tailored to your unique needs. I'd be honored to accompany you on your journey and help you find the clarity you're seeking.`;
+  }
+}
+
+/**
  * Interface for the recommendation result
  */
 interface RecommendationResult {

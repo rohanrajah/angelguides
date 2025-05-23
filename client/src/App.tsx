@@ -16,6 +16,7 @@ import Home from "@/pages/home";
 import Welcome from "@/pages/welcome";
 import Advisors from "@/pages/advisors";
 import AdvisorProfile from "@/pages/advisor-profile";
+import AdvisorRecommendations from "@/pages/advisor-recommendations";
 import Bookings from "@/pages/bookings";
 import Messages from "@/pages/messages";
 import Profile from "@/pages/profile";
@@ -83,6 +84,7 @@ function Router() {
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/advisors" component={Advisors} />
       <Route path="/advisors/:id" component={AdvisorProfile} />
+      <Route path="/advisor-recommendations/:keywords" component={AdvisorRecommendations} />
       <Route path="/availability" component={Availability} />
       <Route path="/bookings" component={Bookings} />
       <Route path="/messages" component={Messages} />
