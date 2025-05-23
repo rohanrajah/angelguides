@@ -195,10 +195,19 @@ const AdvisorMatchingQuestionnaire: React.FC<Props> = ({ userId, onComplete }) =
       // Add user's message to chat history immediately for a more responsive feel
       setChatHistory(prev => [...prev, {role: 'user', message}]);
       
+      // Create conversation history in the format expected by the matching API
+      const formattedConversationHistory = chatHistory.map(msg => ({
+        role: msg.role,
+        content: msg.message
+      }));
+      
       const response = await apiRequest(
         'POST', 
-        `/api/angela/${userId}/message`, 
-        { message }
+        `/api/angela/${userId}/matching`, 
+        { 
+          message,
+          conversationHistory: formattedConversationHistory
+        }
       );
       return response.json();
     },
