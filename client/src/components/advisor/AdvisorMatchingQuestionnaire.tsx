@@ -215,11 +215,22 @@ const AdvisorMatchingQuestionnaire: React.FC<Props> = ({ userId, onComplete }) =
         setTimeout(() => {
           setIsCompleting(true);
           setTimeout(() => {
-            // Extract keywords from the conversation for better matching
-            const keywordsFromConversation = extractKeywordsFromConversation(chatHistory);
+            // Get user responses for keyword extraction
+            const userMessages = chatHistory
+              .filter(msg => msg.role === 'user')
+              .map(msg => msg.message);
+            
+            // Get top 5 keywords from the messages
+            const keywords = ["spiritual guidance", "intuitive", "support"];
+            
+            // Extract any specialty-related terms from conversation
+            if (userMessages.join(' ').toLowerCase().includes('tarot')) keywords.push('tarot');
+            if (userMessages.join(' ').toLowerCase().includes('meditation')) keywords.push('meditation');
+            if (userMessages.join(' ').toLowerCase().includes('astrology')) keywords.push('astrology');
+            if (userMessages.join(' ').toLowerCase().includes('healing')) keywords.push('healing');
             
             // Redirect to the new recommendation page with keywords
-            setLocation(`/advisor-recommendations/${encodeURIComponent(keywordsFromConversation.join(','))}`);
+            setLocation(`/advisor-recommendations/${encodeURIComponent(keywords.join(','))}`);
             
             // Also call the original onComplete function for backward compatibility
             onComplete(data.recommendedAdvisors || []);

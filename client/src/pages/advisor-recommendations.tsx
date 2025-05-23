@@ -37,7 +37,7 @@ const AdvisorRecommendationsPage: React.FC = () => {
   
   // Parse keywords from URL or use default
   const keywordsString = params?.keywords || '';
-  const keywords = keywordsString ? decodeURIComponent(keywordsString).split(',') : [];
+  const keywords = keywordsString ? decodeURIComponent(keywordsString).split(',') : ["spiritual guidance", "intuitive", "support"];
   
   // Get all advisors
   const { data: advisors = [], isLoading } = useQuery<User[]>({
