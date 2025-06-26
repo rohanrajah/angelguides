@@ -12,6 +12,17 @@ import {
   TransactionType,
   UserType
 } from "@shared/schema";
+import { 
+  WebSocketMessage, 
+  WebSocketMessageType,
+  SignalingOffer,
+  SignalingAnswer,
+  SignalingIceCandidate,
+  SignalingEnd,
+  ChatMessagePayload 
+} from "@shared/websocket-types";
+import { WebSocketManager } from "./websocket-manager";
+import { SignalingService } from "./signaling-service";
 import { startAdvisorMatchingFlow, getNextMatchingQuestion, generateAdvisorRecommendations } from "./openai";
 import Stripe from "stripe";
 
@@ -21,6 +32,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Create WebSocket server for real-time communications
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  const wsManager = new WebSocketManager();
+  const signalingService = new SignalingService(wsManager);
   
   // Register profile and admin routes if available
   try {
@@ -376,21 +389,167 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // WebSocket connection handler
-  wss.on('connection', (socket: WebSocket) => {
+  // WebSocket connection handler with user authentication
+  wss.on('connection', (socket: WebSocket, request) => {
     console.log('New WebSocket connection established');
     
-    socket.on('message', (message) => {
-      // Basic ping/pong for keeping connection alive
-      if (message.toString() === 'ping') {
-        socket.send('pong');
+    let userId: number | null = null;
+    let isAuthenticated = false;
+
+    socket.on('message', async (data) => {
+      try {
+        const rawMessage = data.toString();
+        
+        // Handle simple ping/pong
+        if (rawMessage === 'ping') {
+          socket.send('pong');
+          return;
+        }
+
+        const message: WebSocketMessage = JSON.parse(rawMessage);
+        
+        // Handle authentication for new connections
+        if (!isAuthenticated && message.type !== 'auth') {
+          socket.send(JSON.stringify({
+            type: WebSocketMessageType.ERROR,
+            payload: { code: 'AUTH_REQUIRED', message: 'Authentication required' }
+          }));
+          return;
+        }
+
+        // Handle authentication
+        if (message.type === 'auth') {
+          const { userId: authUserId } = message.payload;
+          if (authUserId && typeof authUserId === 'number') {
+            userId = authUserId;
+            isAuthenticated = true;
+            wsManager.handleConnection(socket, userId);
+            
+            socket.send(JSON.stringify({
+              type: 'auth_success',
+              payload: { userId }
+            }));
+          } else {
+            socket.send(JSON.stringify({
+              type: WebSocketMessageType.ERROR,
+              payload: { code: 'INVALID_AUTH', message: 'Invalid authentication data' }
+            }));
+          }
+          return;
+        }
+
+        // Validate signaling messages
+        if ([WebSocketMessageType.SIGNAL_OFFER, WebSocketMessageType.SIGNAL_ANSWER, 
+             WebSocketMessageType.SIGNAL_ICE_CANDIDATE, WebSocketMessageType.SIGNAL_END].includes(message.type)) {
+          const validatedMessage = signalingService.validateSignalingMessage(message);
+          if (!validatedMessage) {
+            socket.send(JSON.stringify({
+              type: WebSocketMessageType.ERROR,
+              payload: { code: 'INVALID_SIGNALING', message: 'Invalid signaling message format' }
+            }));
+            return;
+          }
+        }
+
+        // Route authenticated messages
+        await handleWebSocketMessage(wsManager, signalingService, userId!, message);
+        
+      } catch (error) {
+        console.error('WebSocket message error:', error);
+        socket.send(JSON.stringify({
+          type: WebSocketMessageType.ERROR,
+          payload: { 
+            code: 'MESSAGE_ERROR', 
+            message: 'Failed to process message',
+            details: error instanceof Error ? error.message : 'Unknown error'
+          }
+        }));
       }
     });
     
     socket.on('close', () => {
+      if (userId) {
+        wsManager.handleDisconnection(userId);
+      }
       console.log('WebSocket connection closed');
     });
+
+    socket.on('error', (error) => {
+      console.error('WebSocket error:', error);
+      if (userId) {
+        wsManager.handleDisconnection(userId);
+      }
+    });
   });
+
+  // Message handler for authenticated WebSocket messages
+  async function handleWebSocketMessage(
+    wsManager: WebSocketManager,
+    signalingService: SignalingService,
+    fromUserId: number, 
+    message: WebSocketMessage
+  ): Promise<void> {
+    switch (message.type) {
+      case WebSocketMessageType.SIGNAL_OFFER:
+        await signalingService.handleOffer(fromUserId, message.payload as SignalingOffer);
+        break;
+        
+      case WebSocketMessageType.SIGNAL_ANSWER:
+        await signalingService.handleAnswer(fromUserId, message.payload as SignalingAnswer);
+        break;
+        
+      case WebSocketMessageType.SIGNAL_ICE_CANDIDATE:
+        await signalingService.handleIceCandidate(fromUserId, message.payload as SignalingIceCandidate);
+        break;
+        
+      case WebSocketMessageType.SIGNAL_END:
+        await signalingService.handleCallEnd(fromUserId, message.payload as SignalingEnd);
+        break;
+        
+      case WebSocketMessageType.CHAT_MESSAGE:
+        await handleChatMessage(wsManager, fromUserId, message.payload as ChatMessagePayload);
+        break;
+        
+      default:
+        console.warn(`Unhandled message type: ${message.type}`);
+    }
+  }
+
+  // Chat message handler
+
+  async function handleChatMessage(
+    wsManager: WebSocketManager, 
+    fromUserId: number, 
+    payload: ChatMessagePayload
+  ): Promise<void> {
+    const { sessionId, content, messageType } = payload;
+    
+    // Store message in database
+    const participants = wsManager.getUsersInSession(sessionId);
+    const targetUserId = participants.find(id => id !== fromUserId);
+    
+    if (targetUserId) {
+      try {
+        // Save to database
+        await storage.sendMessage({
+          senderId: fromUserId,
+          receiverId: targetUserId,
+          content
+        });
+        
+        // Send to target user via WebSocket
+        wsManager.sendToUser(targetUserId, {
+          type: WebSocketMessageType.CHAT_MESSAGE,
+          payload: { sessionId, content, messageType },
+          from: fromUserId,
+          timestamp: new Date()
+        });
+        
+      } catch (error) {
+        console.error('Failed to handle chat message:', error);
+      }
+    }
+  }
 
   return httpServer;
 }
