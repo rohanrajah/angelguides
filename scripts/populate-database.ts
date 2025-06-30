@@ -1,4 +1,4 @@
-import { db } from "../server/db";
+import { db } from "./db-local";
 import { 
   users, specialties, advisorSpecialties, 
   UserType, SpecialtyCategory, 

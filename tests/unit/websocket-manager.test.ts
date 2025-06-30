@@ -188,32 +188,35 @@ describe('WebSocketManager', () => {
   });
 
   describe('Heartbeat Mechanism', () => {
-    it('should update heartbeat timestamp on activity', () => {
+    it('should update heartbeat timestamp on activity', async () => {
       const userId = 123;
       
       wsManager.handleConnection(mockWebSocket as WebSocket, userId);
       const initialHeartbeat = wsManager.getLastHeartbeat(userId);
       
-      // Simulate some delay
-      setTimeout(() => {
-        wsManager.updateHeartbeat(userId);
-        const updatedHeartbeat = wsManager.getLastHeartbeat(userId);
-        
-        expect(updatedHeartbeat).toBeGreaterThan(initialHeartbeat);
-      }, 10);
+      expect(initialHeartbeat).toBeInstanceOf(Date);
+      
+      // Simulate some delay to ensure timestamp difference
+      await new Promise(resolve => setTimeout(resolve, 10));
+      
+      wsManager.updateHeartbeat(userId);
+      const updatedHeartbeat = wsManager.getLastHeartbeat(userId);
+      
+      expect(updatedHeartbeat).toBeInstanceOf(Date);
+      expect(updatedHeartbeat!.getTime()).toBeGreaterThan(initialHeartbeat!.getTime());
     });
 
-    it('should identify stale connections', () => {
+    it('should identify stale connections', async () => {
       const userId = 123;
-      const staleThreshold = 1000; // 1 second
+      const staleThreshold = 100; // 100ms for faster test
       
       wsManager.handleConnection(mockWebSocket as WebSocket, userId);
       
-      // Simulate stale connection
-      setTimeout(() => {
-        const staleConnections = wsManager.getStaleConnections(staleThreshold);
-        expect(staleConnections).toContain(userId);
-      }, staleThreshold + 100);
+      // Wait for connection to become stale
+      await new Promise(resolve => setTimeout(resolve, staleThreshold + 50));
+      
+      const staleConnections = wsManager.getStaleConnections(staleThreshold);
+      expect(staleConnections).toContain(userId);
     });
   });
 });

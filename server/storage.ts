@@ -13,7 +13,7 @@ import { db } from "./db";
 import { eq, and, or, desc, asc, sql, gt, lt, gte, lte, not, isNull, inArray } from "drizzle-orm";
 import connectPg from "connect-pg-simple";
 import session from "express-session";
-import { pool } from "./db";
+import memoryStore from "memorystore";
 
 // Interface for advisor with specialties list for AI recommendations
 export interface AdvisorWithSpecialties extends User {
@@ -158,7 +158,7 @@ export class MemStorage implements IStorage {
     this.workingHourIdCounter = 1;
     
     // Initialize in-memory session store
-    const MemoryStore = require('memorystore')(session);
+    const MemoryStore = memoryStore(session);
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000 // prune expired entries every 24h
     });
@@ -1175,11 +1175,10 @@ export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
   
   constructor() {
-    const PostgresSessionStore = connectPg(session);
-    this.sessionStore = new PostgresSessionStore({
-      pool,
-      createTableIfMissing: true,
-      tableName: 'sessions'
+    // Use in-memory store instead of PostgreSQL session store to avoid WebSocket issues
+    const MemoryStore = memoryStore(session);
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000 // prune expired entries every 24h
     });
   }
 

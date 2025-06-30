@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AngelGuides Presentation Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+            background: #f8f7ff;
+            color: #1a0d3d;
+            overflow-x: hidden;
+        }
+
+        .presentation-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .slide {
+            width: 100%;
+            height: 600px;
+            margin-bottom: 40px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(123, 104, 238, 0.2);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            padding: 40px;
+        }
+
+        /* Slide 1: Title Slide */
+        .slide-1 {
+            background: linear-gradient(135deg, #7b68ee, #8b5cf6, #ec4899);
+            color: white;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            position: relative;
+        }
+
+        .slide-1::before {
+            content: '';
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            top: 10%;
+            left: 10%;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .slide-1::after {
+            content: '';
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+            bottom: 15%;
+            right: 15%;
+            animation: float 8s ease-in-out infinite reverse;
+        }
+
+        .main-title {
+            font-size: 4rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            z-index: 10;
+            position: relative;
+        }
+
+        .main-subtitle {
+            font-size: 1.5rem;
+            font-weight: 300;
+            opacity: 0.9;
+            z-index: 10;
+            position: relative;
+        }
+
+        /* Slide 2: About */
+        .slide-2 {
+            background: linear-gradient(135deg, #fdfcff 0%, #f3f2ff 100%);
+        }
+
+        .slide-title {
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: #7b68ee;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(123, 104, 238, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #7b68ee, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .feature-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #7b68ee;
+        }
+
+        .feature-description {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        /* Slide 3: Angela AI */
+        .slide-3 {
+            background: linear-gradient(135deg, #1a0d3d 0%, #000 100%);
+            color: white;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .angela-circle {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #7b68ee, #ec4899);
+            position: relative;
+            margin: 0 auto 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: pulse 3s ease-in-out infinite;
+        }
+
+        .angela-circle::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #60a5fa, #8b5cf6, #ec4899, #60a5fa);
+            background-size: 400% 400%;
+            z-index: -1;
+            animation: gradient-rotate 8s ease infinite;
+            filter: blur(8px);
+            opacity: 0.7;
+            transform: scale(1.1);
+        }
+
+        .angela-text {
+            font-size: 2rem;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .angela-subtitle {
+            font-size: 1.2rem;
+            text-align: center;
+            opacity: 0.8;
+        }
+
+        /* Slide 4: User Journey */
+        .slide-4 {
+            background: white;
+        }
+
+        .journey-flow {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 3rem;
+        }
+
+        .journey-step {
+            text-align: center;
+            flex: 1;
+            position: relative;
+        }
+
+        .journey-step:not(:last-child)::after {
+            content: '→';
+            position: absolute;
+            right: -20px;
+            top: 30px;
+            color: #7b68ee;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .journey-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #7b68ee, #ec4899);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            font-size: 1.5rem;
+        }
+
+        .journey-label {
+            font-weight: 600;
+            color: #7b68ee;
+        }
+
+        /* Slide 5: Stats */
+        .slide-5 {
+            background: linear-gradient(135deg, #f8f7ff 0%, #e6e5f0 100%);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(123, 104, 238, 0.1);
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #7b68ee, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #666;
+            font-weight: 500;
+        }
+
+        /* Animations */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes gradient-rotate {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Navigation */
+        .nav-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .nav-button {
+            background: linear-gradient(135deg, #7b68ee, #ec4899);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 0 5px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+        }
+
+        .nav-button:hover {
+            transform: scale(1.05);
+        }
+
+        .slide-indicator {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .indicator-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(123, 104, 238, 0.3);
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .indicator-dot.active {
+            background: #7b68ee;
+        }
+    </style>
+</head>
+<body>
+    <div class="nav-container">
+        <button class="nav-button" onclick="previousSlide()">←</button>
+        <button class="nav-button" onclick="nextSlide()">→</button>
+    </div>
+
+    <div class="slide-indicator">
+        <div class="indicator-dot active" onclick="goToSlide(0)"></div>
+        <div class="indicator-dot" onclick="goToSlide(1)"></div>
+        <div class="indicator-dot" onclick="goToSlide(2)"></div>
+        <div class="indicator-dot" onclick="goToSlide(3)"></div>
+        <div class="indicator-dot" onclick="goToSlide(4)"></div>
+    </div>
+
+    <div class="presentation-container">
+        <!-- Slide 1: Title -->
+        <div class="slide slide-1" id="slide-0">
+            <h1 class="main-title">AngelGuides</h1>
+            <p class="main-subtitle">Your Spiritual Guidance Platform</p>
+        </div>
+
+        <!-- Slide 2: About -->
+        <div class="slide slide-2" id="slide-1" style="display: none;">
+            <h2 class="slide-title">Connecting Seekers with Spiritual Advisors</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🔮</div>
+                    <h3 class="feature-title">Expert Advisors</h3>
+                    <p class="feature-description">50+ certified spiritual guides specializing in tarot, astrology, meditation, and more</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🤖</div>
+                    <h3 class="feature-title">AI-Powered Matching</h3>
+                    <p class="feature-description">Angela AI assistant helps match you with the perfect advisor for your needs</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">💬</div>
+                    <h3 class="feature-title">Multi-Modal Communication</h3>
+                    <p class="feature-description">Connect via chat, voice, or video calls - whatever feels right for you</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: Angela AI -->
+        <div class="slide slide-3" id="slide-2" style="display: none;">
+            <div class="angela-circle">
+                <span style="font-size: 4rem;">🤖</span>
+            </div>
+            <h2 class="angela-text">Meet Angela</h2>
+            <p class="angela-subtitle">Your AI Spiritual Guide & Emotional Support Assistant</p>
+            <div style="margin-top: 2rem; text-align: center;">
+                <p>• 24/7 Emotional Support</p>
+                <p>• Intelligent Advisor Matching</p>
+                <p>• Personalized Guidance</p>
+            </div>
+        </div>
+
+        <!-- Slide 4: User Journey -->
+        <div class="slide slide-4" id="slide-3" style="display: none;">
+            <h2 class="slide-title">Your Spiritual Journey</h2>
+            <div class="journey-flow">
+                <div class="journey-step">
+                    <div class="journey-icon">👤</div>
+                    <p class="journey-label">Sign Up</p>
+                </div>
+                <div class="journey-step">
+                    <div class="journey-icon">🤖</div>
+                    <p class="journey-label">Talk to Angela</p>
+                </div>
+                <div class="journey-step">
+                    <div class="journey-icon">🔍</div>
+                    <p class="journey-label">Get Matched</p>
+                </div>
+                <div class="journey-step">
+                    <div class="journey-icon">📅</div>
+                    <p class="journey-label">Book Session</p>
+                </div>
+                <div class="journey-step">
+                    <div class="journey-icon">✨</div>
+                    <p class="journey-label">Receive Guidance</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: Stats -->
+        <div class="slide slide-5" id="slide-4" style="display: none;">
+            <h2 class="slide-title">Trusted by Thousands</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">50+</div>
+                    <p class="stat-label">Expert Advisors</p>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">99%</div>
+                    <p class="stat-label">User Satisfaction</p>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">10K+</div>
+                    <p class="stat-label">Sessions Completed</p>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">24/7</div>
+                    <p class="stat-label">Angela AI Support</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const totalSlides = 5;
+
+        function showSlide(n) {
+            // Hide all slides
+            for (let i = 0; i < totalSlides; i++) {
+                document.getElementById(`slide-${i}`).style.display = 'none';
+                document.querySelectorAll('.indicator-dot')[i].classList.remove('active');
+            }
+            
+            // Show current slide
+            document.getElementById(`slide-${n}`).style.display = 'flex';
+            document.querySelectorAll('.indicator-dot')[n].classList.add('active');
+        }
+
+        function nextSlide() {
+            currentSlide = (currentSlide + 1) % totalSlides;
+            showSlide(currentSlide);
+        }
+
+        function previousSlide() {
+            currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
+            showSlide(currentSlide);
+        }
+
+        function goToSlide(n) {
+            currentSlide = n;
+            showSlide(currentSlide);
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                nextSlide();
+            } else if (e.key === 'ArrowLeft') {
+                previousSlide();
+            }
+        });
+
+        // Auto-advance (optional)
+        // setInterval(nextSlide, 10000); // Auto-advance every 10 seconds
+    </script>
+</body>
+</html>

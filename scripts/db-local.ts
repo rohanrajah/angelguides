@@ -3,7 +3,7 @@ dotenv.config();
 
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import * as schema from "@shared/schema";
+import * as schema from "../shared/schema";
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
@@ -11,9 +11,6 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-// Use postgres-js for local PostgreSQL (works for both local and remote PostgreSQL)
+// Create a postgres client for local database
 const client = postgres(process.env.DATABASE_URL);
 export const db = drizzle(client, { schema });
-
-// For compatibility with existing code that expects pool
-export const pool = null;

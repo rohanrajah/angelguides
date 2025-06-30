@@ -23,7 +23,7 @@ const Messages: React.FC = () => {
   
   // Fetch conversation with selected user
   const { data: conversation = [], isLoading: conversationLoading, refetch: refetchConversation } = useQuery<Message[]>({
-    queryKey: [`/api/messages/${currentUser?.id || 5}/${selectedUser?.id || 0}`],
+    queryKey: [`/api/messages/${currentUser?.id}/${selectedUser?.id}`],
     enabled: !!currentUser && !!selectedUser,
   });
   
@@ -201,7 +201,7 @@ const Messages: React.FC = () => {
                   ) : conversation.length > 0 ? (
                     <div className="space-y-4">
                       {conversation.map((msg, index) => {
-                        const isCurrentUser = msg.senderId === (currentUser?.id || 5);
+                        const isCurrentUser = currentUser && msg.senderId === currentUser.id;
                         return (
                           <motion.div 
                             key={msg.id}

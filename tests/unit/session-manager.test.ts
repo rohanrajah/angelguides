@@ -21,10 +21,16 @@ describe('SessionManager', () => {
     mockWsManager = {
       addUserToSession: vi.fn(),
       removeUserFromSession: vi.fn(),
-      getUsersInSession: vi.fn(),
+      getUsersInSession: vi.fn().mockReturnValue([]), // Default to empty array
       sendToUser: vi.fn(),
       broadcast: vi.fn()
     } as any;
+
+    // Reset storage mocks
+    mockStorage.getSession.mockReset();
+    mockStorage.createSession.mockReset(); 
+    mockStorage.updateSession.mockReset();
+    mockStorage.endSession.mockReset();
     
     sessionManager = new SessionManager(mockWsManager, mockStorage as any);
   });
@@ -40,6 +46,7 @@ describe('SessionManager', () => {
         endTime: new Date(Date.now() + 3600000) // 1 hour later
       };
 
+      // Setup mock storage to return session with ID
       mockStorage.createSession.mockResolvedValue({
         id: 789,
         ...sessionData
@@ -55,7 +62,7 @@ describe('SessionManager', () => {
       expect(session.status).toBe('connecting');
       
       // Should be tracked in memory
-      expect(sessionManager.getActiveSession(789)).toBeDefined();
+      expect(sessionManager.getActiveSession(session.id)).toBeDefined();
     });
 
     it('should add participants to WebSocket session', async () => {
@@ -65,18 +72,20 @@ describe('SessionManager', () => {
         sessionType: 'audio' as const,
         ratePerMinute: 250,
         startTime: new Date(),
-        endTime: new Date(Date.now() + 1800000) // 30 minutes
+        endTime: new Date(Date.now() + 1800000), // 30 minutes
+        status: 'active' // Set to active to trigger WebSocket participant addition
       };
 
+      // Setup mock storage to return session with ID
       mockStorage.createSession.mockResolvedValue({
-        id: 789,
+        id: 456,
         ...sessionData
       });
 
-      await sessionManager.createSession(sessionData);
+      const session = await sessionManager.createSession(sessionData);
 
-      expect(mockWsManager.addUserToSession).toHaveBeenCalledWith(123, 789);
-      expect(mockWsManager.addUserToSession).toHaveBeenCalledWith(456, 789);
+      expect(mockWsManager.addUserToSession).toHaveBeenCalledWith(123, session.id);
+      expect(mockWsManager.addUserToSession).toHaveBeenCalledWith(456, session.id);
     });
 
     it('should start billing timer when session becomes active', async () => {
@@ -89,36 +98,32 @@ describe('SessionManager', () => {
         endTime: new Date(Date.now() + 1800000)
       };
 
+      // Setup mock storage to return session with ID
       mockStorage.createSession.mockResolvedValue({
-        id: 789,
+        id: 123,
         ...sessionData
       });
+      mockStorage.updateSession.mockResolvedValue(null);
+      (mockWsManager.getUsersInSession as any).mockReturnValue([123, 456]);
 
       const session = await sessionManager.createSession(sessionData);
       
       // Mark session as active
-      await sessionManager.updateSessionStatus(789, 'active');
+      await sessionManager.updateSessionStatus(session.id, 'active');
 
-      const activeSession = sessionManager.getActiveSession(789);
+      const activeSession = sessionManager.getActiveSession(session.id);
       expect(activeSession?.status).toBe('active');
-      expect(activeSession?.startTime).toBeDefined();
+      expect(activeSession?.actualStartTime).toBeDefined();
     });
   });
 
   describe('Participant Management', () => {
-    beforeEach(async () => {
-      // Create a test session
-      mockStorage.createSession.mockResolvedValue({
-        id: 789,
-        userId: 123,
-        advisorId: 456,
-        sessionType: 'video',
-        ratePerMinute: 300,
-        startTime: new Date(),
-        endTime: new Date(Date.now() + 3600000)
-      });
+    let testSessionId: number;
 
-      await sessionManager.createSession({
+    beforeEach(async () => {
+      // Setup mock storage to return session with ID
+      mockStorage.createSession.mockResolvedValue({
+        id: 999,
         userId: 123,
         advisorId: 456,
         sessionType: 'video',
@@ -126,26 +131,37 @@ describe('SessionManager', () => {
         startTime: new Date(),
         endTime: new Date(Date.now() + 3600000)
       });
+      
+      // Create a test session
+      const session = await sessionManager.createSession({
+        userId: 123,
+        advisorId: 456,
+        sessionType: 'video',
+        ratePerMinute: 300,
+        startTime: new Date(),
+        endTime: new Date(Date.now() + 3600000)
+      });
+      testSessionId = session.id;
     });
 
     it('should add participant to session', () => {
-      const result = sessionManager.addParticipant(789, 999);
+      const result = sessionManager.addParticipant(testSessionId, 999);
       
       expect(result).toBe(true);
       
-      const session = sessionManager.getActiveSession(789);
-      expect(session?.participants.has(999)).toBe(true);
+      const session = sessionManager.getActiveSession(testSessionId);
+      expect(session?.participants.includes(999)).toBe(true);
     });
 
     it('should remove participant from session', () => {
       // First add, then remove
-      sessionManager.addParticipant(789, 999);
-      const result = sessionManager.removeParticipant(789, 999);
+      sessionManager.addParticipant(testSessionId, 999);
+      const result = sessionManager.removeParticipant(testSessionId, 999);
       
       expect(result).toBe(true);
       
-      const session = sessionManager.getActiveSession(789);
-      expect(session?.participants.has(999)).toBe(false);
+      const session = sessionManager.getActiveSession(testSessionId);
+      expect(session?.participants.includes(999)).toBe(false);
     });
 
     it('should handle removing participant from non-existent session', () => {
@@ -158,8 +174,9 @@ describe('SessionManager', () => {
     let sessionId: number;
 
     beforeEach(async () => {
+      // Setup mock storage to return session with ID
       mockStorage.createSession.mockResolvedValue({
-        id: 789,
+        id: 888,
         userId: 123,
         advisorId: 456,
         sessionType: 'audio',
@@ -167,7 +184,7 @@ describe('SessionManager', () => {
         startTime: new Date(),
         endTime: new Date(Date.now() + 1800000)
       });
-
+      
       const session = await sessionManager.createSession({
         userId: 123,
         advisorId: 456,
@@ -181,7 +198,8 @@ describe('SessionManager', () => {
     });
 
     it('should update session status and notify participants', async () => {
-      mockWsManager.getUsersInSession.mockReturnValue([123, 456]);
+      (mockWsManager.getUsersInSession as any).mockReturnValue([123, 456]);
+      mockStorage.updateSession.mockResolvedValue(null);
 
       await sessionManager.updateSessionStatus(sessionId, 'active');
 
@@ -193,6 +211,9 @@ describe('SessionManager', () => {
     });
 
     it('should track session duration when active', async () => {
+      (mockWsManager.getUsersInSession as any).mockReturnValue([123, 456]);
+      mockStorage.updateSession.mockResolvedValue(null);
+
       const beforeActive = Date.now();
       await sessionManager.updateSessionStatus(sessionId, 'active');
       const afterActive = Date.now();
@@ -206,6 +227,9 @@ describe('SessionManager', () => {
     });
 
     it('should calculate duration when session ends', async () => {
+      (mockWsManager.getUsersInSession as any).mockReturnValue([123, 456]);
+      mockStorage.updateSession.mockResolvedValue(null);
+
       // Start session
       await sessionManager.updateSessionStatus(sessionId, 'active');
       
@@ -224,8 +248,9 @@ describe('SessionManager', () => {
     let sessionId: number;
 
     beforeEach(async () => {
+      // Setup mock storage to return session with ID
       mockStorage.createSession.mockResolvedValue({
-        id: 789,
+        id: 777,
         userId: 123,
         advisorId: 456,
         sessionType: 'video',
@@ -233,7 +258,7 @@ describe('SessionManager', () => {
         startTime: new Date(),
         endTime: new Date(Date.now() + 3600000)
       });
-
+      
       const session = await sessionManager.createSession({
         userId: 123,
         advisorId: 456,
@@ -247,14 +272,16 @@ describe('SessionManager', () => {
     });
 
     it('should end session and calculate billing', async () => {
-      // Make session active for billing calculation
-      await sessionManager.updateSessionStatus(sessionId, 'active');
-      await new Promise(resolve => setTimeout(resolve, 100));
-
+      (mockWsManager.getUsersInSession as any).mockReturnValue([123, 456]);
+      mockStorage.updateSession.mockResolvedValue(null);
       mockStorage.endSession.mockResolvedValue({
         billedAmount: 5000, // $50.00
         actualDuration: 10 // 10 minutes
       });
+
+      // Make session active for billing calculation
+      await sessionManager.updateSessionStatus(sessionId, 'active');
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       const result = await sessionManager.endSession(sessionId, {
         endReason: 'user_hangup',
@@ -262,14 +289,18 @@ describe('SessionManager', () => {
       });
 
       expect(result).toBeDefined();
-      expect(result.billedAmount).toBe(5000);
+      expect(result!.billedAmount).toBe(5000);
       
       // Session should be removed from active sessions
       expect(sessionManager.getActiveSession(sessionId)).toBeNull();
     });
 
     it('should remove participants from WebSocket session', async () => {
-      mockWsManager.getUsersInSession.mockReturnValue([123, 456]);
+      (mockWsManager.getUsersInSession as any).mockReturnValue([123, 456]);
+      mockStorage.endSession.mockResolvedValue({
+        billedAmount: 1000,
+        actualDuration: 5
+      });
 
       await sessionManager.endSession(sessionId, {
         endReason: 'completed'
@@ -291,9 +322,11 @@ describe('SessionManager', () => {
   describe('Orphaned Session Cleanup', () => {
     it('should identify and clean up orphaned sessions', async () => {
       // Create multiple sessions
+      const sessionIds: number[] = [];
       for (let i = 1; i <= 3; i++) {
-        mockStorage.createSession.mockResolvedValue({
-          id: i,
+        // Setup mock storage to return session with ID
+        mockStorage.createSession.mockResolvedValueOnce({
+          id: i + 100,
           userId: 100 + i,
           advisorId: 200 + i,
           sessionType: 'audio',
@@ -301,8 +334,8 @@ describe('SessionManager', () => {
           startTime: new Date(),
           endTime: new Date(Date.now() + 1800000)
         });
-
-        await sessionManager.createSession({
+        
+        const session = await sessionManager.createSession({
           userId: 100 + i,
           advisorId: 200 + i,
           sessionType: 'audio',
@@ -310,18 +343,25 @@ describe('SessionManager', () => {
           startTime: new Date(),
           endTime: new Date(Date.now() + 1800000)
         });
+        sessionIds.push(session.id);
       }
 
       // Mock that some users are no longer connected
-      mockWsManager.getUsersInSession.mockImplementation((sessionId) => {
-        if (sessionId === 1) return []; // No participants
-        if (sessionId === 2) return [102]; // Only one participant
+      (mockWsManager.getUsersInSession as any).mockImplementation((sessionId) => {
+        if (sessionId === sessionIds[0]) return []; // No participants
+        if (sessionId === sessionIds[1]) return [102]; // Only one participant
         return [103, 203]; // Both participants
+      });
+
+      // Mock endSession for cleanup
+      mockStorage.endSession.mockResolvedValue({
+        billedAmount: 0,
+        actualDuration: 0
       });
 
       const orphanedSessions = await sessionManager.cleanupOrphanedSessions();
 
-      expect(orphanedSessions).toContain(1); // Should identify session with no participants
+      expect(orphanedSessions).toContain(sessionIds[0]); // Should identify session with no participants
       // Session 2 might or might not be considered orphaned depending on implementation
     });
   });
@@ -330,7 +370,8 @@ describe('SessionManager', () => {
     beforeEach(async () => {
       // Create multiple test sessions
       for (let i = 1; i <= 3; i++) {
-        mockStorage.createSession.mockResolvedValue({
+        // Setup mock storage to return session with ID
+        mockStorage.createSession.mockResolvedValueOnce({
           id: i,
           userId: 100,
           advisorId: 200 + i,
@@ -339,7 +380,7 @@ describe('SessionManager', () => {
           startTime: new Date(),
           endTime: new Date(Date.now() + 3600000)
         });
-
+        
         await sessionManager.createSession({
           userId: 100,
           advisorId: 200 + i,

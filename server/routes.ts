@@ -23,6 +23,10 @@ import {
 } from "@shared/websocket-types";
 import { WebSocketManager } from "./websocket-manager";
 import { SignalingService } from "./signaling-service";
+import { MessageService } from "./message-service";
+import { SessionAPI } from "./session-api";
+import { SessionManager } from "./session-manager";
+import { BillingService } from "./billing-service";
 import { startAdvisorMatchingFlow, getNextMatchingQuestion, generateAdvisorRecommendations } from "./openai";
 import Stripe from "stripe";
 
@@ -34,6 +38,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
   const wsManager = new WebSocketManager();
   const signalingService = new SignalingService(wsManager);
+  const messageService = new MessageService(storage);
+  const sessionManager = new SessionManager(wsManager, storage as any);
+  const billingService = new BillingService(storage);
+  const sessionAPI = new SessionAPI(sessionManager, billingService);
   
   // Register profile and admin routes if available
   try {
@@ -386,6 +394,314 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       res.json(fallbackResponse);
+    }
+  });
+
+  // Message API endpoints
+  app.post("/api/messages", async (req: Request, res: Response) => {
+    try {
+      const { senderId, receiverId, content } = req.body;
+      
+      if (!senderId || !receiverId || !content) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const message = await messageService.createMessage({
+        senderId,
+        receiverId,
+        content
+      });
+
+      res.status(201).json(message);
+    } catch (error) {
+      console.error("Error creating message:", error);
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to create message" });
+    }
+  });
+
+  app.get("/api/messages/:userId1/:userId2", async (req: Request, res: Response) => {
+    try {
+      const userId1 = parseInt(req.params.userId1);
+      const userId2 = parseInt(req.params.userId2);
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const sortOrder = (req.query.sortOrder as 'asc' | 'desc') || 'desc';
+
+      const messages = await messageService.getConversationHistory(userId1, userId2, {
+        page,
+        limit,
+        sortOrder
+      });
+
+      res.json(messages);
+    } catch (error) {
+      console.error("Error getting conversation history:", error);
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to get conversation history" });
+    }
+  });
+
+  app.get("/api/messages/search", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.query.userId as string);
+      const query = req.query.query as string;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = parseInt(req.query.offset as string) || 0;
+      
+      let startDate: Date | undefined;
+      let endDate: Date | undefined;
+      
+      if (req.query.startDate) {
+        startDate = new Date(req.query.startDate as string);
+      }
+      if (req.query.endDate) {
+        endDate = new Date(req.query.endDate as string);
+      }
+
+      const searchResults = await messageService.searchMessages({
+        userId,
+        query,
+        startDate,
+        endDate,
+        limit,
+        offset
+      });
+
+      res.json(searchResults);
+    } catch (error) {
+      console.error("Error searching messages:", error);
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to search messages" });
+    }
+  });
+
+  app.delete("/api/messages/:id", async (req: Request, res: Response) => {
+    try {
+      const messageId = parseInt(req.params.id);
+      const userId = parseInt(req.body.userId);
+
+      if (!userId) {
+        return res.status(400).json({ error: "User ID required" });
+      }
+
+      const success = await messageService.deleteMessage(messageId, userId);
+      
+      if (success) {
+        res.json({ success: true, message: "Message deleted successfully" });
+      } else {
+        res.status(404).json({ error: "Message not found or unauthorized" });
+      }
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to delete message" });
+    }
+  });
+
+  app.put("/api/messages/:id/read", async (req: Request, res: Response) => {
+    try {
+      const messageId = parseInt(req.params.id);
+      const userId = parseInt(req.body.userId);
+
+      if (!userId) {
+        return res.status(400).json({ error: "User ID required" });
+      }
+
+      const success = await messageService.markAsRead(messageId, userId);
+      
+      if (success) {
+        res.json({ success: true, message: "Message marked as read" });
+      } else {
+        res.status(404).json({ error: "Message not found or unauthorized" });
+      }
+    } catch (error) {
+      console.error("Error marking message as read:", error);
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to mark message as read" });
+    }
+  });
+
+  app.get("/api/users/:userId/messages/unread-count", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      const count = await messageService.getUnreadMessageCount(userId);
+      
+      res.json({ unreadCount: count });
+    } catch (error) {
+      console.error("Error getting unread message count:", error);
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to get unread message count" });
+    }
+  });
+
+  app.post("/api/messages/mark-multiple-read", async (req: Request, res: Response) => {
+    try {
+      const { messageIds, userId } = req.body;
+
+      if (!Array.isArray(messageIds) || !userId) {
+        return res.status(400).json({ error: "Invalid request data" });
+      }
+
+      const success = await messageService.markMultipleAsRead(messageIds, userId);
+      
+      res.json({ success, message: success ? "Messages marked as read" : "Some messages failed to update" });
+    } catch (error) {
+      console.error("Error marking multiple messages as read:", error);
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to mark messages as read" });
+    }
+  });
+
+  app.get("/api/users/:userId/message-stats", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      const stats = await messageService.getMessageStats(userId);
+      
+      res.json(stats);
+    } catch (error) {
+      console.error("Error getting message stats:", error);
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to get message stats" });
+    }
+  });
+
+  // Session API endpoints
+  app.post("/api/sessions/start", async (req: Request, res: Response) => {
+    try {
+      const { userId, advisorId, sessionType, scheduledTime, ratePerMinute } = req.body;
+      
+      if (!userId || !advisorId || !sessionType) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const startRequest = {
+        userId: parseInt(userId),
+        advisorId: parseInt(advisorId),
+        sessionType,
+        scheduledTime: scheduledTime ? new Date(scheduledTime) : undefined,
+        ratePerMinute: ratePerMinute || 0
+      };
+
+      const result = await sessionAPI.startSession(startRequest);
+      
+      if (result.success) {
+        res.status(201).json(result);
+      } else {
+        res.status(400).json({ error: result.error });
+      }
+    } catch (error) {
+      console.error("Error starting session:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.get("/api/sessions/:id/status", async (req: Request, res: Response) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+      
+      const status = await sessionAPI.getSessionStatus(sessionId);
+      
+      res.json(status);
+    } catch (error) {
+      console.error("Error getting session status:", error);
+      
+      if (error instanceof Error && error.message === 'Session not found') {
+        res.status(404).json({ error: "Session not found" });
+      } else {
+        res.status(500).json({ error: "Failed to get session status" });
+      }
+    }
+  });
+
+  app.post("/api/sessions/:id/join", async (req: Request, res: Response) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+      const { userId } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ error: "User ID required" });
+      }
+
+      const result = await sessionAPI.joinSession(sessionId, parseInt(userId));
+      
+      if (result.success) {
+        res.status(200).json(result);
+      } else {
+        res.status(400).json({ error: result.error });
+      }
+    } catch (error) {
+      console.error("Error joining session:", error);
+      res.status(500).json({ error: "Failed to join session" });
+    }
+  });
+
+  app.post("/api/sessions/:id/leave", async (req: Request, res: Response) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+      const { userId } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ error: "User ID required" });
+      }
+
+      await sessionAPI.leaveSession(sessionId, parseInt(userId));
+      
+      res.status(200).json({ success: true, message: "Left session successfully" });
+    } catch (error) {
+      console.error("Error leaving session:", error);
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to leave session" });
+    }
+  });
+
+  app.post("/api/sessions/:id/end", async (req: Request, res: Response) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+      const { endedBy, reason, notes } = req.body;
+      
+      if (!endedBy || !reason) {
+        return res.status(400).json({ error: "endedBy and reason are required" });
+      }
+
+      const endData = {
+        endedBy: parseInt(endedBy),
+        reason,
+        notes
+      };
+
+      const result = await sessionAPI.endSession(sessionId, endData);
+      
+      if (result.success) {
+        res.status(200).json(result);
+      } else {
+        res.status(400).json({ error: result.error });
+      }
+    } catch (error) {
+      console.error("Error ending session:", error);
+      res.status(500).json({ error: "Failed to end session" });
+    }
+  });
+
+  app.put("/api/sessions/:id/notes", async (req: Request, res: Response) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+      const { notes, userId } = req.body;
+      
+      if (!notes || !userId) {
+        return res.status(400).json({ error: "Notes and userId are required" });
+      }
+
+      await sessionAPI.updateSessionNotes(sessionId, notes, parseInt(userId));
+      
+      res.status(200).json({ success: true, message: "Notes updated successfully" });
+    } catch (error) {
+      console.error("Error updating session notes:", error);
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Unauthorized')) {
+          res.status(403).json({ error: error.message });
+        } else if (error.message.includes('Cannot update notes')) {
+          res.status(400).json({ error: error.message });
+        } else {
+          res.status(500).json({ error: "Failed to update notes" });
+        }
+      } else {
+        res.status(500).json({ error: "Failed to update notes" });
+      }
     }
   });
 
